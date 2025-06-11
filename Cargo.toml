@@ -1,0 +1,15 @@
+[package]
+name = "hbackup"
+version = "0.1.0"
+edition = "2024"
+authors = ["asthetik"]
+repository = "https://github.com/asthetik/hbackup"
+description = "hbackup is sample, high-performance, cross-platform CLI backup tool."
+license = "MIT OR Apache-2.0"
+keywords = ["hbackup", "backup", "cli"]
+
+[dependencies]
+clap = { version = "4.5.40", features = ["derive"] }
+shellexpand = "3.1.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
