@@ -99,6 +99,28 @@ impl Task {
         serde_json::to_writer_pretty(writer, tasks)?;
         Ok(())
     }
+
+    /// Deletes a task by its ID.
+    pub fn delete_by_id(id: u32) -> Result<(), Box<dyn Error>> {
+        let mut tasks = Task::get_all()?;
+        if let Some(pos) = tasks.iter().position(|task| task.id == id) {
+            tasks.remove(pos);
+            Task::write(&tasks)?;
+        } else {
+            return Err("Task not found".into());
+        }
+        Ok(())
+    }
+
+    /// Deletes all tasks from the task file.
+    pub fn delete_all() -> Result<(), Box<dyn Error>> {
+        let path = default_file();
+        if fs::metadata(&path).is_ok() {
+            let tasks = vec![];
+            Task::write(&tasks)?;
+        }
+        Ok(())
+    }
 }
 
 fn default_file() -> PathBuf {

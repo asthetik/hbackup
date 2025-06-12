@@ -11,6 +11,7 @@ pub struct Cli {
     pub commands: Option<Commands>,
 }
 
+/// hbackup commands
 #[derive(Subcommand, Debug)]
 pub enum Commands {
     /// create a backup task
@@ -18,6 +19,7 @@ pub enum Commands {
         /// source file
         #[arg(short, long)]
         source: String,
+        /// target file or directory
         #[arg(short, long)]
         target: String,
         /// task id
@@ -28,6 +30,15 @@ pub enum Commands {
     Run,
     /// list all tasks
     List,
+    /// delete tasks
+    Delete {
+        /// delete task by id
+        #[arg(short, long, required = false, conflicts_with = "all")]
+        id: Option<u32>,
+        /// delete all tasks
+        #[arg(long, required = false, conflicts_with = "id")]
+        all: bool,
+    },
 }
 
 pub fn create(source: String, target: String, id: Option<u32>) -> Result<(), Box<dyn Error>> {
@@ -61,7 +72,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
 
         match fs::copy(&task.source, &target_file) {
             Ok(_) => println!(
-                "backup task id: {} from {} to {}",
+                "Task id: {} from {} to {} backed up successfully.",
                 task.id,
                 task.source.display(),
                 target_file.display()
@@ -81,5 +92,18 @@ pub fn run() -> Result<(), Box<dyn Error>> {
 pub fn list() -> Result<(), Box<dyn Error>> {
     let tasks = Task::get_all()?;
     println!("{tasks:#?}");
+    Ok(())
+}
+
+pub fn delete(id: Option<u32>, all: bool) -> Result<(), Box<dyn Error>> {
+    if all {
+        Task::delete_all()?;
+        println!("All tasks deleted successfully.");
+    } else if let Some(id) = id {
+        Task::delete_by_id(id)?;
+        println!("Task with id {id} deleted successfully.");
+    } else {
+        return Err("Either --all or --id must be specified.".into());
+    }
     Ok(())
 }
