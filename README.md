@@ -21,25 +21,25 @@ cargo install hbackup --version 0.1.0-beta.1
 ### 2. Create a backup task
 
 ```sh
-hbackup create --source ~/myfile.txt --target ~/backup/
+bk create --source ~/myfile.txt --target ~/backup/
 ```
 
 Or specify a task id:
 
 ```sh
-hbackup create --source ~/myfile.txt --target ~/backup/ --id 1
+bk create --source ~/myfile.txt --target ~/backup/ --id 1
 ```
 
 ### 3. Run all backup tasks
 
 ```sh
-hbackup run
+bk run
 ```
 
 ### 4. List all tasks
 
 ```sh
-hbackup list
+bk list
 ```
 
 ### 5. Delete a task
@@ -47,13 +47,13 @@ hbackup list
 Delete by id:
 
 ```sh
-hbackup delete --id 1
+bk delete --id 1
 ```
 
 Delete all tasks:
 
 ```sh
-hbackup delete --all
+bk delete --all
 ```
 
 ## Configuration File Location

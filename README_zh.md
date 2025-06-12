@@ -21,25 +21,25 @@ cargo install hbackup --version 0.1.0-beta.1
 ### 2. 创建备份任务
 
 ```sh
-hbackup create --source ~/myfile.txt --target ~/backup/
+bk create --source ~/myfile.txt --target ~/backup/
 ```
 
 或指定任务ID：
 
 ```sh
-hbackup create --source ~/myfile.txt --target ~/backup/ --id 1
+bk create --source ~/myfile.txt --target ~/backup/ --id 1
 ```
 
 ### 3. 执行所有备份任务
 
 ```sh
-hbackup run
+bk run
 ```
 
 ### 4. 查看所有任务
 
 ```sh
-hbackup list
+bk list
 ```
 
 ### 5. 删除任务
@@ -47,13 +47,13 @@ hbackup list
 按ID删除：
 
 ```sh
-hbackup delete --id 1
+bk delete --id 1
 ```
 
 删除全部任务：
 
 ```sh
-hbackup delete --all
+bk delete --all
 ```
 
 ## 配置文件位置
