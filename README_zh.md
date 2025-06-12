@@ -64,8 +64,8 @@ bk config
 
 ## 配置文件位置
 
-- macOS/Linux: `~/.config/hbackup/tasks.json`
-- Windows: `C:\Users\<User>\AppData\Roaming\hbackup\tasks.json`
+- macOS/Linux: `~/.config/hbackup/hbackup.json`
+- Windows: `C:\Users\<User>\AppData\Roaming\hbackup\hbackup.json`
 
 ## 许可证
 

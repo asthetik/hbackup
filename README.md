@@ -65,8 +65,8 @@ bk config
 
 ## Configuration File Location
 
-- macOS/Linux: `~/.config/hbackup/tasks.json`
-- Windows: `C:\Users\<User>\AppData\Roaming\hbackup\tasks.json`
+- macOS/Linux: `~/.config/hbackup/hbackup.json`
+- Windows: `C:\Users\<User>\AppData\Roaming\hbackup\hbackup.json`
 
 ## License
 
