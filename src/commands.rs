@@ -2,10 +2,10 @@ use std::{error::Error, fs};
 
 use clap::{Parser, Subcommand};
 
-use crate::{
-    path,
-    task::{self, Task},
-};
+use crate::application::Application;
+use crate::{application, path};
+
+type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -25,9 +25,6 @@ pub enum Commands {
         /// target file or directory
         #[arg(short, long)]
         target: String,
-        /// task id
-        #[arg(short, long)]
-        id: Option<u32>,
     },
     /// run all backup task
     Run,
@@ -46,46 +43,51 @@ pub enum Commands {
     Config,
 }
 
-pub fn create(source: String, target: String, id: Option<u32>) -> Result<(), Box<dyn Error>> {
+pub fn create(source: String, target: String) -> Result<()> {
     let source = path::expand_path(&source);
     let target = path::expand_path(&target);
     path::check_path(&source)?;
-    let task = Task::new(id, source, target);
-    task.save()?;
+
+    let mut app = Application::load_config();
+    app.add_job(source, target)?;
+    app.write()?;
+
     Ok(())
 }
 
-pub fn run() -> Result<(), Box<dyn Error>> {
-    let tasks = Task::get_all()?;
-    if tasks.is_empty() {
+pub fn run() -> Result<()> {
+    let jobs = Application::get_jobs();
+    if jobs.is_empty() {
         println!("No tasks are backed up!");
         return Ok(());
     }
-    for task in tasks {
-        let target_file = if task.target.exists() && task.target.is_dir() {
-            let file_name = task.source.file_name().ok_or("invalid source file name")?;
-            let mut target = task.target.clone();
+    for job in jobs {
+        let target_file = if (job.target.exists() && job.target.is_dir())
+            || (!job.target.exists() && job.target.extension().is_none())
+        {
+            let file_name = job.source.file_name().ok_or("invalid file name")?;
+            let mut target = job.target.clone();
             target.push(file_name);
             target
         } else {
-            task.target.clone()
+            job.target.clone()
         };
 
         if let Some(parent) = target_file.parent() {
             fs::create_dir_all(parent)?;
         }
 
-        match fs::copy(&task.source, &target_file) {
+        match fs::copy(&job.source, &target_file) {
             Ok(_) => println!(
                 "Task id: {} from {} to {} backed up successfully.",
-                task.id,
-                task.source.display(),
+                job.id,
+                job.source.display(),
                 target_file.display()
             ),
             Err(e) => eprintln!(
                 "Failed to backup task id: {} from {} to {}: {}",
-                task.id,
-                task.source.display(),
+                job.id,
+                job.source.display(),
                 target_file.display(),
                 e
             ),
@@ -94,19 +96,26 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn list() -> Result<(), Box<dyn Error>> {
-    let tasks = Task::get_all()?;
-    println!("{tasks:#?}");
-    Ok(())
+pub fn list() {
+    let jobs = Application::get_jobs();
+    println!("{jobs:#?}");
 }
 
-pub fn delete(id: Option<u32>, all: bool) -> Result<(), Box<dyn Error>> {
+pub fn delete(id: Option<u32>, all: bool) -> Result<()> {
     if all {
-        Task::delete_all()?;
-        println!("All tasks deleted successfully.");
+        let mut app = Application::load_config();
+        app.reset_jobs();
+        app.write()?;
+        println!("All jobs deleted successfully.");
     } else if let Some(id) = id {
-        Task::delete_by_id(id)?;
-        println!("Task with id {id} deleted successfully.");
+        let mut app = Application::load_config();
+        match app.remove_job(id) {
+            Some(_) => {
+                app.write()?;
+                println!("Job with id {id} deleted successfully.");
+            }
+            None => println!("Job deletion failed. Job with id {id} cannot be found."),
+        }
     } else {
         return Err("Either --all or --id must be specified.".into());
     }
@@ -114,5 +123,5 @@ pub fn delete(id: Option<u32>, all: bool) -> Result<(), Box<dyn Error>> {
 }
 
 pub fn config() {
-    println!("config file: {}", task::config_file().display());
+    println!("config file: {}", application::config_file().display());
 }

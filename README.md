@@ -24,12 +24,6 @@ cargo install hbackup --version 0.1.0-beta.3
 bk create --source ~/myfile.txt --target ~/backup/
 ```
 
-Or specify a task id:
-
-```sh
-bk create --source ~/myfile.txt --target ~/backup/ --id 1
-```
-
 ### 3. Run all backup tasks
 
 ```sh

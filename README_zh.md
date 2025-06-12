@@ -24,12 +24,6 @@ cargo install hbackup --version 0.1.0-beta.3
 bk create --source ~/myfile.txt --target ~/backup/
 ```
 
-或指定任务ID：
-
-```sh
-bk create --source ~/myfile.txt --target ~/backup/ --id 1
-```
-
 ### 3. 执行所有备份任务
 
 ```sh
