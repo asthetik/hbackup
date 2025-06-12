@@ -10,14 +10,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         .expect("No command provided. Use --help for more information.");
 
     match commands {
-        Commands::Create { source, target, id } => {
-            commands::create(source, target, id)?;
+        Commands::Create { source, target } => {
+            commands::create(source, target)?;
         }
         Commands::Run => {
             commands::run()?;
         }
         Commands::List => {
-            commands::list()?;
+            commands::list();
         }
         Commands::Delete { id, all } => {
             commands::delete(id, all)?;

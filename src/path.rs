@@ -13,7 +13,3 @@ pub fn expand_path(path: &str) -> PathBuf {
     let path = shellexpand::tilde(path).into_owned();
     PathBuf::from(path)
 }
-
-pub fn file_exists(path: &PathBuf) -> bool {
-    fs::metadata(path).map(|meta| meta.is_file()).is_ok()
-}

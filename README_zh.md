@@ -15,19 +15,13 @@ hbackup 是一个用 Rust 编写的高性能跨平台备份工具。它以快速
 ### 1. 安装
 
 ```sh
-cargo install hbackup --version 0.1.0-beta.3
+cargo install hbackup --version 0.1.0-beta.4
 ```
 
 ### 2. 创建备份任务
 
 ```sh
 bk create --source ~/myfile.txt --target ~/backup/
-```
-
-或指定任务ID：
-
-```sh
-bk create --source ~/myfile.txt --target ~/backup/ --id 1
 ```
 
 ### 3. 执行所有备份任务
@@ -64,8 +58,8 @@ bk config
 
 ## 配置文件位置
 
-- macOS/Linux: `~/.config/hbackup/tasks.json`
-- Windows: `C:\Users\<User>\AppData\Roaming\hbackup\tasks.json`
+- macOS/Linux: `~/.config/hbackup/hbackup.json`
+- Windows: `C:\Users\<User>\AppData\Roaming\hbackup\hbackup.json`
 
 ## 许可证
 
