@@ -30,7 +30,7 @@ pub enum Commands {
     Run,
     /// list all tasks
     List,
-    ///
+    /// delete tasks
     Delete {
         /// delete task by id
         #[arg(short, long, required = false, conflicts_with = "all")]
