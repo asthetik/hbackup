@@ -56,6 +56,13 @@ Delete all tasks:
 bk delete --all
 ```
 
+### 6. Display configuration file path
+
+```shell
+bk config
+```
+
+
 ## Configuration File Location
 
 - macOS/Linux: `~/.config/hbackup/tasks.json`
