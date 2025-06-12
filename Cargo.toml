@@ -1,6 +1,6 @@
 [package]
 name = "hbackup"
-version = "0.1.0-beta.2"
+version = "0.1.0-beta.3"
 edition = "2024"
 authors = ["asthetik"]
 repository = "https://github.com/asthetik/hbackup"
@@ -8,12 +8,18 @@ description = "hbackup is a sample, high-performance, cross-platform backup tool
 license = "MIT OR Apache-2.0"
 keywords = ["hbackup", "bk", "backup", "cli"]
 categories = ["command-line-utilities"]
+exclude = [
+    "README_zh.md",
+    ".github/*"
+]
 
 [dependencies]
 clap = { version = "4.5.40", features = ["derive"] }
 shellexpand = "3.1.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+anyhow = "1.0.98"
+dirs = "6.0.0"
 
 [[bin]]
 name = "bk"
