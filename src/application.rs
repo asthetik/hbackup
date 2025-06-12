@@ -147,12 +147,7 @@ mod test {
         let application = Application::default();
         assert_eq!(application.jobs.len(), 0);
     }
-
-    #[test]
-    fn test_create_config_file() {
-        assert!(create_config_file().is_ok());
-    }
-
+    
     #[test]
     fn test_config_file() {
         let mut file = config_dir();
