@@ -36,12 +36,18 @@ impl Task {
             }
         } else {
             let tasks = Task::get_all().unwrap();
+            if tasks.is_empty() {
+                return Task {
+                    id: 0,
+                    source,
+                    target,
+                };
+            }
+            
             let task_ids: HashSet<u32> = tasks.iter().map(|t| t.id).collect();
-
             let min_unused_id = (0..u32::MAX)
                 .find(|id| !task_ids.contains(id))
                 .expect("No available id found");
-
             Task {
                 id: min_unused_id,
                 source,
@@ -52,7 +58,7 @@ impl Task {
 
     pub fn save(&self) -> Result<(), Box<dyn Error>> {
         let config_file = config_file();
-        if fs::metadata(&config_file).is_err() {
+        if !path::file_exists(&config_file) {
             self.write_task()?;
         } else {
             let mut tasks = Task::get_all()?;
@@ -153,14 +159,7 @@ mod tests {
 
     #[test]
     fn test_config_file() {
-        let mut file = if cfg!(target_os = "macos") {
-            let home = env::var("HOME").unwrap();
-            let mut home_dir = PathBuf::from(home);
-            home_dir.push(".config");
-            home_dir
-        } else {
-            dirs::config_dir().unwrap()
-        };
+        let mut file = tests::config_dir();
         const PKG_NAME: &str = env!("CARGO_PKG_NAME");
         const FILE_NAME: &str = concat!(env!("CARGO_PKG_NAME"), ".json");
         file.push(PKG_NAME);
@@ -171,18 +170,20 @@ mod tests {
 
     #[test]
     fn test_config_path() {
-        let mut config_dir = if cfg!(target_os = "macos") {
+        let mut config_dir = tests::config_dir();
+        const PKG_NAME: &str = env!("CARGO_PKG_NAME");
+        config_dir.push(PKG_NAME);
+        assert_eq!(config_path(), config_dir);
+    }
+    
+    fn config_dir() -> PathBuf {
+        if cfg!(target_os = "macos") {
             let home = env::var("HOME").unwrap();
             let mut home_dir = PathBuf::from(home);
             home_dir.push(".config");
             home_dir
         } else {
             dirs::config_dir().unwrap()
-        };
-        const PKG_NAME: &str = env!("CARGO_PKG_NAME");
-        config_dir.push(PKG_NAME);
-        let path = config_path();
-        println!("default path: {}", path.display());
-        assert_eq!(config_dir, config_dir);
+        }
     }
 }
