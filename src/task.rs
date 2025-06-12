@@ -1,5 +1,6 @@
 use std::{
     collections::HashSet,
+    env,
     error::Error,
     fs::{self},
     io,
@@ -26,8 +27,8 @@ impl Task {
     }
 
     pub fn new_id(source: PathBuf, target: PathBuf) -> Self {
-        let default_file = default_file();
-        if path::check_path(&default_file).is_err() {
+        let config_file = config_file();
+        if path::check_path(&config_file).is_err() {
             Task {
                 id: 0,
                 source,
@@ -50,8 +51,8 @@ impl Task {
     }
 
     pub fn save(&self) -> Result<(), Box<dyn Error>> {
-        let default_file = default_file();
-        if fs::metadata(&default_file).is_err() {
+        let config_file = config_file();
+        if fs::metadata(&config_file).is_err() {
             self.write_task()?;
         } else {
             let mut tasks = Task::get_all()?;
@@ -66,7 +67,10 @@ impl Task {
     }
 
     pub fn get_all() -> Result<Vec<Task>, Box<dyn Error>> {
-        let path = default_file();
+        let path = config_file();
+        if !path::file_exists(&path) {
+            return Ok(vec![]);
+        }
         let file = fs::File::open(path)?;
         let reader = io::BufReader::new(file);
         let tasks: Vec<Task> = serde_json::from_reader(reader)?;
@@ -80,11 +84,11 @@ impl Task {
     }
 
     fn write_task(&self) -> Result<(), Box<dyn Error>> {
-        let path = default_path();
+        let path = config_path();
         if fs::metadata(&path).is_err() {
             fs::create_dir_all(&path)?;
         }
-        let file = default_file();
+        let file = config_file();
         let file = fs::File::create(&file)?;
         let writer = io::BufWriter::new(file);
         let tasks = vec![self];
@@ -93,7 +97,7 @@ impl Task {
     }
 
     fn write(tasks: &[Task]) -> Result<(), Box<dyn Error>> {
-        let path = default_file();
+        let path = config_file();
         let file = fs::File::create(path)?;
         let writer = io::BufWriter::new(file);
         serde_json::to_writer_pretty(writer, tasks)?;
@@ -114,7 +118,7 @@ impl Task {
 
     /// Deletes all tasks from the task file.
     pub fn delete_all() -> Result<(), Box<dyn Error>> {
-        let path = default_file();
+        let path = config_file();
         if fs::metadata(&path).is_ok() {
             let tasks = vec![];
             Task::write(&tasks)?;
@@ -123,12 +127,62 @@ impl Task {
     }
 }
 
-fn default_file() -> PathBuf {
-    let mut path = default_path();
-    path.push("tasks.json");
+pub fn config_file() -> PathBuf {
+    let mut path = config_path();
+    const FILE_NAME: &str = concat!(env!("CARGO_PKG_NAME"), ".json");
+    path.push(FILE_NAME);
     path
 }
 
-fn default_path() -> PathBuf {
-    path::expand_path("~/.config/hbackup")
+fn config_path() -> PathBuf {
+    let mut config_dir = if cfg!(target_os = "macos") {
+        let mut home_dir = dirs::home_dir().unwrap();
+        home_dir.push(".config");
+        home_dir
+    } else {
+        dirs::config_dir().unwrap()
+    };
+    const PKG_NAME: &str = env!("CARGO_PKG_NAME");
+    config_dir.push(PKG_NAME);
+    config_dir
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_config_file() {
+        let mut file = if cfg!(target_os = "macos") {
+            let home = env::var("HOME").unwrap();
+            let mut home_dir = PathBuf::from(home);
+            home_dir.push(".config");
+            home_dir
+        } else {
+            dirs::config_dir().unwrap()
+        };
+        const PKG_NAME: &str = env!("CARGO_PKG_NAME");
+        const FILE_NAME: &str = concat!(env!("CARGO_PKG_NAME"), ".json");
+        file.push(PKG_NAME);
+        file.push(FILE_NAME);
+
+        assert_eq!(config_file(), file);
+    }
+
+    #[test]
+    fn test_config_path() {
+        let mut config_dir = if cfg!(target_os = "macos") {
+            let home = env::var("HOME").unwrap();
+            let mut home_dir = PathBuf::from(home);
+            home_dir.push(".config");
+            home_dir
+        } else {
+            dirs::config_dir().unwrap()
+        };
+        const PKG_NAME: &str = env!("CARGO_PKG_NAME");
+        config_dir.push(PKG_NAME);
+        let path = config_path();
+        println!("default path: {}", path.display());
+        assert_eq!(config_dir, config_dir);
+    }
 }

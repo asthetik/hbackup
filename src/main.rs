@@ -22,6 +22,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         Commands::Delete { id, all } => {
             commands::delete(id, all)?;
         }
+        Commands::Config => {
+            commands::config();
+        }
     }
     Ok(())
 }

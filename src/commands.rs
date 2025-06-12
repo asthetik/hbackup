@@ -2,7 +2,10 @@ use std::{error::Error, fs};
 
 use clap::{Parser, Subcommand};
 
-use crate::{path, task::Task};
+use crate::{
+    path,
+    task::{self, Task},
+};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -39,6 +42,8 @@ pub enum Commands {
         #[arg(long, required = false, conflicts_with = "id")]
         all: bool,
     },
+    /// Display the configuration file path
+    Config,
 }
 
 pub fn create(source: String, target: String, id: Option<u32>) -> Result<(), Box<dyn Error>> {
@@ -106,4 +111,8 @@ pub fn delete(id: Option<u32>, all: bool) -> Result<(), Box<dyn Error>> {
         return Err("Either --all or --id must be specified.".into());
     }
     Ok(())
+}
+
+pub fn config() {
+    println!("config file: {}", task::config_file().display());
 }
