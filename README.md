@@ -1,6 +1,6 @@
 # hbackup
 
-hbackup is a high-performance, cross-platform CLI backup tool written in Rust.
+hbackup is a sample, high-performance, cross-platform backup tool written in Rust. It is designed to be fast, efficient, and easy to use, with a focus on performance and reliability.
 
 ## Features
 
