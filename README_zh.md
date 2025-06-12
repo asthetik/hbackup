@@ -56,6 +56,12 @@ bk delete --id 1
 bk delete --all
 ```
 
+### 6. 显示配置文件路径
+
+```shell
+bk config
+```
+
 ## 配置文件位置
 
 - macOS/Linux: `~/.config/hbackup/tasks.json`
