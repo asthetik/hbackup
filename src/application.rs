@@ -108,6 +108,11 @@ fn config_file_exists() -> bool {
 /// Create a default configuration file and initialize configuration parameters
 fn create_config_file() -> Result<File> {
     let file_path = config_file();
+    if !file_path.exists() {
+        // The default configuration file path must exist in the parent folder
+        let parent = file_path.parent().unwrap();
+        fs::create_dir_all(parent)?;
+    }
     // Reset configuration file even if it exists
     let file = fs::OpenOptions::new()
         .write(true)
