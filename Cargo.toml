@@ -9,7 +9,6 @@ license = "MIT OR Apache-2.0"
 keywords = ["hbackup", "bk", "backup", "cli"]
 categories = ["command-line-utilities"]
 exclude = [
-    "README_zh.md",
     ".github/*"
 ]
 
