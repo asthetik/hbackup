@@ -23,10 +23,4 @@ dirs = "6.0.0"
 
 [[bin]]
 name = "bk"
-path = "src/main.rs"
-
-[profile.dev]
-opt-level = 1
-
-[profile.release]
-opt-level = 3
+path = "src/bin/main.rs"
