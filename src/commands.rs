@@ -2,7 +2,7 @@ use std::{error::Error, fs};
 
 use clap::{Parser, Subcommand};
 
-use crate::application::Application;
+use crate::application::{Application, JobList};
 use crate::{application, path};
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
@@ -49,7 +49,7 @@ pub fn create(source: String, target: String) -> Result<()> {
     path::check_path(&source)?;
 
     let mut app = Application::load_config();
-    app.add_job(source, target)?;
+    app.add_job(source, target);
     app.write()?;
 
     Ok(())
@@ -98,7 +98,7 @@ pub fn run() -> Result<()> {
 
 pub fn list() {
     let jobs = Application::get_jobs();
-    println!("{jobs:#?}");
+    println!("{}", JobList(jobs));
 }
 
 pub fn delete(id: Option<u32>, all: bool) -> Result<()> {
