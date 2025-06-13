@@ -1,6 +1,6 @@
 [package]
 name = "hbackup"
-version = "0.1.0-beta.5"
+version = "0.1.0-beta.6"
 edition = "2024"
 authors = ["asthetik"]
 repository = "https://github.com/asthetik/hbackup"
@@ -23,10 +23,4 @@ dirs = "6.0.0"
 
 [[bin]]
 name = "bk"
-path = "src/main.rs"
-
-[profile.dev]
-opt-level = 1
-
-[profile.release]
-opt-level = 3
+path = "src/bin/main.rs"

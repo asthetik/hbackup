@@ -16,9 +16,9 @@ jobs:
       - name: Check version
         run: test "v$(toml get -r Cargo.toml package.version)" = "${{ github.ref_name }}"
       - name: Build
-        run: cargo build --release
+        run: cargo build
       - name: Run tests
-        run: cargo test --release
+        run: cargo test
       - name: Publish
         run: cargo publish
         env:            

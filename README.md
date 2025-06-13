@@ -15,7 +15,7 @@ hbackup is a sample, high-performance, cross-platform backup tool written in Rus
 ### 1. Install
 
 ```sh
-cargo install hbackup --version 0.1.0-beta.5
+cargo install hbackup --version 0.1.0-beta.6
 ```
 
 ### 2. Create a backup task
