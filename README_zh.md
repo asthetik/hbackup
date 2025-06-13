@@ -26,8 +26,21 @@ bk create --source ~/myfile.txt --target ~/backup/
 
 ### 3. 执行所有备份任务
 
+运行所有任务：
+
 ```sh
 bk run
+```
+运行指定ID的任务：
+
+```sh
+bk run --id 1
+```
+
+运行指定源和目标的任务：
+
+```sh
+bk run ~/myfile.txt ~/backup/
 ```
 
 ### 4. 查看所有任务
@@ -50,7 +63,13 @@ bk delete --id 1
 bk delete --all
 ```
 
-### 6. 显示配置文件路径
+### 6. 编辑任务
+
+```sh
+bk edit --id 1 --source ~/newfile.txt --target ~/newbackup/
+```
+
+### 7. 显示配置文件路径
 
 ```shell
 bk config

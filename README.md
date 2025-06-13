@@ -26,8 +26,22 @@ bk create --source ~/myfile.txt --target ~/backup/
 
 ### 3. Run all backup tasks
 
+run all tasks:
+
 ```sh
 bk run
+```
+
+run a specific task by ID:
+
+```sh
+bk run --id 1
+```
+
+run a specific task with source and target:
+
+```sh
+bk run ~/myfile.txt ~/backup/
 ```
 
 ### 4. List all tasks
@@ -50,12 +64,17 @@ Delete all tasks:
 bk delete --all
 ```
 
-### 6. Display configuration file path
+### 6. Edit a task
+
+```sh
+bk edit --id 1 --source ~/newfile.txt --target ~/newbackup/
+```
+
+### 7. Display configuration file path
 
 ```shell
 bk config
 ```
-
 
 ## Configuration File Location
 
