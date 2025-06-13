@@ -1,5 +1,10 @@
 # hbackup
 
+[![Crates.io](https://img.shields.io/crates/v/hbackup.svg)](https://crates.io/crates/hbackup)
+[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](https://opensource.org/licenses/MIT)
+
+[English](./README.md) | [简体中文](./README.zh-CN.md)
+
 hbackup is a sample, high-performance, cross-platform backup tool written in Rust. It is designed to be fast, efficient, and easy to use, with a focus on performance and reliability.
 
 ## Features
@@ -15,30 +20,30 @@ hbackup is a sample, high-performance, cross-platform backup tool written in Rus
 ### 1. Install
 
 ```sh
-cargo install hbackup --version 0.1.0-beta.7
+cargo install hbackup --version 0.1.0-beta.8
 ```
 
-### 2. Create a backup task
+### 2. Add a backup task
 
 ```sh
-bk create --source ~/myfile.txt --target ~/backup/
+bk add --source ~/myfile.txt --target ~/backup/
 ```
 
 ### 3. Run all backup tasks
 
-run all tasks:
+- run all tasks:
 
 ```sh
 bk run
 ```
 
-run a specific task by ID:
+- run a specific task by ID:
 
 ```sh
 bk run --id 1
 ```
 
-run a specific task with source and target:
+- run a specific task with source and target:
 
 ```sh
 bk run ~/myfile.txt ~/backup/

@@ -1,5 +1,10 @@
 # hbackup
 
+[![Crates.io](https://img.shields.io/crates/v/hbackup.svg)](https://crates.io/crates/hbackup)
+[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](https://opensource.org/licenses/MIT)
+
+[English](./README.md) | [简体中文](./README.zh-CN.md)
+
 hbackup 是一个用 Rust 编写的高性能跨平台备份工具。它以快速、高效、易用为设计理念，注重性能和可靠性。
 
 ## 功能特点
@@ -15,30 +20,30 @@ hbackup 是一个用 Rust 编写的高性能跨平台备份工具。它以快速
 ### 1. 安装
 
 ```sh
-cargo install hbackup --version 0.1.0-beta.7
+cargo install hbackup --version 0.1.0-beta.8
 ```
 
-### 2. 创建备份任务
+### 2. 添加一个备份任务
 
 ```sh
-bk create --source ~/myfile.txt --target ~/backup/
+bk add --source ~/myfile.txt --target ~/backup/
 ```
 
 ### 3. 执行所有备份任务
 
-运行所有任务：
+- 运行所有任务：
 
 ```sh
 bk run
 ```
 
-运行指定ID的任务：
+- 运行指定ID的任务：
 
 ```sh
 bk run --id 1
 ```
 
-运行指定源和目标的任务：
+- 运行指定源和目标的任务：
 
 ```sh
 bk run ~/myfile.txt ~/backup/
