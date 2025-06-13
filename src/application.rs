@@ -191,7 +191,7 @@ mod test {
             source: PathBuf::default(),
             target: PathBuf::default(),
         };
-        println!("{}", job);
+        println!("{job}");
         // dbg!(job);
     }
 }
