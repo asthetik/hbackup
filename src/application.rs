@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::error::Error;
-use std::fs::File;
 use std::path::PathBuf;
-use std::{fs, io};
+use std::{fmt, fs, io};
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
@@ -20,6 +19,35 @@ pub struct Job {
     pub target: PathBuf,
 }
 
+impl fmt::Display for Job {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\",\n}}",
+            self.id,
+            self.source.display(),
+            self.target.display()
+        )
+    }
+}
+
+/// A list of jobs
+/// This is used to display all jobs in a formatted way.
+pub struct JobList(pub Vec<Job>);
+
+impl fmt::Display for JobList {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[")?;
+        for (i, job) in self.0.iter().enumerate() {
+            write!(f, "{job}")?;
+            if i != self.0.len() - 1 {
+                writeln!(f, ",")?;
+            }
+        }
+        write!(f, "]")
+    }
+}
+
 impl Application {
     pub fn new() -> Self {
         Self { jobs: vec![] }
@@ -28,18 +56,14 @@ impl Application {
     /// load all configuration data
     pub fn load_config() -> Self {
         if config_file_exists() {
-            let file = read_config_file().expect("Failed to read config file");
-            let reader = io::BufReader::new(&file);
-            serde_json::from_reader(reader).expect("Failed to parse config file")
+            read_config_file().expect("Failed to read configuration file.")
         } else {
-            let app = Application::new();
-            write_config(&app).expect("Failed to write config file");
-            app
+            Application::new()
         }
     }
 
     /// add a job
-    pub fn add_job(&mut self, source: PathBuf, target: PathBuf) -> Result<()> {
+    pub fn add_job(&mut self, source: PathBuf, target: PathBuf) {
         if self.jobs.is_empty() {
             self.jobs.push(Job {
                 id: 0,
@@ -58,7 +82,6 @@ impl Application {
                 });
             self.jobs.push(Job { id, source, target });
         }
-        Ok(())
     }
 
     /// reset jobs
@@ -105,36 +128,27 @@ fn config_file_exists() -> bool {
     config_file().exists()
 }
 
-/// Create a default configuration file and initialize configuration parameters
-fn create_config_file() -> Result<File> {
+/// Write supported configuration data
+fn write_config(data: &Application) -> Result<()> {
     let file_path = config_file();
     if !file_path.exists() {
         // The default configuration file path must exist in the parent folder
         let parent = file_path.parent().unwrap();
         fs::create_dir_all(parent)?;
     }
-    // Reset configuration file even if it exists
-    let file = fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(file_path)?;
-    Ok(file)
-}
-
-/// Write supported configuration data
-fn write_config(data: &Application) -> Result<()> {
-    let file = create_config_file()?;
+    let file = fs::File::create(file_path)?;
     let writer = io::BufWriter::new(file);
     serde_json::to_writer_pretty(writer, data)?;
     Ok(())
 }
 
 /// read the default configuration file.
-fn read_config_file() -> Result<File> {
+fn read_config_file() -> Result<Application> {
     let file_path = config_file();
     let file = fs::File::open(&file_path)?;
-    Ok(file)
+    let reader = io::BufReader::new(&file);
+    let app: Application = serde_json::from_reader(reader)?;
+    Ok(app)
 }
 
 #[cfg(test)]
@@ -147,7 +161,7 @@ mod test {
         let application = Application::default();
         assert_eq!(application.jobs.len(), 0);
     }
-    
+
     #[test]
     fn test_config_file() {
         let mut file = config_dir();
@@ -168,5 +182,16 @@ mod test {
         } else {
             dirs::config_dir().unwrap()
         }
+    }
+
+    #[test]
+    fn test_display() {
+        let job = Job {
+            id: 0,
+            source: PathBuf::default(),
+            target: PathBuf::default(),
+        };
+        println!("{}", job);
+        // dbg!(job);
     }
 }
