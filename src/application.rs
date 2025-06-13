@@ -1,3 +1,4 @@
+//! Global configuration for this application.
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::error::Error;
@@ -6,16 +7,21 @@ use std::{fmt, fs, io};
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
-/// Global configuration for this application
+/// Global configuration for this application.
+/// Stores all backup jobs.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct Application {
     pub jobs: Vec<Job>,
 }
 
+/// Represents a single backup job with a unique id, source, and target path.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Job {
+    /// Unique job id.
     pub id: u32,
+    /// Source file path.
     pub source: PathBuf,
+    /// Target file or directory path.
     pub target: PathBuf,
 }
 
@@ -31,8 +37,7 @@ impl fmt::Display for Job {
     }
 }
 
-/// A list of jobs
-/// This is used to display all jobs in a formatted way.
+///  A wrapper for displaying a list of jobs in a formatted way.
 pub struct JobList(pub Vec<Job>);
 
 impl fmt::Display for JobList {
@@ -49,11 +54,12 @@ impl fmt::Display for JobList {
 }
 
 impl Application {
+    /// Creates a new, empty application configuration.
     pub fn new() -> Self {
         Self { jobs: vec![] }
     }
 
-    /// load all configuration data
+    /// Loads configuration from the config file, or returns a new config if not found.
     pub fn load_config() -> Self {
         if config_file_exists() {
             read_config_file().expect("Failed to read configuration file.")
@@ -62,7 +68,7 @@ impl Application {
         }
     }
 
-    /// add a job
+    /// Adds a new backup job with a unique id.
     pub fn add_job(&mut self, source: PathBuf, target: PathBuf) {
         if self.jobs.is_empty() {
             self.jobs.push(Job {
@@ -84,21 +90,23 @@ impl Application {
         }
     }
 
-    /// reset jobs
+    /// Removes all jobs from the configuration.
     pub fn reset_jobs(&mut self) {
         self.jobs = vec![];
     }
 
-    /// write configuration data
+    /// Writes the current configuration to the config file.
     pub fn write(&self) -> Result<()> {
         write_config(self)?;
         Ok(())
     }
 
+    /// Returns all jobs from the current configuration.
     pub fn get_jobs() -> Vec<Job> {
         Application::load_config().jobs
     }
 
+    /// Removes a job by id. Returns Some if removed, None if not found.
     pub fn remove_job(&mut self, id: u32) -> Option<()> {
         if let Some(index) = self.jobs.iter().position(|j| j.id == id) {
             self.jobs.remove(index);
@@ -109,6 +117,7 @@ impl Application {
     }
 }
 
+/// Returns the absolute path to the configuration file.
 pub fn config_file() -> PathBuf {
     let mut file = if cfg!(target_os = "macos") {
         let mut home_dir = dirs::home_dir().unwrap();
@@ -124,11 +133,12 @@ pub fn config_file() -> PathBuf {
     file
 }
 
+/// Checks if the configuration file exists.
 fn config_file_exists() -> bool {
     config_file().exists()
 }
 
-/// Write supported configuration data
+/// Writes the application configuration to the config file.
 fn write_config(data: &Application) -> Result<()> {
     let file_path = config_file();
     if !file_path.exists() {

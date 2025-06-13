@@ -1,3 +1,4 @@
+//! Command-line interface definition for hbackup.
 use std::{error::Error, fs};
 
 use clap::{Parser, Subcommand};
@@ -7,68 +8,72 @@ use crate::{application, path};
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
+/// Command-line interface definition for hbackup.
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 pub struct Cli {
+    /// Subcommand to execute.
     #[command(subcommand)]
     pub commands: Option<Commands>,
 }
 
-/// hbackup commands
+/// Supported hbackup commands.
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// add a backup job
+    /// Add a new backup job to the configuration.
     Add {
-        /// source file
+        /// Source file path.
         #[arg(short, long)]
         source: String,
-        /// target file or directory
+        /// Target file or directory path.
         #[arg(short, long)]
         target: String,
     },
     /// Run backup jobs.
     ///
-    /// Usage:
+    /// Usage examples:
     ///   bk run                # Run all jobs
-    ///   bk run --id <id>      # Run a specific job by id
-    ///   bk run <source> <target>  # Run a one-time backup with given source and target
+    ///   bk run --id `<id>`      # Run a specific job by id
+    ///   bk run `<source>` `<target>`  # Run a one-time backup with given source and target
     Run {
-        /// source file (positional, optional)
+        /// Source file (positional, optional). Must be used with target.
         #[arg(required = false, requires = "target")]
         source: Option<String>,
-        /// target file (positional, optional)
+        /// Target file or directory (positional, optional). Must be used with source.
         #[arg(required = false, requires = "source")]
         target: Option<String>,
+        /// Run a specific job by id. Cannot be used with source/target.
         #[arg(long, required = false, conflicts_with_all = ["source", "target"])]
         id: Option<u32>,
     },
-    /// list all jobs
+    /// List all backup jobs.
     List,
-    /// delete jobs
+    /// Delete backup jobs by id or delete all jobs.
     Delete {
-        /// delete job by id
+        /// Delete job by id. Cannot be used with --all.
         #[arg(long, required = false, conflicts_with = "all")]
         id: Option<u32>,
-        /// delete all jobs
+        /// Delete all jobs. Cannot be used with --id.
         #[arg(long, required = false, conflicts_with = "id")]
         all: bool,
     },
-    /// edit a job
+    /// Edit a backup job by id. At least one of source/target must be provided.
     Edit {
-        /// edit job by id
+        /// Edit job by id.
         #[arg(long)]
         id: u32,
-        /// source file (optional, at least one of source/target required)
+        /// New source file or directory path (optional, at least one of source/target required)
         #[arg(short, long, required = false, required_unless_present = "target")]
         source: Option<String>,
-        /// target file (optional, at least one of source/target required)
+        /// New target file or directory path (optional, at least one of source/target required)
         #[arg(short, long, required = false, required_unless_present = "source")]
         target: Option<String>,
     },
-    /// Display the configuration file path
+    /// Display the absolute path to the configuration file.
     Config,
 }
 
+/// Adds a new backup job to the configuration file.
 pub fn add(source: String, target: String) -> Result<()> {
     let source = path::expand_path(&source);
     let target = path::expand_path(&target);
@@ -81,6 +86,7 @@ pub fn add(source: String, target: String) -> Result<()> {
     Ok(())
 }
 
+/// Runs all backup jobs.
 pub fn run() -> Result<()> {
     let jobs = Application::get_jobs();
     if jobs.is_empty() {
@@ -95,6 +101,7 @@ pub fn run() -> Result<()> {
     Ok(())
 }
 
+/// Runs a backup job by its id.
 pub fn run_by_id(id: u32) -> Result<()> {
     let jobs = Application::get_jobs();
     if jobs.is_empty() {
@@ -108,6 +115,7 @@ pub fn run_by_id(id: u32) -> Result<()> {
     Ok(())
 }
 
+/// Runs a one-time backup job with the given source and target.
 pub fn run_one_time(source: String, target: String) -> Result<()> {
     let source = path::expand_path(&source);
     let mut target = path::expand_path(&target);
@@ -177,11 +185,13 @@ fn run_job(job: &Job) -> Result<()> {
     Ok(())
 }
 
+/// Lists all backup jobs.
 pub fn list() {
     let jobs = Application::get_jobs();
     println!("{}", JobList(jobs));
 }
 
+/// Deletes a job by id or deletes all jobs.
 pub fn delete(id: Option<u32>, all: bool) -> Result<()> {
     if all {
         let mut app = Application::load_config();
@@ -203,6 +213,7 @@ pub fn delete(id: Option<u32>, all: bool) -> Result<()> {
     Ok(())
 }
 
+/// Edits a job by id, updating its source and/or target.
 pub fn edit(id: u32, source: Option<String>, target: Option<String>) -> Result<()> {
     let source = source.map(|path| path::expand_path(&path));
     if let Some(ref file_path) = source {
@@ -230,6 +241,7 @@ pub fn edit(id: u32, source: Option<String>, target: Option<String>) -> Result<(
     Ok(())
 }
 
+/// Prints the absolute path to the configuration file.
 pub fn config() {
     println!("config file: {}", application::config_file().display());
 }

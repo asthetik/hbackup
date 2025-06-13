@@ -3,6 +3,8 @@ use std::error::Error;
 use clap::Parser;
 use hbackup::commands::{self, Cli, Commands};
 
+/// Entry point for the hbackup CLI application.
+/// Parses command-line arguments and dispatches to the appropriate command handler.
 fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
     let commands = cli
