@@ -20,7 +20,7 @@ hbackup 是一个用 Rust 编写的高性能跨平台备份工具。它以快速
 ### 1. 安装
 
 ```sh
-cargo install hbackup --version 0.1.0-beta.8
+cargo install hbackup --version 0.1.0
 ```
 
 ### 2. 添加一个备份任务
