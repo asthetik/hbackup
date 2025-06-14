@@ -1,5 +1,6 @@
 # hbackup
 
+[![Build status](https://github.com/asthetik/hbackup/workflows/build/badge.svg)](https://github.com/asthetik/hbackup/actions)
 [![Crates.io](https://img.shields.io/crates/v/hbackup.svg)](https://crates.io/crates/hbackup)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](https://opensource.org/licenses/MIT)
 
@@ -20,7 +21,7 @@ hbackup 是一个用 Rust 编写的高性能跨平台备份工具。它以快速
 ### 1. 安装
 
 ```sh
-cargo install hbackup --version 0.1.0
+cargo install hbackup
 ```
 
 ### 2. 添加一个备份任务
