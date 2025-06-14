@@ -15,6 +15,24 @@ targets=(
 )
 
 for target in "${targets[@]}"; do
+  if [ -e "dist/${target}" ]; then
+    rm -r "dist/${target}"
+  fi
+done
+
+for file in dist/bk-v*.tar.gz; do
+  if [ -e "$file" ]; then
+    rm "$file"
+  fi
+done
+
+for file in dist/bk-v*.zip; do
+  if [ -e "$file" ]; then
+    rm "$file"
+  fi
+done
+
+for target in "${targets[@]}"; do
     echo "==> Building for $target"
     cross build --release --target "$target"
 
