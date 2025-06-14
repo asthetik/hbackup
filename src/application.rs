@@ -117,20 +117,26 @@ impl Application {
     }
 }
 
+const PKG_NAME: &str = env!("CARGO_PKG_NAME");
+
 /// Returns the absolute path to the configuration file.
 pub fn config_file() -> PathBuf {
-    let mut file = if cfg!(target_os = "macos") {
+    config_dir().join(format!("{PKG_NAME}.json"))
+}
+
+pub fn backup_config_file() -> PathBuf {
+    config_dir().join(format!("{PKG_NAME}_backup.json"))
+}
+
+fn config_dir() -> PathBuf {
+    let config_dir = if cfg!(target_os = "macos") {
         let mut home_dir = dirs::home_dir().unwrap();
         home_dir.push(".config");
         home_dir
     } else {
         dirs::config_dir().unwrap()
     };
-    const PKG_NAME: &str = env!("CARGO_PKG_NAME");
-    const FILE_NAME: &str = concat!(env!("CARGO_PKG_NAME"), ".json");
-    file.push(PKG_NAME);
-    file.push(FILE_NAME);
-    file
+    config_dir.join(PKG_NAME)
 }
 
 /// Checks if the configuration file exists.
@@ -139,7 +145,7 @@ fn config_file_exists() -> bool {
 }
 
 /// Writes the application configuration to the config file.
-fn write_config(data: &Application) -> Result<()> {
+pub fn write_config(data: &Application) -> Result<()> {
     let file_path = config_file();
     if !file_path.exists() {
         // The default configuration file path must exist in the parent folder

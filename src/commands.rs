@@ -1,7 +1,7 @@
 //! Command-line interface definition for hbackup.
-use std::{error::Error, fs};
-
+use anyhow::Context;
 use clap::{Parser, Subcommand};
+use std::{error::Error, fs};
 
 use crate::application::{Application, Job, JobList};
 use crate::{application, path};
@@ -70,7 +70,11 @@ pub enum Commands {
         target: Option<String>,
     },
     /// Display the absolute path to the configuration file.
-    Config,
+    Config {
+        /// backup the configuration file
+        #[arg(long, required = false)]
+        copy: bool,
+    },
 }
 
 /// Adds a new backup job to the configuration file.
@@ -244,4 +248,18 @@ pub fn edit(id: u32, source: Option<String>, target: Option<String>) -> Result<(
 /// Prints the absolute path to the configuration file.
 pub fn config() {
     println!("config file: {}", application::config_file().display());
+}
+
+pub fn backup_config_file() -> Result<()> {
+    let config_file = application::config_file();
+    let backed_config_file = application::backup_config_file();
+    // If the configuration file does not exist, initialize it
+    if !config_file.exists() {
+        let app = Application::new();
+        app.write()?;
+    }
+    fs::copy(config_file, backed_config_file)
+        .with_context(|| "Configuration file backup failed!")?;
+    println!("Backup successfully!");
+    Ok(())
 }

@@ -33,8 +33,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         Commands::Edit { id, source, target } => {
             commands::edit(id, source, target)?;
         }
-        Commands::Config => {
-            commands::config();
+        Commands::Config { copy } => {
+            if copy {
+                commands::backup_config_file()?;
+            } else {
+                commands::config();
+            }
         }
     }
     Ok(())
