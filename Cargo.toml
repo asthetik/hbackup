@@ -28,7 +28,6 @@ path = "src/bin/main.rs"
 
 [profile.release]
 debug = 1
-inherits = "release"
 opt-level = 3
 strip = "symbols"
 lto = "fat"
