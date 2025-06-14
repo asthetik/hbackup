@@ -1,6 +1,6 @@
 [package]
 name = "hbackup"
-version = "0.1.0-beta.8"
+version = "0.1.0"
 edition = "2024"
 authors = ["asthetik"]
 repository = "https://github.com/asthetik/hbackup"
@@ -9,7 +9,9 @@ license = "MIT OR Apache-2.0"
 keywords = ["hbackup", "bk", "backup", "cli"]
 categories = ["command-line-utilities"]
 exclude = [
-    ".github/*"
+    ".github/*",
+    "scripts/*",
+    "Makefile.toml"
 ]
 
 [dependencies]
@@ -23,3 +25,7 @@ path-clean = "1.0.1"
 [[bin]]
 name = "bk"
 path = "src/bin/main.rs"
+
+[profile.release]
+lto = true
+opt-level = 3

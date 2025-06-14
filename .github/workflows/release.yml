@@ -1,0 +1,99 @@
+name: 🚀 Release hbackup
+
+on:
+  push:
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+          - x86_64-pc-windows-gnu
+          - x86_64-apple-darwin
+          - aarch64-apple-darwin
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install toml-cli
+        run: cargo install toml-cli
+      - name: Check version
+        run: test "v$(toml get -r Cargo.toml package.version)" = "${{ github.ref_name }}"
+
+      - name: Install cross
+        run: cargo install cross --force
+
+      - name: Build for ${{ matrix.target }}
+        run: |
+          export CROSS_USE_DOCKER=1
+          cross build --release --target ${{ matrix.target }}
+
+      - name: package binary
+        run: |
+          mkdir -p dist/${{ matrix.target }}
+          BIN=target/${{ matrix.target }}/release/bk
+          if [[ "${{ matrix.target }}" == *windows* ]]; then 
+            BIN+='.exe'
+          fi
+          cp "$BIN" dist/${{ matrix.target }}/
+          tar czf dist/${{ matrix.target }}/bk.tar.gz -C dist/${{ matrix.target }} .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: hbackup-${{ matrix.target }}
+          path: dist/${{ matrix.target }}/bk.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: hbackup-x86_64-unknown-linux-gnu
+          path: dist/x86_64_linux
+
+      - name: Download aarch64_Linux artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: hbackup-aarch64-unknown-linux-gnu
+          path: dist/aarch64_linux
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: hbackup-x86_64-pc-windows-gnu
+          path: dist/windows
+
+      - name: Download macOS Intel artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: hbackup-x86_64-apple-darwin
+          path: dist/x86_64_mac
+      
+      - name: Download macOS ARM artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: hbackup-aarch64-apple-darwin
+          path: dist/aarch64_mac
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "Release ${{ github.ref_name }}"
+          files: |
+            dist/x86_64_linux/bk.tar.gz
+            dist/aarch64_linux/bk.tar.gz
+            dist/windows/bk.exe
+            dist/x86_64_mac/bk.tar.gz
+            dist/aarch64_mac/bk.tar.gz
