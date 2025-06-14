@@ -7,9 +7,14 @@ use hbackup::commands::{self, Cli, Commands};
 /// Parses command-line arguments and dispatches to the appropriate command handler.
 fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
-    let commands = cli
-        .commands
-        .expect("No command provided. Use --help for more information.");
+
+    let commands = match cli.commands {
+        Some(commands) => commands,
+        None => {
+            eprintln!("bk requires at least one command to execute. See 'bk --help' for usage.");
+            std::process::exit(1);
+        }
+    };
 
     match commands {
         Commands::Add { source, target } => {
