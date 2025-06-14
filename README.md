@@ -13,7 +13,7 @@ hbackup is a sample, high-performance, cross-platform backup tool written in Rus
 - Cross-platform: macOS, Linux, Windows
 - Supports custom backup tasks with unique IDs
 - Configuration and task management via JSON in user config directory
-- Supports `~` path expansion
+- Supports '~', '$HOME' and relative paths for source and target paths
 
 ## Quick Start
 
