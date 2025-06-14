@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::error::Error;
 use std::path::PathBuf;
-use std::{fmt, fs, io};
+use std::{fmt, fs, io, process};
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
@@ -130,11 +130,22 @@ pub fn backup_config_file() -> PathBuf {
 
 fn config_dir() -> PathBuf {
     let config_dir = if cfg!(target_os = "macos") {
-        let mut home_dir = dirs::home_dir().unwrap();
-        home_dir.push(".config");
-        home_dir
+        let home_dir = match dirs::home_dir() {
+            Some(home_dir) => home_dir,
+            None => {
+                eprintln!("Couldn't get the home directory!!!");
+                process::exit(1);
+            }
+        };
+        home_dir.join(".config")
     } else {
-        dirs::config_dir().unwrap()
+        match dirs::config_dir() {
+            Some(home_dir) => home_dir,
+            None => {
+                eprintln!("Couldn't get the home directory!!!");
+                process::exit(1);
+            }
+        }
     };
     config_dir.join(PKG_NAME)
 }

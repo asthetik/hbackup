@@ -1,5 +1,5 @@
 use std::error::Error;
-
+use std::process;
 use clap::Parser;
 use hbackup::commands::{self, Cli, Commands};
 
@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         Some(commands) => commands,
         None => {
             eprintln!("bk requires at least one command to execute. See 'bk --help' for usage.");
-            std::process::exit(1);
+            process::exit(1);
         }
     };
 
