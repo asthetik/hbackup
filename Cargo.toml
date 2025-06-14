@@ -27,6 +27,9 @@ name = "bk"
 path = "src/bin/main.rs"
 
 [profile.release]
+debug = 1
+
+[profile.release-lto]
 opt-level = 3
 strip = "symbols"
 lto = "fat"
