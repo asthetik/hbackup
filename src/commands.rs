@@ -69,11 +69,14 @@ pub enum Commands {
         #[arg(short, long, required = false, required_unless_present = "source")]
         target: Option<String>,
     },
-    /// Display the absolute path to the configuration file.
+    /// Display the absolute path of the configuration file
     Config {
         /// backup the configuration file
         #[arg(long, required = false)]
         copy: bool,
+        /// Reset the configuration file and back up the file before resetting
+        #[arg(long, required = false)]
+        reset: bool,
     },
 }
 
@@ -106,17 +109,24 @@ pub fn run() -> Result<()> {
 }
 
 /// Runs a backup job by its id.
-pub fn run_by_id(id: u32) -> Result<()> {
+pub fn run_by_id(id: u32) {
     let jobs = Application::get_jobs();
     if jobs.is_empty() {
-        println!("No jobs are backed up!");
-        return Ok(());
+        eprintln!("No jobs are backed up!");
     }
     match jobs.iter().find(|j| j.id == id) {
-        Some(job) => run_job(job)?,
-        None => println!("Job with id {id} not found."),
+        Some(job) => match run_job(job) {
+            Ok(_) => println!("backed up successfully!"),
+            Err(e) => eprintln!(
+                "Error: Failed to backup job id: {} from {} to {}\n{}",
+                job.id,
+                job.source.display(),
+                job.target.display(),
+                e
+            ),
+        },
+        None => eprintln!("Job with id {id} not found."),
     }
-    Ok(())
 }
 
 /// Runs a one-time backup job with the given source and target.
@@ -140,11 +150,7 @@ pub fn run_one_time(source: String, target: String) -> Result<()> {
     }
 
     match fs::copy(&source, &target_file) {
-        Ok(_) => println!(
-            "Job from {} to {} backed up successfully.",
-            source.display(),
-            target_file.display()
-        ),
+        Ok(_) => println!("Backed up successfully."),
         Err(e) => eprintln!(
             "Failed to backup job from {} to {}: {}",
             source.display(),
@@ -171,21 +177,7 @@ fn run_job(job: &Job) -> Result<()> {
         fs::create_dir_all(parent)?;
     }
 
-    match fs::copy(&job.source, &target_file) {
-        Ok(_) => println!(
-            "Task id: {} from {} to {} backed up successfully.",
-            job.id,
-            job.source.display(),
-            target_file.display()
-        ),
-        Err(e) => eprintln!(
-            "Failed to backup job id: {} from {} to {}: {}",
-            job.id,
-            job.source.display(),
-            target_file.display(),
-            e
-        ),
-    }
+    fs::copy(&job.source, &target_file)?;
     Ok(())
 }
 
@@ -261,5 +253,20 @@ pub fn backup_config_file() -> Result<()> {
     fs::copy(config_file, backed_config_file)
         .with_context(|| "Configuration file backup failed!")?;
     println!("Backup successfully!");
+    Ok(())
+}
+
+/// Reset the configuration file and back up the file before resetting
+pub fn reset_config_file() -> Result<()> {
+    let config_file = application::config_file();
+    let backed_config_file = application::backup_config_file();
+    // Backup the config file if it exists
+    if config_file.exists() {
+        fs::copy(config_file, backed_config_file)
+            .with_context(|| "Configuration file backup failed!")?;
+    }
+    // Initialize or reset the config file
+    let app = Application::new();
+        app.write()?;
     Ok(())
 }
