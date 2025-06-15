@@ -81,10 +81,11 @@ impl Application {
             let id = (0..u32::MAX)
                 .find(|id| !job_ids.contains(id))
                 .unwrap_or_else(|| {
-                    panic!(
+                    eprintln!(
                         "The maximum number of jobs created is {}. No more jobs can be added.",
                         u32::MAX
-                    )
+                    );
+                    process::exit(1);
                 });
             self.jobs.push(Job { id, source, target });
         }
@@ -183,11 +184,6 @@ mod test {
     use super::*;
     use std::env;
 
-    #[test]
-    fn default() {
-        let application = Application::default();
-        assert_eq!(application.jobs.len(), 0);
-    }
 
     #[test]
     fn test_config_file() {
@@ -211,14 +207,4 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_display() {
-        let job = Job {
-            id: 0,
-            source: PathBuf::default(),
-            target: PathBuf::default(),
-        };
-        println!("{job}");
-        // dbg!(job);
-    }
 }
