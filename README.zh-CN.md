@@ -24,13 +24,20 @@ hbackup 是一个用 Rust 编写的高性能跨平台备份工具。它以快速
 cargo install hbackup
 ```
 
-### 2. 添加一个备份任务
+### 2. 添加一个或多个备份任务
 
 ```sh
-bk add --source ~/myfile.txt --target ~/backup/
+bk add --source ~/my_path1/my_file1.txt --target ~/back
+bk add --source ~/my_path2/my_file2.txt --target ~/back
 ```
 
-### 3. 执行所有备份任务
+### 3. 查看所有任务
+
+```sh
+bk list
+```
+
+### 4. 执行所有任务
 
 - 运行所有任务：
 
@@ -47,24 +54,18 @@ bk run --id 1
 - 运行指定源和目标的任务：
 
 ```sh
-bk run ~/myfile.txt ~/backup/
-```
-
-### 4. 查看所有任务
-
-```sh
-bk list
+bk run ~/my_path/myfile.txt ~/back
 ```
 
 ### 5. 删除任务
 
-按ID删除：
+- 按ID删除：
 
 ```sh
 bk delete --id 1
 ```
 
-删除全部任务：
+- 删除全部任务：
 
 ```sh
 bk delete --all
@@ -76,10 +77,30 @@ bk delete --all
 bk edit --id 1 --source ~/newfile.txt --target ~/newbackup/
 ```
 
-### 7. 显示配置文件路径
+### 7. 配置文件
 
-```shell
+- 显示配置文件路径
+
+```sh
 bk config
+```
+
+- 备份配置文件
+
+```sh
+bk config --copy
+```
+
+- 重置备份文件（重置文件之前会自动备份配置文件）
+
+```sh
+bk config --reset
+```
+
+- 回滚上一次备份的配置文件
+
+```sh
+bk config --rollback
 ```
 
 ## 配置文件位置

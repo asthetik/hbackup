@@ -78,7 +78,7 @@ pub enum Commands {
         /// Reset the configuration file and back up the file before resetting
         #[arg(long, required = false)]
         reset: bool,
-        /// Rollback Configuration File
+        /// Rollback the last backed up configuration file
         #[arg(long, required = false)]
         rollback: bool,
     },
@@ -275,7 +275,7 @@ pub fn reset_config_file() -> Result<()> {
     Ok(())
 }
 
-/// Rollback the configuration file
+/// Rollback the last backed up configuration file
 pub fn rollback_config_file() -> Result<()> {
     let backed_config_file = application::backed_config_file();
     if !backed_config_file.exists() {
