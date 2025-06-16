@@ -2,7 +2,7 @@
 
 [![Build status](https://github.com/asthetik/hbackup/workflows/build/badge.svg)](https://github.com/asthetik/hbackup/actions)
 [![Crates.io](https://img.shields.io/crates/v/hbackup.svg)](https://crates.io/crates/hbackup)
-[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](https://opensource.org/licenses/MIT)
+[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](./LICENSE)
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
@@ -24,62 +24,83 @@ hbackup is a sample, high-performance, cross-platform backup tool written in Rus
 cargo install hbackup
 ```
 
-### 2. Add a backup task
+### 2. Add one or more jobs
 
 ```sh
-bk add --source ~/myfile.txt --target ~/backup/
+bk add --source ~/my_path1/my_file1.txt --target ~/back
+bk add --source ~/my_path2/my_file2.txt --target ~/back
 ```
 
-### 3. Run all backup tasks
-
-- run all tasks:
-
-```sh
-bk run
-```
-
-- run a specific task by ID:
-
-```sh
-bk run --id 1
-```
-
-- run a specific task with source and target:
-
-```sh
-bk run ~/myfile.txt ~/backup/
-```
-
-### 4. List all tasks
+### 3. List all jobs
 
 ```sh
 bk list
 ```
 
-### 5. Delete a task
+### 4. Run all backed jobs
 
-Delete by id:
+- run all jobs:
+
+```sh
+bk run
+```
+
+- Run the job with the specified ID:
+
+```sh
+bk run --id 1
+```
+
+- run a specific job with source and target:
+
+```sh
+bk run ~/my_path/myfile.txt ~/back
+```
+
+### 5. Delete a job
+
+- Delete a job by id:
 
 ```sh
 bk delete --id 1
 ```
 
-Delete all tasks:
+- Delete all jobs:
 
 ```sh
 bk delete --all
 ```
 
-### 6. Edit a task
+### 6. Edit a job
 
 ```sh
 bk edit --id 1 --source ~/newfile.txt --target ~/newbackup/
 ```
 
-### 7. Display configuration file path
+### 7. configuration file
+
+display configuration file path
 
 ```shell
 bk config
+```
+
+- backup configutation file
+
+```sh
+bk config --copy
+```
+
+- reset configuration file (The file will be automatically backed up before resetting it)
+
+```sh
+bk config --reset
+```
+
+- Rollback the last backed up configuration file
+
+```sh
+bk config --rollback
 ```
 
 ## Configuration File Location

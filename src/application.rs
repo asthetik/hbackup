@@ -125,7 +125,7 @@ pub fn config_file() -> PathBuf {
     config_dir().join(format!("{PKG_NAME}.json"))
 }
 
-pub fn backup_config_file() -> PathBuf {
+pub fn backed_config_file() -> PathBuf {
     config_dir().join(format!("{PKG_NAME}_backup.json"))
 }
 
@@ -179,11 +179,18 @@ fn read_config_file() -> Result<Application> {
     Ok(app)
 }
 
+pub fn read_backed_config_file() -> Result<Application> {
+    let file_path = backed_config_file();
+    let file = fs::File::open(&file_path)?;
+    let reader = io::BufReader::new(&file);
+    let app: Application = serde_json::from_reader(reader)?;
+    Ok(app)
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
     use std::env;
-
 
     #[test]
     fn test_config_file() {
@@ -206,5 +213,4 @@ mod test {
             dirs::config_dir().unwrap()
         }
     }
-
 }
