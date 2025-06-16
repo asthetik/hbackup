@@ -2,6 +2,7 @@
 
 [![Build status](https://github.com/asthetik/hbackup/workflows/build/badge.svg)](https://github.com/asthetik/hbackup/actions)
 [![Crates.io](https://img.shields.io/crates/v/hbackup.svg)](https://crates.io/crates/hbackup)
+![Crates.io](https://img.shields.io/crates/d/hbackup)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](./LICENSE)
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)
