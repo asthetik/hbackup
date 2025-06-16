@@ -63,3 +63,9 @@ for target in "${targets[@]}"; do
         (cd "$out_dir" && zip "../bk-${VERSION}-${archive_target}.zip" "$bin_name")
     fi
 done
+
+for target in "${targets[@]}"; do
+  if [ -e "dist/${target}" ]; then
+    rm -r "dist/${target}"
+  fi
+done
