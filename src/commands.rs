@@ -1,6 +1,7 @@
 //! Command-line interface definition for hbackup.
 use anyhow::Context;
 use clap::{Parser, Subcommand};
+use std::process;
 use std::{error::Error, fs};
 
 use crate::application::{Application, Job, JobList};
@@ -77,6 +78,9 @@ pub enum Commands {
         /// Reset the configuration file and back up the file before resetting
         #[arg(long, required = false)]
         reset: bool,
+        /// Rollback Configuration File
+        #[arg(long, required = false)]
+        rollback: bool,
     },
 }
 
@@ -244,7 +248,7 @@ pub fn config() {
 
 pub fn backup_config_file() -> Result<()> {
     let config_file = application::config_file();
-    let backed_config_file = application::backup_config_file();
+    let backed_config_file = application::backed_config_file();
     // If the configuration file does not exist, initialize it
     if !config_file.exists() {
         let app = Application::new();
@@ -259,7 +263,7 @@ pub fn backup_config_file() -> Result<()> {
 /// Reset the configuration file and back up the file before resetting
 pub fn reset_config_file() -> Result<()> {
     let config_file = application::config_file();
-    let backed_config_file = application::backup_config_file();
+    let backed_config_file = application::backed_config_file();
     // Backup the config file if it exists
     if config_file.exists() {
         fs::copy(config_file, backed_config_file)
@@ -267,6 +271,28 @@ pub fn reset_config_file() -> Result<()> {
     }
     // Initialize or reset the config file
     let app = Application::new();
-        app.write()?;
+    app.write()?;
+    Ok(())
+}
+
+/// Rollback the configuration file
+pub fn rollback_config_file() -> Result<()> {
+    let backed_config_file = application::backed_config_file();
+    if !backed_config_file.exists() {
+        eprintln!("The backup configuration file does not exist.");
+        return Ok(());
+    }
+    let app = match application::read_backed_config_file() {
+        Ok(app) => app,
+        Err(e) => {
+            eprintln!(
+                "Data format conversion error, unable to roll back configuration file.\n{}",
+                e
+            );
+            process::exit(1);
+        }
+    };
+    app.write()?;
+
     Ok(())
 }
