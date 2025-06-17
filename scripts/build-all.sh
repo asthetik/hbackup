@@ -55,12 +55,12 @@ for target in "${targets[@]}"; do
         archive_target="windows"
     fi
 
-    # Compress binary with version and target in filename
-    tar czf "dist/bk-${VERSION}-${archive_target}.tar.gz" -C "$out_dir" "$bin_name"
-
     # If windows, also compress as zip
     if [[ "$target" == *windows* ]]; then
         (cd "$out_dir" && zip "../bk-${VERSION}-${archive_target}.zip" "$bin_name")
+    else
+      # Compress binary with version and target in filename
+      tar czf "dist/bk-${VERSION}-${archive_target}.tar.gz" -C "$out_dir" "$bin_name"
     fi
 done
 
