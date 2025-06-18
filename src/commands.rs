@@ -1,11 +1,11 @@
 //! Command-line interface definition for hbackup.
-use anyhow::Context;
-use clap::{Parser, Subcommand};
-use std::process;
-use std::{error::Error, fs};
-
 use crate::application::{Application, Job, JobList};
 use crate::{application, path};
+use anyhow::Context;
+use clap::{Parser, Subcommand};
+use std::path::Path;
+use std::process;
+use std::{error::Error, fs};
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
@@ -119,69 +119,28 @@ pub fn run_by_id(id: u32) {
         eprintln!("No jobs are backed up!");
     }
     match jobs.iter().find(|j| j.id == id) {
-        Some(job) => match run_job(job) {
-            Ok(_) => println!("backed up successfully!"),
-            Err(e) => eprintln!(
-                "Error: Failed to backup job id: {} from {} to {}\n{}",
-                job.id,
-                job.source.display(),
-                job.target.display(),
-                e
-            ),
-        },
+        Some(job) => {
+            if let Err(e) = run_job(job) {
+                eprintln!(
+                    "Error: Failed to backup job id: {} from {} to {}\n{}",
+                    job.id,
+                    job.source.display(),
+                    job.target.display(),
+                    e
+                )
+            }
+        }
         None => eprintln!("Job with id {id} not found."),
     }
 }
 
-/// Runs a one-time backup job with the given source and target.
-pub fn run_one_time(source: String, target: String) -> Result<()> {
-    let source = path::expand_path(&source);
-    let mut target = path::expand_path(&target);
-    path::check_path(&source)?;
-
-    let target_file = if (target.exists() && target.is_dir())
-        || (!target.exists() && target.extension().is_none())
-    {
-        let file_name = source.file_name().ok_or("invalid file name")?;
-        target.push(file_name);
-        target
-    } else {
-        target
-    };
-
-    if let Some(parent) = target_file.parent() {
-        fs::create_dir_all(parent)?;
+/// Run a backup job
+pub fn run_job(job: &Job) -> Result<()> {
+    if !job.source.is_file() {
+        eprintln!("the source path is neither a regular file nor a symlink to a regular file");
+        process::exit(1);
     }
-
-    match fs::copy(&source, &target_file) {
-        Ok(_) => println!("Backed up successfully."),
-        Err(e) => eprintln!(
-            "Failed to backup job from {} to {}: {}",
-            source.display(),
-            target_file.display(),
-            e
-        ),
-    }
-    Ok(())
-}
-
-fn run_job(job: &Job) -> Result<()> {
-    let target_file = if (job.target.exists() && job.target.is_dir())
-        || (!job.target.exists() && job.target.extension().is_none())
-    {
-        let file_name = job.source.file_name().ok_or("invalid file name")?;
-        let mut target = job.target.clone();
-        target.push(file_name);
-        target
-    } else {
-        job.target.clone()
-    };
-
-    if let Some(parent) = target_file.parent() {
-        fs::create_dir_all(parent)?;
-    }
-
-    fs::copy(&job.source, &target_file)?;
+    copy_file(&job.source, &job.target)?;
     Ok(())
 }
 
@@ -293,6 +252,29 @@ pub fn rollback_config_file() -> Result<()> {
         }
     };
     app.write()?;
+
+    Ok(())
+}
+
+/// Copy file from source to target
+/// source: Path to the source file
+/// target: Path to the target file
+fn copy_file(source: &Path, target: &Path) -> Result<()> {
+    let target_file = if (target.exists() && target.is_dir())
+        || (!target.exists() && target.extension().is_none())
+    {
+        let file_name = source.file_name().with_context(|| "Invalid file name")?;
+        target.join(file_name)
+    } else {
+        target.into()
+    };
+
+    if let Some(parent) = target_file.parent() {
+        if !parent.exists() {
+            fs::create_dir_all(parent)?;
+        }
+    }
+    fs::copy(source, &target_file)?;
 
     Ok(())
 }
