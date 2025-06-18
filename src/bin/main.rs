@@ -2,6 +2,7 @@ use clap::Parser;
 use hbackup::commands::{self, Cli, Commands};
 use std::error::Error;
 use std::process;
+use hbackup::path;
 
 /// Entry point for the hbackup CLI application.
 /// Parses command-line arguments and dispatches to the appropriate command handler.
@@ -24,7 +25,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             if let Some(id) = id {
                 commands::run_by_id(id);
             } else if let (Some(source), Some(target)) = (source, target) {
-                commands::run_one_time(source, target)?;
+                let source = path::expand_path(&source);
+                let target = path::expand_path(&target);
+                path::check_path(&source)?;
+                commands::run_job(&source, &target)?;
             } else {
                 commands::run()?;
             }
