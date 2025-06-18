@@ -36,7 +36,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         .arg("-t")
         .arg(dir.path())
         .output()?;
-    
     assert!(output.status.success());
 
     let output = Command::cargo_bin("bk")?.arg("list").output()?;
