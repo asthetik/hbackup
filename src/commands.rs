@@ -147,10 +147,10 @@ pub fn run_one_time(source: String, target: String) -> Result<()> {
         }
         let jobs = get_all_jobs(&source, &target)?;
         for (source, target) in jobs {
-            copy(&source, &target)?;
+            copy_file(&source, &target)?;
         }
     } else {
-        copy(&source, &target)?;
+        copy_file(&source, &target)?;
     }
 
     Ok(())
@@ -165,10 +165,10 @@ fn run_job(job: &Job) -> Result<()> {
         }
         let jobs = get_all_jobs(&job.source, &job.target)?;
         for (source, target) in jobs {
-            copy(&source, &target)?;
+            copy_file(&source, &target)?;
         }
     } else {
-        copy(&job.source, &job.target)?;
+        copy_file(&job.source, &job.target)?;
     }
 
     Ok(())
@@ -299,7 +299,8 @@ fn get_all_jobs(source: &Path, target: &Path) -> Result<Vec<(PathBuf, PathBuf)>>
     Ok(vec)
 }
 
-fn copy(source: &Path, target: &Path) -> Result<()> {
+/// copy file from source to target
+fn copy_file(source: &Path, target: &Path) -> Result<()> {
     assert!(source.is_file());
 
     let target_file = if (target.exists() && target.is_dir())
