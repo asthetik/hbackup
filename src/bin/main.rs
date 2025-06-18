@@ -1,4 +1,5 @@
 use clap::Parser;
+use hbackup::application::Job;
 use hbackup::commands::{self, Cli, Commands};
 use std::error::Error;
 use std::process;
@@ -28,7 +29,13 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let source = path::expand_path(&source);
                 let target = path::expand_path(&target);
                 path::check_path(&source)?;
-                commands::run_job(&source, &target)?;
+                // The temporary job id is set to 0
+                let job = Job {
+                    id: 0,
+                    source,
+                    target,
+                };
+                commands::run_job(&job)?;
             } else {
                 commands::run()?;
             }

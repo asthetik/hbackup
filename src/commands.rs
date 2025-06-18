@@ -1,12 +1,11 @@
 //! Command-line interface definition for hbackup.
+use crate::application::{Application, Job, JobList};
+use crate::{application, path};
 use anyhow::Context;
 use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
 use std::process;
 use std::{error::Error, fs};
-
-use crate::application::{Application, JobList};
-use crate::{application, path};
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
@@ -106,7 +105,7 @@ pub fn run() -> Result<()> {
         return Ok(());
     }
     for job in jobs {
-        if let Err(e) = run_job(&job.source, &job.target) {
+        if let Err(e) = run_job(&job) {
             eprintln!("Failed to run job id {}: {}", job.id, e);
         }
     }
@@ -120,35 +119,35 @@ pub fn run_by_id(id: u32) {
         eprintln!("No jobs are backed up!");
     }
     match jobs.iter().find(|j| j.id == id) {
-        Some(job) => match run_job(&job.source, &job.target) {
-            Ok(_) => println!("backed up successfully!"),
-            Err(e) => eprintln!(
-                "Error: Failed to backup job id: {} from {} to {}\n{}",
-                job.id,
-                job.source.display(),
-                job.target.display(),
-                e
-            ),
-        },
+        Some(job) => {
+            if let Err(e) = run_job(job) {
+                eprintln!(
+                    "Error: Failed to backup job id: {} from {} to {}\n{}",
+                    job.id,
+                    job.source.display(),
+                    job.target.display(),
+                    e
+                )
+            }
+        }
         None => eprintln!("Job with id {id} not found."),
     }
 }
 
-/// Runs a backup job with the given source and target.
-pub fn run_job(source: &Path, target: &Path) -> Result<()> {
-    if source.is_dir() {
-        if target.exists() && target.is_file() {
+/// Run a backup job
+pub fn run_job(job: &Job) -> Result<()> {
+    if job.source.is_dir() {
+        if job.target.exists() && job.target.is_file() {
             eprintln!("File exists");
             process::exit(1);
         }
-        let jobs = get_all_jobs(source, target)?;
+        let jobs = get_all_jobs(&job.source, &job.target)?;
         for (source, target) in jobs {
             copy_file(&source, &target)?;
         }
     } else {
-        copy_file(source, target)?;
+        copy_file(&job.source, &job.target)?;
     }
-
     Ok(())
 }
 
@@ -277,10 +276,10 @@ fn get_all_jobs(source: &Path, target: &Path) -> Result<Vec<(PathBuf, PathBuf)>>
     Ok(vec)
 }
 
-/// copy file from source to target
+/// Copy file from source to target
+/// source: Path to the source file
+/// target: Path to the target file
 fn copy_file(source: &Path, target: &Path) -> Result<()> {
-    assert!(source.is_file());
-
     let target_file = if (target.exists() && target.is_dir())
         || (!target.exists() && target.extension().is_none())
     {
