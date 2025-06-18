@@ -16,7 +16,7 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-    - name: cargo check
+    - name: Cargo check
       run: cargo check
 
   build:
@@ -35,10 +35,18 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all --check
 
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Cargo clippy
+        run: cargo clippy -- -D warnings
+
   test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Automated Tests
-        run: cargo test
+        run: cargo test -- --show-output
