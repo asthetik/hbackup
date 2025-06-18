@@ -1,5 +1,5 @@
 use assert_cmd::prelude::*;
-use assert_fs::fixture::*;
+use assert_fs::prelude::FileWriteStr;
 use predicates::prelude::*;
 use std::process::Command;
 
@@ -23,14 +23,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     let file = assert_fs::NamedTempFile::new("sample.txt")?;
     file.write_str("A test\nActual content\nMore content\nAnother test")?;
+    assert!(file.exists());
+    println!("source path: {:?}", file.path());
+    let dir = assert_fs::TempDir::new()?;
+    assert!(dir.exists());
+    println!("target path: {:?}", dir.path());
 
     let output = Command::cargo_bin("bk")?
         .arg("add")
         .arg("-s")
-        .arg("./")
+        .arg(file.path())
         .arg("-t")
-        .arg("bar")
+        .arg(dir.path())
         .output()?;
+    
     assert!(output.status.success());
 
     let output = Command::cargo_bin("bk")?.arg("list").output()?;
