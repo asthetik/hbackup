@@ -19,10 +19,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     match commands {
-        Commands::Add { source, target } => {
-            commands::add(source, target)?;
+        Commands::Add {
+            source,
+            target,
+            overwrite,
+        } => {
+            commands::add(source, target, overwrite)?;
         }
-        Commands::Run { source, target, id } => {
+        Commands::Run {
+            source,
+            target,
+            id,
+            overwrite,
+        } => {
             if let Some(id) = id {
                 commands::run_by_id(id);
             } else if let (Some(source), Some(target)) = (source, target) {
@@ -34,6 +43,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     id: 0,
                     source,
                     target,
+                    overwrite,
                 };
                 commands::run_job(&job)?;
             } else {

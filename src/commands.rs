@@ -29,6 +29,9 @@ pub enum Commands {
         /// Target file or directory path.
         #[arg(short, long)]
         target: String,
+        /// Overwrite if the file exists. default value: true
+        #[arg(short, long, required = false)]
+        overwrite: Option<bool>,
     },
     /// Run backup jobs.
     ///
@@ -46,6 +49,9 @@ pub enum Commands {
         /// Run a specific job by id. Cannot be used with source/target.
         #[arg(long, required = false, conflicts_with_all = ["source", "target"])]
         id: Option<u32>,
+        /// Overwrite if the file exists. default value: true
+        #[arg(short, long, required = false)]
+        overwrite: Option<bool>,
     },
     /// List all backup jobs.
     List,
@@ -85,13 +91,13 @@ pub enum Commands {
 }
 
 /// Adds a new backup job to the configuration file.
-pub fn add(source: String, target: String) -> Result<()> {
+pub fn add(source: String, target: String, overwrite: Option<bool>) -> Result<()> {
     let source = path::expand_path(&source);
     let target = path::expand_path(&target);
     path::check_path(&source)?;
 
     let mut app = Application::load_config();
-    app.add_job(source, target);
+    app.add_job(source, target, overwrite);
     app.write()?;
 
     Ok(())
@@ -140,7 +146,7 @@ pub fn run_job(job: &Job) -> Result<()> {
         eprintln!("the source path is neither a regular file nor a symlink to a regular file");
         process::exit(1);
     }
-    copy_file(&job.source, &job.target)?;
+    copy_file(&job.source, &job.target, &job.overwrite)?;
     Ok(())
 }
 
@@ -259,7 +265,14 @@ pub fn rollback_config_file() -> Result<()> {
 /// Copy file from source to target
 /// source: Path to the source file
 /// target: Path to the target file
-fn copy_file(source: &Path, target: &Path) -> Result<()> {
+/// overwrite: Overwrite file
+fn copy_file(source: &Path, target: &Path, overwrite: &Option<bool>) -> Result<()> {
+    if target.exists() && target.is_file() {
+        if let Some(false) = overwrite {
+            return Err("The target file already exists".into());
+        }
+    }
+
     let target_file = if (target.exists() && target.is_dir())
         || (!target.exists() && target.extension().is_none())
     {
