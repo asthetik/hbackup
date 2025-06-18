@@ -3,7 +3,7 @@ use crate::application::{Application, Job, JobList};
 use crate::{application, path};
 use anyhow::Context;
 use clap::{Parser, Subcommand};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process;
 use std::{error::Error, fs};
 
@@ -136,11 +136,18 @@ pub fn run_by_id(id: u32) {
 
 /// Run a backup job
 pub fn run_job(job: &Job) -> Result<()> {
-    if !job.source.is_file() {
-        eprintln!("the source path is neither a regular file nor a symlink to a regular file");
-        process::exit(1);
+    if job.source.is_dir() {
+        if job.target.exists() && job.target.is_file() {
+            eprintln!("File exists");
+            process::exit(1);
+        }
+        let jobs = get_all_jobs(&job.source, &job.target)?;
+        for (source, target) in jobs {
+            copy_file(&source, &target)?;
+        }
+    } else {
+        copy_file(&job.source, &job.target)?;
     }
-    copy_file(&job.source, &job.target)?;
     Ok(())
 }
 
@@ -254,6 +261,19 @@ pub fn rollback_config_file() -> Result<()> {
     app.write()?;
 
     Ok(())
+}
+
+fn get_all_jobs(source: &Path, target: &Path) -> Result<Vec<(PathBuf, PathBuf)>> {
+    let files = path::get_all_files(source)?;
+    let file_name = source.file_name().with_context(|| "Invalid file name")?;
+    let mut vec = Vec::new();
+    for file in files {
+        let sub_path = file.strip_prefix(source)?;
+        let target = target.join(file_name).join(sub_path);
+
+        vec.push((file, target));
+    }
+    Ok(vec)
 }
 
 /// Copy file from source to target

@@ -1,5 +1,5 @@
 use assert_cmd::prelude::*;
-use assert_fs::prelude::FileWriteStr;
+use assert_fs::fixture::*;
 use predicates::prelude::*;
 use std::process::Command;
 
@@ -70,3 +70,4 @@ fn after_test() -> Result<(), Box<dyn std::error::Error>> {
     assert!(output.status.success());
     Ok(())
 }
+
