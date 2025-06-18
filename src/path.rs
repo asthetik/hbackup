@@ -27,6 +27,7 @@ pub fn expand_path(path: &str) -> PathBuf {
     abs_path.clean()
 }
 
+/// expand home
 fn expand_home(input: &str) -> String {
     if input.starts_with("~") {
         if let Some(home) = dirs::home_dir() {
@@ -38,4 +39,21 @@ fn expand_home(input: &str) -> String {
         }
     }
     input.into()
+}
+
+/// get all files
+pub fn get_all_files(path: &Path) -> Result<Vec<PathBuf>, Box<dyn Error>> {
+    let mut result = Vec::new();
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            let mut sub_files = get_all_files(&path)?;
+            result.append(&mut sub_files);
+        } else {
+            result.push(path);
+        }
+    }
+
+    Ok(result)
 }

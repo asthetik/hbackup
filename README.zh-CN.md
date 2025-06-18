@@ -111,4 +111,4 @@ bk config --rollback
 
 ## 许可证
 
-MIT OR Apache-2.0
+MIT
