@@ -72,13 +72,13 @@ impl Application {
     pub fn add_job(&mut self, source: PathBuf, target: PathBuf) {
         if self.jobs.is_empty() {
             self.jobs.push(Job {
-                id: 0,
+                id: 1,
                 source,
                 target,
             });
         } else {
             let job_ids: HashSet<u32> = self.jobs.iter().map(|j| j.id).collect();
-            let id = (0..u32::MAX)
+            let id = (1..u32::MAX)
                 .find(|id| !job_ids.contains(id))
                 .unwrap_or_else(|| {
                     eprintln!(
