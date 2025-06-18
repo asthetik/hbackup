@@ -1,10 +1,11 @@
 //! Command-line interface definition for hbackup.
 use anyhow::Context;
 use clap::{Parser, Subcommand};
+use std::path::{Path, PathBuf};
 use std::process;
 use std::{error::Error, fs};
 
-use crate::application::{Application, Job, JobList};
+use crate::application::{Application, JobList};
 use crate::{application, path};
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
@@ -105,7 +106,7 @@ pub fn run() -> Result<()> {
         return Ok(());
     }
     for job in jobs {
-        if let Err(e) = run_job(&job) {
+        if let Err(e) = run_job(&job.source, &job.target) {
             eprintln!("Failed to run job id {}: {}", job.id, e);
         }
     }
@@ -119,7 +120,7 @@ pub fn run_by_id(id: u32) {
         eprintln!("No jobs are backed up!");
     }
     match jobs.iter().find(|j| j.id == id) {
-        Some(job) => match run_job(job) {
+        Some(job) => match run_job(&job.source, &job.target) {
             Ok(_) => println!("backed up successfully!"),
             Err(e) => eprintln!(
                 "Error: Failed to backup job id: {} from {} to {}\n{}",
@@ -133,55 +134,21 @@ pub fn run_by_id(id: u32) {
     }
 }
 
-/// Runs a one-time backup job with the given source and target.
-pub fn run_one_time(source: String, target: String) -> Result<()> {
-    let source = path::expand_path(&source);
-    let mut target = path::expand_path(&target);
-    path::check_path(&source)?;
-
-    let target_file = if (target.exists() && target.is_dir())
-        || (!target.exists() && target.extension().is_none())
-    {
-        let file_name = source.file_name().ok_or("invalid file name")?;
-        target.push(file_name);
-        target
+/// Runs a backup job with the given source and target.
+pub fn run_job(source: &Path, target: &Path) -> Result<()> {
+    if source.is_dir() {
+        if target.exists() && target.is_file() {
+            eprintln!("File exists");
+            process::exit(1);
+        }
+        let jobs = get_all_jobs(source, target)?;
+        for (source, target) in jobs {
+            copy_file(&source, &target)?;
+        }
     } else {
-        target
-    };
-
-    if let Some(parent) = target_file.parent() {
-        fs::create_dir_all(parent)?;
+        copy_file(source, target)?;
     }
 
-    match fs::copy(&source, &target_file) {
-        Ok(_) => println!("Backed up successfully."),
-        Err(e) => eprintln!(
-            "Failed to backup job from {} to {}: {}",
-            source.display(),
-            target_file.display(),
-            e
-        ),
-    }
-    Ok(())
-}
-
-fn run_job(job: &Job) -> Result<()> {
-    let target_file = if (job.target.exists() && job.target.is_dir())
-        || (!job.target.exists() && job.target.extension().is_none())
-    {
-        let file_name = job.source.file_name().ok_or("invalid file name")?;
-        let mut target = job.target.clone();
-        target.push(file_name);
-        target
-    } else {
-        job.target.clone()
-    };
-
-    if let Some(parent) = target_file.parent() {
-        fs::create_dir_all(parent)?;
-    }
-
-    fs::copy(&job.source, &target_file)?;
     Ok(())
 }
 
@@ -293,6 +260,42 @@ pub fn rollback_config_file() -> Result<()> {
         }
     };
     app.write()?;
+
+    Ok(())
+}
+
+fn get_all_jobs(source: &Path, target: &Path) -> Result<Vec<(PathBuf, PathBuf)>> {
+    let files = path::get_all_files(source)?;
+    let file_name = source.file_name().with_context(|| "Invalid file name")?;
+    let mut vec = Vec::new();
+    for file in files {
+        let sub_path = file.strip_prefix(source)?;
+        let target = target.join(file_name).join(sub_path);
+
+        vec.push((file, target));
+    }
+    Ok(vec)
+}
+
+/// copy file from source to target
+fn copy_file(source: &Path, target: &Path) -> Result<()> {
+    assert!(source.is_file());
+
+    let target_file = if (target.exists() && target.is_dir())
+        || (!target.exists() && target.extension().is_none())
+    {
+        let file_name = source.file_name().with_context(|| "Invalid file name")?;
+        target.join(file_name)
+    } else {
+        target.into()
+    };
+
+    if let Some(parent) = target_file.parent() {
+        if !parent.exists() {
+            fs::create_dir_all(parent)?;
+        }
+    }
+    fs::copy(source, &target_file)?;
 
     Ok(())
 }
