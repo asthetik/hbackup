@@ -23,24 +23,16 @@ pub struct Job {
     pub source: PathBuf,
     /// Target file or directory path.
     pub target: PathBuf,
-    /// Overwrite if the file exists
-    pub overwrite: Option<bool>,
 }
 
 impl fmt::Display for Job {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let overwrite = match &self.overwrite {
-            Some(true) => "true",
-            Some(false) => "false",
-            None => "null",
-        };
         write!(
             f,
-            "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\",\n    overwrite: {}\n}}",
+            "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\",\n}}",
             self.id,
             self.source.display(),
-            self.target.display(),
-            overwrite
+            self.target.display()
         )
     }
 }
@@ -77,13 +69,12 @@ impl Application {
     }
 
     /// Adds a new backup job with a unique id.
-    pub fn add_job(&mut self, source: PathBuf, target: PathBuf, overwrite: Option<bool>) {
+    pub fn add_job(&mut self, source: PathBuf, target: PathBuf) {
         if self.jobs.is_empty() {
             self.jobs.push(Job {
                 id: 1,
                 source,
                 target,
-                overwrite,
             });
         } else {
             let job_ids: HashSet<u32> = self.jobs.iter().map(|j| j.id).collect();
@@ -96,12 +87,7 @@ impl Application {
                     );
                     process::exit(1);
                 });
-            self.jobs.push(Job {
-                id,
-                source,
-                target,
-                overwrite,
-            });
+            self.jobs.push(Job { id, source, target });
         }
     }
 
