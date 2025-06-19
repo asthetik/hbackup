@@ -1,7 +1,7 @@
 //! Command-line interface definition for hbackup.
 use crate::application::{Application, Job, JobList};
-use crate::Result;
 use crate::{application, path};
+use crate::{sysexits, Result};
 use anyhow::Context;
 use clap::{Parser, Subcommand};
 use std::fs;
@@ -116,18 +116,18 @@ pub fn run_by_id(id: u32) {
     let jobs = Application::get_jobs();
     if jobs.is_empty() {
         eprintln!("No jobs are backed up!");
-        process::exit(1);
+        process::exit(sysexits::EX_DATAERR);
     }
     match jobs.iter().find(|j| j.id == id) {
         Some(job) => {
             if let Err(e) = run_job(job) {
                 eprintln!("Failed to run job with id {}: {}\n", job.id, e);
-                process::exit(1);
+                process::exit(sysexits::EX_IOERR);
             }
         }
         None => {
             eprintln!("Job with id {id} not found.");
-            process::exit(1);
+            process::exit(sysexits::EX_DATAERR);
         }
     }
 }
@@ -136,7 +136,7 @@ pub fn run_by_id(id: u32) {
 pub fn run_job(job: &Job) -> Result<()> {
     if !job.source.is_file() {
         eprintln!("the source path is neither a regular file nor a symlink to a regular file");
-        process::exit(1);
+        process::exit(sysexits::EX_DATAERR);
     }
     copy_file(&job.source, &job.target)?;
     Ok(())
@@ -242,11 +242,8 @@ pub fn rollback_config_file() -> Result<()> {
     let app = match application::read_backed_config_file() {
         Ok(app) => app,
         Err(e) => {
-            eprintln!(
-                "Data format conversion error, unable to roll back configuration file.\n{}",
-                e
-            );
-            process::exit(1);
+            eprintln!("Data format conversion error, unable to roll back configuration file\n{e}");
+            process::exit(sysexits::EX_IOERR);
         }
     };
     app.write()?;

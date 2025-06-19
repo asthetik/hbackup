@@ -1,5 +1,5 @@
 //! Global configuration for this application.
-use crate::Result;
+use crate::{sysexits, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -63,8 +63,8 @@ impl Application {
             match read_config_file() {
                 Ok(app) => app,
                 Err(e) => {
-                    eprintln!("Failed to read configuration file: {}", e);
-                    process::exit(1);
+                    eprintln!("Failed to read configuration file\n{e}");
+                    process::exit(sysexits::EX_CONFIG);
                 }
             }
         } else {
@@ -89,7 +89,7 @@ impl Application {
                         "The maximum number of jobs created is {}. No more jobs can be added.",
                         u32::MAX
                     );
-                    process::exit(1);
+                    process::exit(sysexits::EX_SOFTWARE);
                 });
             self.jobs.push(Job { id, source, target });
         }
@@ -139,7 +139,7 @@ fn config_dir() -> PathBuf {
             Some(home_dir) => home_dir,
             None => {
                 eprintln!("Couldn't get the home directory!!!");
-                process::exit(1);
+                process::exit(sysexits::EX_UNAVAILABLE);
             }
         };
         home_dir.join(".config")
@@ -148,7 +148,7 @@ fn config_dir() -> PathBuf {
             Some(home_dir) => home_dir,
             None => {
                 eprintln!("Couldn't get the home directory!!!");
-                process::exit(1);
+                process::exit(sysexits::EX_UNAVAILABLE);
             }
         }
     };
