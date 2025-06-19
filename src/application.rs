@@ -29,7 +29,7 @@ impl fmt::Display for Job {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\",\n}}",
+            "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\"\n}}",
             self.id,
             self.source.display(),
             self.target.display()
