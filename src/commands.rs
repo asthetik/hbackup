@@ -1,13 +1,12 @@
 //! Command-line interface definition for hbackup.
 use crate::application::{Application, Job, JobList};
+use crate::Result;
 use crate::{application, path};
 use anyhow::Context;
 use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
+use std::fs;
 use std::process;
-use std::{error::Error, fs};
-
-type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 /// Command-line interface definition for hbackup.
 #[derive(Parser)]
@@ -106,7 +105,7 @@ pub fn run() -> Result<()> {
     }
     for job in jobs {
         if let Err(e) = run_job(&job) {
-            eprintln!("Failed to run job id {}: {}", job.id, e);
+            eprintln!("Failed to run job with id {}: {}\n", job.id, e);
         }
     }
     Ok(())
@@ -117,20 +116,19 @@ pub fn run_by_id(id: u32) {
     let jobs = Application::get_jobs();
     if jobs.is_empty() {
         eprintln!("No jobs are backed up!");
+        process::exit(1);
     }
     match jobs.iter().find(|j| j.id == id) {
         Some(job) => {
             if let Err(e) = run_job(job) {
-                eprintln!(
-                    "Error: Failed to backup job id: {} from {} to {}\n{}",
-                    job.id,
-                    job.source.display(),
-                    job.target.display(),
-                    e
-                )
+                eprintln!("Failed to run job with id {}: {}\n", job.id, e);
+                process::exit(1);
             }
         }
-        None => eprintln!("Job with id {id} not found."),
+        None => {
+            eprintln!("Job with id {id} not found.");
+            process::exit(1);
+        }
     }
 }
 
