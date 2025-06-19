@@ -1,13 +1,12 @@
-use std::error::Error;
+use crate::Result;
+use anyhow::Context;
+use path_clean::PathClean;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
-use anyhow::Context;
-use path_clean::PathClean;
-
 /// Checks if the given path exists and is accessible.
 /// Returns an error if the path is invalid or inaccessible.
-pub fn check_path(path: &PathBuf) -> Result<(), Box<dyn Error>> {
+pub fn check_path(path: &PathBuf) -> Result<()> {
     fs::metadata(path).with_context(|| format!("Source path or file '{path:?}' is invalid"))?;
     Ok(())
 }
@@ -42,7 +41,7 @@ fn expand_home(input: &str) -> String {
 }
 
 /// get all files
-pub fn get_all_files(path: &Path) -> Result<Vec<PathBuf>, Box<dyn Error>> {
+pub fn get_all_files(path: &Path) -> Result<Vec<PathBuf>> {
     let mut result = Vec::new();
     for entry in fs::read_dir(path)? {
         let entry = entry?;

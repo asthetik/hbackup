@@ -1,20 +1,20 @@
 use clap::Parser;
 use hbackup::application::Job;
 use hbackup::commands::{self, Cli, Commands};
-use hbackup::path;
-use std::error::Error;
+use hbackup::Result;
+use hbackup::{path, sysexits};
 use std::process;
 
 /// Entry point for the hbackup CLI application.
 /// Parses command-line arguments and dispatches to the appropriate command handler.
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<()> {
     let cli = Cli::parse();
 
     let commands = match cli.commands {
         Some(commands) => commands,
         None => {
             eprintln!("bk requires at least one command to execute. See 'bk --help' for usage.");
-            process::exit(1);
+            process::exit(sysexits::EX_KEYWORD);
         }
     };
 

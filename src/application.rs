@@ -1,11 +1,9 @@
 //! Global configuration for this application.
+use crate::{sysexits, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use std::error::Error;
 use std::path::PathBuf;
 use std::{fmt, fs, io, process};
-
-type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 /// Global configuration for this application.
 /// Stores all backup jobs.
@@ -29,7 +27,7 @@ impl fmt::Display for Job {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\",\n}}",
+            "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\"\n}}",
             self.id,
             self.source.display(),
             self.target.display()
@@ -62,7 +60,13 @@ impl Application {
     /// Loads configuration from the config file, or returns a new config if not found.
     pub fn load_config() -> Self {
         if config_file_exists() {
-            read_config_file().expect("Failed to read configuration file.")
+            match read_config_file() {
+                Ok(app) => app,
+                Err(e) => {
+                    eprintln!("Failed to read configuration file\n{e}");
+                    process::exit(sysexits::EX_CONFIG);
+                }
+            }
         } else {
             Application::new()
         }
@@ -85,7 +89,7 @@ impl Application {
                         "The maximum number of jobs created is {}. No more jobs can be added.",
                         u32::MAX
                     );
-                    process::exit(1);
+                    process::exit(sysexits::EX_SOFTWARE);
                 });
             self.jobs.push(Job { id, source, target });
         }
@@ -135,7 +139,7 @@ fn config_dir() -> PathBuf {
             Some(home_dir) => home_dir,
             None => {
                 eprintln!("Couldn't get the home directory!!!");
-                process::exit(1);
+                process::exit(sysexits::EX_UNAVAILABLE);
             }
         };
         home_dir.join(".config")
@@ -144,7 +148,7 @@ fn config_dir() -> PathBuf {
             Some(home_dir) => home_dir,
             None => {
                 eprintln!("Couldn't get the home directory!!!");
-                process::exit(1);
+                process::exit(sysexits::EX_UNAVAILABLE);
             }
         }
     };
