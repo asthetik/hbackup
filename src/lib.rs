@@ -7,5 +7,6 @@ use std::error::Error;
 pub mod application;
 pub mod commands;
 pub mod path;
+pub mod sysexits;
 
 pub type Result<T> = std::result::Result<T, Box<dyn Error>>;
