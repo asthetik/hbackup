@@ -4,8 +4,8 @@ use crate::Result;
 use crate::{application, path};
 use anyhow::Context;
 use clap::{Parser, Subcommand};
-use std::path::{Path, PathBuf};
 use std::fs;
+use std::path::{Path, PathBuf};
 use std::process;
 
 /// Command-line interface definition for hbackup.

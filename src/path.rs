@@ -41,7 +41,7 @@ fn expand_home(input: &str) -> String {
 }
 
 /// get all files
-pub fn get_all_files(path: &Path) -> Result<Vec<PathBuf>, Box<dyn Error>> {
+pub fn get_all_files(path: &Path) -> Result<Vec<PathBuf>> {
     let mut result = Vec::new();
     for entry in fs::read_dir(path)? {
         let entry = entry?;
