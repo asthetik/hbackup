@@ -3,13 +3,20 @@ use assert_fs::prelude::FileWriteStr;
 use predicates::prelude::*;
 use std::process::Command;
 
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 #[test]
 fn file_doesnt_exist() -> Result<(), Box<dyn std::error::Error>> {
     before_test()?;
 
-    let mut cmd = Command::cargo_bin("bk")?;
-    cmd.arg("add").arg("-s").arg("foo/bar").arg("-t").arg("bar");
-    cmd.assert()
+    let output = Command::cargo_bin("bk")?
+        .arg("add")
+        .arg("-s")
+        .arg("foo/bar")
+        .arg("-t")
+        .arg("bar")
+        .output()?;
+    output
+        .assert()
         .failure()
         .stderr(predicate::str::contains("No such file or directory"));
 
