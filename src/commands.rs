@@ -1,13 +1,12 @@
 //! Command-line interface definition for hbackup.
 use crate::application::{Application, Job, JobList};
+use crate::Result;
 use crate::{application, path};
 use anyhow::Context;
 use clap::{Parser, Subcommand};
+use std::fs;
 use std::path::Path;
 use std::process;
-use std::{error::Error, fs};
-
-type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 /// Command-line interface definition for hbackup.
 #[derive(Parser)]

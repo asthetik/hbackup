@@ -1,11 +1,9 @@
 //! Global configuration for this application.
+use crate::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use std::error::Error;
 use std::path::PathBuf;
 use std::{fmt, fs, io, process};
-
-type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 /// Global configuration for this application.
 /// Stores all backup jobs.
