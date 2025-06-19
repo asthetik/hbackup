@@ -11,42 +11,44 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  check:
+  code-quality:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-    - name: Cargo check
-      run: cargo check
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+        components: clippy,rustfmt
+    - uses: Swatinem/rust-cache@v2
+    - name: Check formatting
+      run: cargo fmt --all --check
+    - name: Cargo clippy
+      run: cargo clippy -- -D warnings
 
-  build:
-    runs-on: ubuntu-latest
+  tests:
+    needs: code-quality
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+        version: [stable, nightly]
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.version }}
+    - name: Show version
+      run: |
+        rustup show
+        cargo --version
+        rustc --version
+    - uses: Swatinem/rust-cache@v2
     - name: Basic build
       run: cargo build --verbose
-
-  rustfmt:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Check formatting
-        run: cargo fmt --all --check
-
-  clippy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Cargo clippy
-        run: cargo clippy -- -D warnings
-
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Automated Tests
-        run: cargo test -- --show-output
+    - name: Automated Tests
+      run: cargo test --verbose -- --show-output
