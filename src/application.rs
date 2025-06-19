@@ -60,7 +60,13 @@ impl Application {
     /// Loads configuration from the config file, or returns a new config if not found.
     pub fn load_config() -> Self {
         if config_file_exists() {
-            read_config_file().expect("Failed to read configuration file.")
+            match read_config_file() {
+                Ok(app) => app,
+                Err(e) => {
+                    eprintln!("Failed to read configuration file: {}", e);
+                    process::exit(1);
+                }
+            }
         } else {
             Application::new()
         }
