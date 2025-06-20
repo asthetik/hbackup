@@ -28,9 +28,10 @@ for file in dist/bk-v*.tar.gz; do
   fi
 done
 
+profile="release-lto"
 for target in "${targets[@]}"; do
     echo "==> Building for $target"
-    cross build --profile release-lto --target "$target"
+    cross build --profile $profile --target "$target"
 
     # Prepare output directory
     out_dir="dist/$target"
@@ -43,7 +44,7 @@ for target in "${targets[@]}"; do
     fi
 
     # Copy binary
-    cp "target/$target/release/$bin_name" "$out_dir/"
+    cp "target/$target/$profile/$bin_name" "$out_dir/"
 
     # Compress binary with version and target in filename
     tar czf "dist/bk-${VERSION}-${target}.tar.gz" -C "$out_dir" "$bin_name"
