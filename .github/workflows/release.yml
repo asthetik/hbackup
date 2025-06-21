@@ -43,7 +43,7 @@ jobs:
           mkdir -p dist
           EXT=""
           if [[ "${{ matrix.target }}" == *windows* ]]; then EXT=".exe"; fi
-          cp target/${{ matrix.target }}/release/${BIN_NAME}${EXT} ./${BIN_NAME}${EXT}
+          cp target/${{ matrix.target }}/${PROFILE}/${BIN_NAME}${EXT} ./${BIN_NAME}${EXT}
           ARCHIVE_NAME=${{ matrix.target }}.zip
           zip -j dist/$ARCHIVE_NAME ${BIN_NAME}${EXT}
           rm ${BIN_NAME}${EXT}
