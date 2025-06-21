@@ -1,0 +1,54 @@
+name: Cross-platform Release
+
+on:
+  push:
+    branches: [ "dev" ]
+
+env:
+  BIN_NAME: bk
+  PROFILE: release-lto
+
+jobs:
+  build-linux-windows:
+    name: build-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+        - build: stable-aarch64
+          os: ubuntu-latest
+          rust: stable
+          target: aarch64-unknown-linux-gnu
+        - build: stable-x86_64
+          os: ubuntu-latest
+          rust: stable
+          target: x86_64-unknown-linux-gnu
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Build with cross using ${PROFILE}
+        run: cross build --target ${{ matrix.target }} --profile ${PROFILE}
+
+      - name: Package binary
+        run: |
+          mkdir -p dist
+          EXT=""
+          if [[ "${{ matrix.target }}" == *windows* ]]; then EXT=".exe"; fi
+          cp target/${{ matrix.target }}/release/${BIN_NAME}${EXT} ./${BIN_NAME}${EXT}
+          ARCHIVE_NAME=${{ matrix.target }}.zip
+          zip -j dist/$ARCHIVE_NAME ${BIN_NAME}${EXT}
+          rm ${BIN_NAME}${EXT}
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
