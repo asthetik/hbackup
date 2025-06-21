@@ -2,7 +2,8 @@ name: Cross-platform Release
 
 on:
   push:
-    branches: [ "dev" ]
+    tags:
+      - "t*"
 
 env:
   BIN_NAME: bk
