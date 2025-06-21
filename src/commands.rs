@@ -24,10 +24,10 @@ pub enum Commands {
     Add {
         /// Source file path.
         #[arg(short, long)]
-        source: String,
+        source: PathBuf,
         /// Target file or directory path.
         #[arg(short, long)]
-        target: String,
+        target: PathBuf,
     },
     /// Run backup jobs.
     ///
@@ -38,10 +38,10 @@ pub enum Commands {
     Run {
         /// Source file (positional, optional). Must be used with target.
         #[arg(required = false, requires = "target")]
-        source: Option<String>,
+        source: Option<PathBuf>,
         /// Target file or directory (positional, optional). Must be used with source.
         #[arg(required = false, requires = "source")]
-        target: Option<String>,
+        target: Option<PathBuf>,
         /// Run a specific job by id. Cannot be used with source/target.
         #[arg(long, required = false, conflicts_with_all = ["source", "target"])]
         id: Option<u32>,
@@ -64,10 +64,10 @@ pub enum Commands {
         id: u32,
         /// New source file or directory path (optional, at least one of source/target required)
         #[arg(short, long, required = false, required_unless_present = "target")]
-        source: Option<String>,
+        source: Option<PathBuf>,
         /// New target file or directory path (optional, at least one of source/target required)
         #[arg(short, long, required = false, required_unless_present = "source")]
-        target: Option<String>,
+        target: Option<PathBuf>,
     },
     /// Display the absolute path of the configuration file
     Config {
@@ -84,9 +84,9 @@ pub enum Commands {
 }
 
 /// Adds a new backup job to the configuration file.
-pub fn add(source: String, target: String) -> Result<()> {
-    let source = path::expand_path(&source);
-    let target = path::expand_path(&target);
+pub fn add(source: PathBuf, target: PathBuf) -> Result<()> {
+    let source = canonicalize(source);
+    let target = canonicalize(target);
     path::check_path(&source)?;
 
     let mut app = Application::load_config();
@@ -178,12 +178,12 @@ pub fn delete(id: Option<u32>, all: bool) -> Result<()> {
 }
 
 /// Edits a job by id, updating its source and/or target.
-pub fn edit(id: u32, source: Option<String>, target: Option<String>) -> Result<()> {
-    let source = source.map(|path| path::expand_path(&path));
+pub fn edit(id: u32, source: Option<PathBuf>, target: Option<PathBuf>) -> Result<()> {
+    let source = source.map(canonicalize);
     if let Some(ref file_path) = source {
         path::check_path(file_path)?;
     }
-    let target = target.map(|path| path::expand_path(&path));
+    let target = target.map(canonicalize);
 
     let mut app = Application::load_config();
     if app.jobs.is_empty() {
@@ -292,4 +292,17 @@ fn copy_file(source: &Path, target: &Path) -> Result<()> {
     fs::copy(source, &target_file)?;
 
     Ok(())
+}
+
+/// Returns the canonical, absolute form of the path with all intermediate
+/// components normalized and symbolic links resolved.
+pub fn canonicalize(path: PathBuf) -> PathBuf {
+    let source = &path;
+    match source.canonicalize() {
+        Ok(path) => path,
+        Err(e) => {
+            eprintln!("The path or file '{source:?}' is invalid\n{e}");
+            process::exit(1);
+        }
+    }
 }

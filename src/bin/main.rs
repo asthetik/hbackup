@@ -1,6 +1,6 @@
 use clap::Parser;
 use hbackup::application::Job;
-use hbackup::commands::{self, Cli, Commands};
+use hbackup::commands::{self, canonicalize, Cli, Commands};
 use hbackup::Result;
 use hbackup::{path, sysexits};
 use std::process;
@@ -26,8 +26,8 @@ fn main() -> Result<()> {
             if let Some(id) = id {
                 commands::run_by_id(id);
             } else if let (Some(source), Some(target)) = (source, target) {
-                let source = path::expand_path(&source);
-                let target = path::expand_path(&target);
+                let source = canonicalize(source);
+                let target = canonicalize(target);
                 path::check_path(&source)?;
                 // The temporary job id is set to 0
                 let job = Job {
