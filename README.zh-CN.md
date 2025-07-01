@@ -14,7 +14,7 @@ hbackup 是一个用 Rust 编写的高性能跨平台备份工具。它以快速
 - 通过命令行快速备份文件或目录
 - 跨平台支持：macOS、Linux、Windows
 - 支持自定义备份任务并分配唯一ID
-- 配置和任务管理存储于用户配置目录的 JSON 文件
+- 配置和任务管理存储于用户配置目录的 toml 文件
 - 支持 `~` 、`$HOME` 和相对路径作为源和目标路径
 
 ## 快速上手
@@ -106,8 +106,8 @@ bk config --rollback
 
 ## 配置文件位置
 
-- macOS/Linux: `~/.config/hbackup/hbackup.json`
-- Windows: `C:\Users\<User>\AppData\Roaming\hbackup\hbackup.json`
+- macOS/Linux: `~/.config/hbackup/config.toml`
+- Windows: `C:\Users\<User>\AppData\Roaming\hbackup\config.toml`
 
 ## 许可证
 
