@@ -14,7 +14,7 @@ hbackup is a sample, high-performance, cross-platform backup tool written in Rus
 - Simple and fast file/directory backup via CLI
 - Cross-platform: macOS, Linux, Windows
 - Supports custom backup tasks with unique IDs
-- Configuration and task management via JSON in user config directory
+- Configuration and task management via toml in user config directory
 - Supports '~', '$HOME' and relative paths for source and target paths
 
 ## Quick Start
@@ -106,8 +106,8 @@ bk config --rollback
 
 ## Configuration File Location
 
-- macOS/Linux: `~/.config/hbackup/hbackup.json`
-- Windows: `C:\Users\<User>\AppData\Roaming\hbackup\hbackup.json`
+- macOS/Linux: `~/.config/hbackup/config.toml`
+- Windows: `C:\Users\<User>\AppData\Roaming\hbackup\config.toml`
 
 ## License
 
