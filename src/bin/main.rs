@@ -1,5 +1,5 @@
 use clap::Parser;
-use hbackup::application::Job;
+use hbackup::application::{init_config, Job};
 use hbackup::commands::{self, canonicalize, Cli, Commands};
 use hbackup::Result;
 use hbackup::{path, sysexits};
@@ -17,6 +17,8 @@ fn main() -> Result<()> {
             process::exit(sysexits::EX_KEYWORD);
         }
     };
+
+    init_config();
 
     match commands {
         Commands::Add { source, target } => {
