@@ -1,7 +1,8 @@
 //! Global configuration for this application.
-use crate::{sysexits, Result};
+use crate::{sysexits, Result, CONFIG_BACKUP_NAME, CONFIG_NAME};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use std::io::Write;
 use std::path::PathBuf;
 use std::{fmt, fs, io, process};
 
@@ -9,7 +10,13 @@ use std::{fmt, fs, io, process};
 /// Stores all backup jobs.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct Application {
+    #[serde(default = "default_version")]
+    pub version: String,
     pub jobs: Vec<Job>,
+}
+
+fn default_version() -> String {
+    "1.0".to_string()
 }
 
 /// Represents a single backup job with a unique id, source, and target path.
@@ -54,7 +61,10 @@ impl fmt::Display for JobList {
 impl Application {
     /// Creates a new, empty application configuration.
     pub fn new() -> Self {
-        Self { jobs: vec![] }
+        Application {
+            version: default_version(),
+            jobs: vec![],
+        }
     }
 
     /// Loads configuration from the config file, or returns a new config if not found.
@@ -126,11 +136,11 @@ const PKG_NAME: &str = env!("CARGO_PKG_NAME");
 
 /// Returns the absolute path to the configuration file.
 pub fn config_file() -> PathBuf {
-    config_dir().join(format!("{PKG_NAME}.json"))
+    config_dir().join(CONFIG_NAME)
 }
 
 pub fn backed_config_file() -> PathBuf {
-    config_dir().join(format!("{PKG_NAME}_backup.json"))
+    config_dir().join(CONFIG_BACKUP_NAME)
 }
 
 fn config_dir() -> PathBuf {
@@ -169,26 +179,72 @@ pub fn write_config(data: &Application) -> Result<()> {
         fs::create_dir_all(parent)?;
     }
     let file = fs::File::create(file_path)?;
-    let writer = io::BufWriter::new(file);
-    serde_json::to_writer_pretty(writer, data)?;
+    let mut writer = io::BufWriter::new(file);
+    let toml_str = toml::to_string_pretty(&data).unwrap();
+    writer.write_all(toml_str.as_bytes()).unwrap();
+    writer.flush().unwrap();
     Ok(())
 }
 
 /// read the default configuration file.
 fn read_config_file() -> Result<Application> {
     let file_path = config_file();
+    let toml_str = fs::read_to_string(&file_path)?;
+    let app = toml::from_str(&toml_str)?;
+    Ok(app)
+}
+
+pub fn read_backed_config_file() -> Result<Application> {
+    let file_path = backed_config_file();
+    let toml_str = fs::read_to_string(&file_path)?;
+    let app = toml::from_str(&toml_str)?;
+    Ok(app)
+}
+
+/// Initializes the configuration file for the application if it does not exist.
+///
+/// This function checks for the existence of both the new and old configuration files.
+/// - If neither exists, it creates a new default configuration file in TOML format,
+///   ensuring the parent directory exists.
+/// - If only the old configuration file exists, it migrates the old configuration to the new location and format.
+///
+/// This ensures that the application always has a valid configuration file to work with.
+pub fn init_config() {
+    let old_config_file = old_config_file();
+    let config_file = config_file();
+    if !config_file.exists() && !old_config_file.exists() {
+        let app = Application::new();
+
+        let parent = config_file.parent().unwrap();
+        fs::create_dir_all(parent).unwrap();
+
+        let file = fs::File::create(config_file).unwrap();
+        let mut writer = io::BufWriter::new(file);
+        let toml_str = toml::to_string_pretty(&app).unwrap();
+        writer.write_all(toml_str.as_bytes()).unwrap();
+        writer.flush().unwrap();
+    } else if !config_file.exists() && old_config_file.exists() {
+        let app = read_old_config_file().unwrap();
+        let toml_str = toml::to_string_pretty(&app).unwrap();
+        // fs::write(config_file, toml_str).unwrap();
+        let file = fs::File::create(config_file).unwrap();
+        let mut writer = io::BufWriter::new(file);
+        writer.write_all(toml_str.as_bytes()).unwrap();
+        writer.flush().unwrap();
+    }
+}
+
+/// read the old configuration file.
+fn read_old_config_file() -> Result<Application> {
+    let file_path = old_config_file();
     let file = fs::File::open(&file_path)?;
     let reader = io::BufReader::new(&file);
     let app: Application = serde_json::from_reader(reader)?;
     Ok(app)
 }
 
-pub fn read_backed_config_file() -> Result<Application> {
-    let file_path = backed_config_file();
-    let file = fs::File::open(&file_path)?;
-    let reader = io::BufReader::new(&file);
-    let app: Application = serde_json::from_reader(reader)?;
-    Ok(app)
+fn old_config_file() -> PathBuf {
+    config_dir().join(format!("{PKG_NAME}.json"))
 }
 
 #[cfg(test)]
@@ -198,12 +254,7 @@ mod test {
 
     #[test]
     fn test_config_file() {
-        let mut file = config_dir();
-        const PKG_NAME: &str = env!("CARGO_PKG_NAME");
-        const FILE_NAME: &str = concat!(env!("CARGO_PKG_NAME"), ".json");
-        file.push(PKG_NAME);
-        file.push(FILE_NAME);
-
+        let file = config_dir().join("hbackup").join("config.toml");
         assert_eq!(config_file(), file);
     }
 
