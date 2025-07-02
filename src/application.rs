@@ -38,7 +38,7 @@ impl fmt::Display for Job {
         let comp = match self.compression {
             Some(CompressFormat::Gzip) => "Gzip",
             Some(CompressFormat::Zip) => "Zip",
-            Some(CompressFormat::SevenZ) => "SevenZ",
+            Some(CompressFormat::Sevenz) => "Sevenz",
             Some(CompressFormat::Zstd) => "Zstd",
             None => "",
         };
@@ -67,7 +67,7 @@ impl fmt::Display for Job {
 pub enum CompressFormat {
     Gzip,
     Zip,
-    SevenZ,
+    Sevenz,
     Zstd,
 }
 
