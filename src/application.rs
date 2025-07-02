@@ -36,9 +36,9 @@ pub struct Job {
 impl fmt::Display for Job {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let comp = match self.compression {
-            Some(CompressFormat::Gzip) => "gzip",
-            Some(CompressFormat::Zip) => "zip",
-            Some(CompressFormat::SevenZ) => "sevenz",
+            Some(CompressFormat::Gzip) => "Gzip",
+            Some(CompressFormat::Zip) => "Zip",
+            Some(CompressFormat::SevenZ) => "SevenZ",
             None => "",
         };
         if comp.is_empty() {
