@@ -19,7 +19,7 @@
 - 📝 **Configuration and task management** via TOML in user config directory
 - 🏠 Supports `~`, `$HOME`, and relative paths for source and target
 - 🔄 **Edit, delete, and list** backup jobs easily
-- 🗜️ **Compression support**: `gzip`, `zip`, `sevenz` and `zstd` for files and directories
+- 🗜️ **Compression support**: `gzip`, `zip`, `sevenz`, `zstd` and `bzip2` for files and directories
 - 🛠️ **Config file backup, reset, and rollback**
 - 📦 **One-time backup**: run a backup without saving a job
 - 🧩 **Extensible**: easy to add new features
@@ -129,7 +129,7 @@ bk edit --id 1 --source ~/newfile.txt --target ~/newbackup/
 
 ## Compression Support
 
-You can specify compression format (`gzip`, `zip`, `sevenz` or `zstd`) when **adding** or **running** jobs:
+You can specify compression format (`gzip`, `zip`, `sevenz`, `zstd` or `bzip2`) when **adding** or **running** jobs:
 
 ```sh
 # Add a job with gzip compression
@@ -142,7 +142,7 @@ bk run ~/my_path/mydir ~/back gzip
 ```
 
 - Compression works for both files and directories.
-- Output files will have `gz`, `zip`, `7z` or `zst` extensions.
+- Output files will have `gz`, `zip`, `7z`, `zst` or `bzip2` extensions.
 - If no compression is specified, files are copied as-is.
 
 ---
