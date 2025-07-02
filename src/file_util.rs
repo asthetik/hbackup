@@ -94,11 +94,11 @@ fn compress_dir_zip(src: &Path, dest: &Path) -> Result<()> {
     for entry in WalkDir::new(src) {
         let entry = entry?;
         let path = entry.path();
-        let name = path.strip_prefix(prefix).unwrap().to_string_lossy();
+        let name = path.strip_prefix(prefix).unwrap().to_string_lossy().to_string();
         if path.is_dir() {
-            zip.add_directory(name.to_string(), options)?;
+            zip.add_directory(name, options)?;
         } else {
-            zip.start_file(name.to_string(), options)?;
+            zip.start_file(name, options)?;
             let mut f = File::open(path)?;
             io::copy(&mut f, &mut zip)?;
         }
