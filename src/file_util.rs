@@ -105,7 +105,7 @@ fn compress_file_zip(src: &Path, dest: &Path) -> Result<()> {
 /// Returns an error if any IO error occurs.
 fn compress_dir_gzip(src: &Path, dest: &Path) -> Result<()> {
     let file_name = src.file_name().unwrap().to_string_lossy().into_owned();
-    let file_name = format!("{}.{}", file_name, "tar.gz");
+    let file_name = format!("{file_name}.tar.gz");
     let dest = dest.join(&file_name);
     let tar_gz = File::create(dest)?;
     let encoder = GzEncoder::new(tar_gz, Compression::default());
@@ -124,7 +124,7 @@ fn compress_dir_gzip(src: &Path, dest: &Path) -> Result<()> {
 /// Returns an error if any IO error occurs.
 fn compress_dir_zip(src: &Path, dest: &Path) -> Result<()> {
     let file_name = src.file_name().unwrap().to_string_lossy().into_owned();
-    let file_name = format!("{}.{}", file_name, "zip");
+    let file_name = format!("{file_name}.zip");
     let dest = dest.join(file_name);
     let file = File::create(dest)?;
     let mut zip = ZipWriter::new(file);
