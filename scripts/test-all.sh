@@ -21,6 +21,6 @@ targets=(
 profile="release-lto"
 for target in "${targets[@]}"; do
     echo "==> Testing for $target"
-    cross test --target "$target"
+    cross test --profile $profile --target "$target"
 done
 
