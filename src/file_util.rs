@@ -36,14 +36,14 @@ pub fn compression(src: &Path, dest: &Path, format: &CompressFormat) -> Result<(
         match format {
             CompressFormat::Gzip => compress_dir_gzip(src, dest),
             CompressFormat::Zip => compress_dir_zip(src, dest),
-            CompressFormat::SevenZ => compress_sevenz(src, dest),
+            CompressFormat::Sevenz => compress_sevenz(src, dest),
             CompressFormat::Zstd => compress_dir_zstd(src, dest),
         }
     } else {
         match format {
             CompressFormat::Gzip => compress_file_gzip(src, dest),
             CompressFormat::Zip => compress_file_zip(src, dest),
-            CompressFormat::SevenZ => compress_sevenz(src, dest),
+            CompressFormat::Sevenz => compress_sevenz(src, dest),
             CompressFormat::Zstd => compress_file_zstd(src, dest),
         }
     }
