@@ -7,15 +7,23 @@
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
-hbackup 是一个用 Rust 编写的高性能跨平台备份工具。它以快速、高效、易用为设计理念，注重性能和可靠性。
+**hbackup** 是一个用 Rust 编写的高性能、跨平台备份工具。它专注于速度、效率、易用性和灵活的备份管理。
+
+---
 
 ## 功能特点
 
-- 通过命令行快速备份文件或目录
-- 跨平台支持：macOS、Linux、Windows
-- 支持自定义备份任务并分配唯一ID
-- 配置和任务管理存储于用户配置目录的 JSON 文件
-- 支持 `~` 、`$HOME` 和相对路径作为源和目标路径
+- 🚀 **快速简单** 的文件/目录备份 CLI 工具
+- 🖥️ **跨平台**：macOS、Linux、Windows
+- 🗂️ **自定义备份任务**，每个任务有唯一 ID
+- 📝 **配置和任务管理**，基于用户配置目录下的 TOML 文件
+- 🏠 支持 `~`、`$HOME` 和相对路径作为源和目标
+- 🔄 **轻松编辑、删除、列出**备份任务
+- 🛠️ **配置文件备份、重置与回滚**
+- 📦 **一次性备份**：无需保存任务即可执行备份
+- 🧩 **易扩展**，方便添加新功能
+
+---
 
 ## 快速上手
 
@@ -38,76 +46,112 @@ bk add --source ~/my_path2/my_file2.txt --target ~/back
 bk list
 ```
 
-### 4. 执行所有任务
+### 4. 执行备份任务
 
-- 运行所有任务：
+- **执行所有任务：**
+  
+  ```sh
+  bk run
+  ```
 
-```sh
-bk run
-```
+- **按 ID 执行任务：**
+  
+  ```sh
+  bk run --id 1
+  ```
 
-- 运行指定ID的任务：
-
-```sh
-bk run --id 1
-```
-
-- 运行指定源和目标的任务：
-
-```sh
-bk run ~/my_path/myfile.txt ~/back
-```
+- **一次性备份（不保存为任务）：**
+  
+  ```sh
+  bk run ~/my_path/myfile.txt ~/back
+  ```
 
 ### 5. 删除任务
 
-- 按ID删除：
+- **按 ID 删除任务：**
 
-```sh
-bk delete --id 1
-```
+  ```sh
+  bk delete --id 1
+  ```
 
-- 删除全部任务：
-
-```sh
-bk delete --all
-```
+- **删除全部任务：**
+  
+  ```sh
+  bk delete --all
+  ```
 
 ### 6. 编辑任务
+
+根据任务 ID 更新源和/或目标路径：
 
 ```sh
 bk edit --id 1 --source ~/newfile.txt --target ~/newbackup/
 ```
 
-### 7. 配置文件
+### 7. 配置文件管理
 
-- 显示配置文件路径
+- **显示配置文件路径：**
 
-```sh
-bk config
-```
+  ```sh
+  bk config
+  ```
 
-- 备份配置文件
+- **备份配置文件：**
 
-```sh
-bk config --copy
-```
+  ```sh
+  bk config --copy
+  ```
 
-- 重置备份文件（重置文件之前会自动备份配置文件）
+- **重置配置文件（重置前自动备份）：**
 
-```sh
-bk config --reset
-```
+  ```sh
+  bk config --reset
+  ```
 
-- 回滚上一次备份的配置文件
+- **回滚到上一次备份的配置文件：**
 
-```sh
-bk config --rollback
-```
+  ```sh
+  bk config --rollback
+  ```
+
+---
+
+## 命令参考
+
+| 命令                    | 说明                                   |
+|-------------------------|----------------------------------------|
+| `bk add`                | 添加新的备份任务                        |
+| `bk list`               | 列出所有备份任务                        |
+| `bk run`                | 执行所有任务、指定 ID 或一次性备份       |
+| `bk delete`             | 按 ID 删除任务或删除全部任务            |
+| `bk edit`               | 按 ID 编辑任务的源/目标路径             |
+| `bk config`             | 显示、备份、重置或回滚配置文件          |
+
+使用 `bk <命令> --help` 查看详细参数。
+
+---
 
 ## 配置文件位置
 
-- macOS/Linux: `~/.config/hbackup/hbackup.json`
-- Windows: `C:\Users\<User>\AppData\Roaming\hbackup\hbackup.json`
+- **macOS/Linux:** `~/.config/hbackup/hbackup.json`
+- **Windows:** `C:\Users\<User>\AppData\Roaming\hbackup\hbackup_backup.json`
+
+重置配置文件前会自动备份。
+
+---
+
+## 错误处理
+
+- 所有错误均有清晰提示。
+- 如果你直接运行 `bk`，会看到：
+
+```sh
+error: hbackup requires at least one command to execute.
+
+See 'bk --help' for usage.
+```
+
+---
 
 ## 许可证
 
