@@ -60,46 +60,15 @@ pub fn compression(src: &Path, dest: &Path, format: &CompressFormat) -> Result<(
 /// # Errors
 /// Returns an error if any IO error occurs.
 fn compress_file_gzip(src: &Path, dest: &Path) -> Result<()> {
-    let mut f = src.to_path_buf();
-    f.set_extension("gz");
-    let file_name = f.file_name().unwrap().to_string_lossy().into_owned();
-    let dest = dest.join(&file_name);
+    let file_name = get_file_name(src);
+    let dest = dest.join(format!("{file_name}.gz"));
+    let dest_file = File::create(&dest)?;
 
-    let file = File::create(&dest)?;
     let mut reader = BufReader::new(File::open(src)?);
-    let mut encoder = GzEncoder::new(file, Compression::default());
+    let mut encoder = GzEncoder::new(dest_file, Compression::default());
     io::copy(&mut reader, &mut encoder)?;
     encoder.finish()?;
 
-    Ok(())
-}
-
-/// Compresses a single file at `src` into a zip file in the `dest` directory.
-///
-/// The output file will have a `.zip` extension.
-///
-/// # Errors
-/// Returns an error if any IO error occurs.
-fn compress_file_zip(src: &Path, dest: &Path) -> Result<()> {
-    let mut f = src.to_path_buf();
-    f.set_extension("zip");
-    let file_name = f.file_name().unwrap().to_string_lossy().into_owned();
-    let dest = dest.join(&file_name);
-
-    let file = File::create(dest)?;
-    let mut zip = ZipWriter::new(file);
-
-    let options = FileOptions::<()>::default();
-
-    let name = src.file_name().unwrap().to_string_lossy();
-    zip.start_file(name, options)?;
-
-    let mut src_file = File::open(src)?;
-    let mut buffer = Vec::new();
-    src_file.read_to_end(&mut buffer)?;
-
-    zip.write_all(&buffer)?;
-    zip.finish()?;
     Ok(())
 }
 
@@ -110,15 +79,38 @@ fn compress_file_zip(src: &Path, dest: &Path) -> Result<()> {
 /// # Errors
 /// Returns an error if any IO error occurs.
 fn compress_dir_gzip(src: &Path, dest: &Path) -> Result<()> {
-    let file_name = src.file_name().unwrap().to_string_lossy().into_owned();
-    let file_name = format!("{file_name}.tar.gz");
-    let dest = dest.join(&file_name);
+    let file_name = get_file_name(src);
+    let dest = dest.join(format!("{file_name}.tar.gz"));
     let tar_gz = File::create(dest)?;
+
     let encoder = GzEncoder::new(tar_gz, Compression::default());
     let mut tar_builder = tar::Builder::new(encoder);
-
     tar_builder.append_dir_all(&file_name, src)?;
     tar_builder.into_inner()?.finish()?;
+    Ok(())
+}
+
+/// Compresses a single file at `src` into a zip file in the `dest` directory.
+///
+/// The output file will have a `.zip` extension.
+///
+/// # Errors
+/// Returns an error if any IO error occurs.
+fn compress_file_zip(src: &Path, dest: &Path) -> Result<()> {
+    let file_name = get_file_name(src);
+    let dest = dest.join(format!("{file_name}.zip"));
+    let dest_file = File::create(dest)?;
+
+    let mut zip = ZipWriter::new(dest_file);
+    let options = FileOptions::<()>::default();
+    zip.start_file(file_name, options)?;
+
+    let mut src_file = File::open(src)?;
+    let mut buffer = Vec::new();
+    src_file.read_to_end(&mut buffer)?;
+
+    zip.write_all(&buffer)?;
+    zip.finish()?;
     Ok(())
 }
 
@@ -129,11 +121,11 @@ fn compress_dir_gzip(src: &Path, dest: &Path) -> Result<()> {
 /// # Errors
 /// Returns an error if any IO error occurs.
 fn compress_dir_zip(src: &Path, dest: &Path) -> Result<()> {
-    let file_name = src.file_name().unwrap().to_string_lossy().into_owned();
-    let file_name = format!("{file_name}.zip");
-    let dest = dest.join(file_name);
-    let file = File::create(dest)?;
-    let mut zip = ZipWriter::new(file);
+    let file_name = get_file_name(src);
+    let dest = dest.join(format!("{file_name}.zip"));
+    let dest_file = File::create(dest)?;
+
+    let mut zip = ZipWriter::new(dest_file);
     let options = FileOptions::<()>::default();
 
     let prefix = src.parent().unwrap_or_else(|| Path::new(""));
@@ -160,25 +152,15 @@ fn compress_dir_zip(src: &Path, dest: &Path) -> Result<()> {
 }
 
 fn compress_sevenz(src: &Path, dest: &Path) -> Result<()> {
-    let file = if src.is_dir() {
-        src.to_path_buf()
-    } else {
-        let mut file = src.to_path_buf();
-        file.set_extension("");
-        file
-    };
-    let name = file.file_name().unwrap().to_string_lossy().into_owned();
-    let name = format!("{name}.7z");
-    let dest = dest.join(name);
+    let file_name = get_file_name(src);
+    let dest = dest.join(format!("{file_name}.7z"));
     sevenz_rust2::compress_to_path(src, &dest)?;
     Ok(())
 }
 
 fn compress_file_zstd(src: &Path, dest: &Path) -> Result<()> {
-    let mut file = src.to_path_buf();
-    file.set_extension("zst");
-    let name = get_file_name(&file);
-    let dest = dest.join(name);
+    let file_name = get_file_name(src);
+    let dest = dest.join(format!("{file_name}.zst"));
     let dest_file = File::create(dest)?;
 
     let mut reader = BufReader::new(File::open(src)?);
@@ -189,14 +171,13 @@ fn compress_file_zstd(src: &Path, dest: &Path) -> Result<()> {
 }
 
 fn compress_dir_zstd(src: &Path, dest: &Path) -> Result<()> {
-    let name = get_file_name(src);
-    let name = format!("{name}.tar.zst");
-    let dest = dest.join(&name);
-    let tar_szt = File::create(dest)?;
+    let file_name = get_file_name(src);
+    let dest = dest.join(format!("{file_name}.tar.zst"));
+    let tar_zst = File::create(dest)?;
 
-    let encoder = ZstdEncoder::new(tar_szt, 0)?;
+    let encoder = ZstdEncoder::new(tar_zst, 0)?;
     let mut tar_builder = tar::Builder::new(encoder);
-    tar_builder.append_dir_all(&name, src)?;
+    tar_builder.append_dir_all(&file_name, src)?;
     tar_builder.into_inner()?.finish()?;
     Ok(())
 }
@@ -214,13 +195,13 @@ fn compress_file_bzip2(src: &Path, dest: &Path) -> Result<()> {
 }
 
 fn compress_dir_bzip2(src: &Path, dest: &Path) -> Result<()> {
-    let dir_name = get_file_name(src);
-    let dest = dest.join(format!("{dir_name}.tar.bz2"));
+    let file_name = get_file_name(src);
+    let dest = dest.join(format!("{file_name}.tar.bz2"));
     let tar_bz = File::create(dest)?;
 
     let encoder = BzEncoder::new(tar_bz, BzCompression::default());
     let mut tar_builder = tar::Builder::new(encoder);
-    tar_builder.append_dir_all(&dir_name, src)?;
+    tar_builder.append_dir_all(&file_name, src)?;
     tar_builder.into_inner()?.finish()?;
     Ok(())
 }
