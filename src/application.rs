@@ -40,6 +40,7 @@ impl fmt::Display for Job {
             Some(CompressFormat::Zip) => "Zip",
             Some(CompressFormat::Sevenz) => "Sevenz",
             Some(CompressFormat::Zstd) => "Zstd",
+            Some(CompressFormat::Bzip2) => "Bzip2",
             None => "",
         };
         if comp.is_empty() {
@@ -69,6 +70,7 @@ pub enum CompressFormat {
     Zip,
     Sevenz,
     Zstd,
+    Bzip2,
 }
 
 ///  A wrapper for displaying a list of jobs in a formatted way.

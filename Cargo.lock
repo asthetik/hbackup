@@ -430,6 +430,7 @@ name = "hbackup"
 version = "0.3.1"
 dependencies = [
  "anyhow",
+ "bzip2 0.6.0",
  "clap",
  "dirs",
  "flate2",
