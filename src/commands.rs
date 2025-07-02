@@ -7,6 +7,7 @@ use clap::{Parser, Subcommand};
 use std::fs::{self};
 use std::path::{Path, PathBuf};
 use std::process;
+use walkdir::WalkDir;
 
 /// Command-line interface definition for hbackup.
 #[derive(Parser)]
@@ -267,14 +268,19 @@ pub fn rollback_config_file() -> Result<()> {
 }
 
 fn get_all_jobs(source: &Path, target: &Path) -> Result<Vec<(PathBuf, PathBuf)>> {
-    let files = path::get_all_files(source)?;
-    let file_name = source.file_name().with_context(|| "Invalid file name")?;
-    let mut vec = Vec::new();
-    for file in files {
-        let sub_path = file.strip_prefix(source)?;
-        let target = target.join(file_name).join(sub_path);
-
-        vec.push((file, target));
+    let prefix = source.parent().unwrap_or(Path::new(""));
+    let mut vec = vec![];
+    for entry in WalkDir::new(source) {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_file() {
+            let rel: PathBuf = path
+                .strip_prefix(prefix)
+                .expect("strip_prefix failed")
+                .into();
+            let target_path = target.join(rel);
+            vec.push((path.to_path_buf(), target_path));
+        }
     }
     Ok(vec)
 }
