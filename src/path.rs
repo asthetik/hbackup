@@ -16,7 +16,7 @@ use std::path::PathBuf;
 /// ```
 /// use std::path::PathBuf;
 /// use hbackup::path::check_path;
-/// let path = PathBuf::from("/tmp");
+/// let path = PathBuf::from(".");
 /// let result = check_path(&path);
 /// assert!(result.is_ok());
 /// ```
