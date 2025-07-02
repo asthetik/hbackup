@@ -21,10 +21,19 @@ fn main() -> Result<()> {
     init_config();
 
     match commands {
-        Commands::Add { source, target } => {
-            commands::add(source, target)?;
+        Commands::Add {
+            source,
+            target,
+            compression,
+        } => {
+            commands::add(source, target, compression)?;
         }
-        Commands::Run { source, target, id } => {
+        Commands::Run {
+            source,
+            target,
+            compression,
+            id,
+        } => {
             if let Some(id) = id {
                 commands::run_by_id(id);
             } else if let (Some(source), Some(target)) = (source, target) {
@@ -36,6 +45,7 @@ fn main() -> Result<()> {
                     id: 0,
                     source,
                     target,
+                    compression,
                 };
                 commands::run_job(&job)?;
             } else {

@@ -1,5 +1,6 @@
 //! Global configuration for this application.
 use crate::{sysexits, Result, CONFIG_BACKUP_NAME, CONFIG_NAME};
+use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::io::Write;
@@ -28,18 +29,42 @@ pub struct Job {
     pub source: PathBuf,
     /// Target file or directory path.
     pub target: PathBuf,
+    /// compression
+    pub compression: Option<CompressFormat>,
 }
 
 impl fmt::Display for Job {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
+        let comp = match self.compression {
+            Some(CompressFormat::Gzip) => "gzip",
+            Some(CompressFormat::Zip) => "zip",
+            None => "",
+        };
+        if comp.is_empty() {
+            write!(
+                f,
+                "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\"\n}}",
+                self.id,
+                self.source.display(),
+                self.target.display(),
+            )
+        } else {
+            write!(
             f,
-            "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\"\n}}",
+            "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\",\n    compression:\"{}\"\n}}",
             self.id,
             self.source.display(),
-            self.target.display()
+            self.target.display(),
+            comp
         )
+        }
     }
+}
+
+#[derive(ValueEnum, Serialize, Deserialize, Clone, Debug)]
+pub enum CompressFormat {
+    Gzip,
+    Zip,
 }
 
 ///  A wrapper for displaying a list of jobs in a formatted way.
@@ -83,12 +108,18 @@ impl Application {
     }
 
     /// Adds a new backup job with a unique id.
-    pub fn add_job(&mut self, source: PathBuf, target: PathBuf) {
+    pub fn add_job(
+        &mut self,
+        source: PathBuf,
+        target: PathBuf,
+        compression: Option<CompressFormat>,
+    ) {
         if self.jobs.is_empty() {
             self.jobs.push(Job {
                 id: 1,
                 source,
                 target,
+                compression,
             });
         } else {
             let job_ids: HashSet<u32> = self.jobs.iter().map(|j| j.id).collect();
@@ -101,7 +132,12 @@ impl Application {
                     );
                     process::exit(sysexits::EX_SOFTWARE);
                 });
-            self.jobs.push(Job { id, source, target });
+            self.jobs.push(Job {
+                id,
+                source,
+                target,
+                compression,
+            });
         }
     }
 
