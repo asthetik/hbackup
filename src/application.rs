@@ -38,6 +38,7 @@ impl fmt::Display for Job {
         let comp = match self.compression {
             Some(CompressFormat::Gzip) => "gzip",
             Some(CompressFormat::Zip) => "zip",
+            Some(CompressFormat::SevenZ) => "sevenz",
             None => "",
         };
         if comp.is_empty() {
@@ -65,6 +66,7 @@ impl fmt::Display for Job {
 pub enum CompressFormat {
     Gzip,
     Zip,
+    SevenZ,
 }
 
 ///  A wrapper for displaying a list of jobs in a formatted way.

@@ -36,11 +36,13 @@ pub fn compression(src: &Path, dest: &Path, format: &CompressFormat) -> Result<(
         match format {
             CompressFormat::Gzip => compress_file_gzip(src, dest),
             CompressFormat::Zip => compress_file_zip(src, dest),
+            CompressFormat::SevenZ => compress_sevenz(src, dest),
         }
     } else {
         match format {
             CompressFormat::Gzip => compress_dir_gzip(src, dest),
             CompressFormat::Zip => compress_dir_zip(src, dest),
+            CompressFormat::SevenZ => compress_sevenz(src, dest),
         }
     }
 }
@@ -148,5 +150,22 @@ fn compress_dir_zip(src: &Path, dest: &Path) -> Result<()> {
     }
     zip.finish()?;
 
+    Ok(())
+}
+
+fn compress_sevenz(src: &Path, dest: &Path) -> Result<()> {
+    let file = if src.is_dir() {
+        src.to_path_buf()
+    } else {
+        let mut file = src.to_path_buf();
+        file.set_extension("");
+        file
+    };
+    let name = file.file_name().unwrap().to_string_lossy().into_owned();
+    let name = format!("{name}.7z");
+    let dest = dest.join(name);
+    dbg!(&src);
+    dbg!(&dest);
+    sevenz_rust2::compress_to_path(src, &dest)?;
     Ok(())
 }
