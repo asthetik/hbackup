@@ -1,4 +1,7 @@
 //! Command-line interface definition for hbackup.
+///
+/// This module defines all CLI commands, their arguments, and the logic for handling
+/// backup jobs, including add, run, list, delete, edit, and configuration management.
 use crate::application::{Application, CompressFormat, Job, JobList};
 use crate::{application, file_util, path};
 use crate::{sysexits, Result};
@@ -76,21 +79,29 @@ pub enum Commands {
         #[arg(short, long, required = false, required_unless_present = "source")]
         target: Option<PathBuf>,
     },
-    /// Display the absolute path of the configuration file
+    /// Display the absolute path of the configuration file and manage config backup/reset/rollback.
     Config {
-        /// backup the configuration file
+        /// Backup the configuration file.
         #[arg(long, required = false)]
         copy: bool,
-        /// Reset the configuration file and back up the file before resetting
+        /// Reset the configuration file and back up the file before resetting.
         #[arg(long, required = false)]
         reset: bool,
-        /// Rollback the last backed up configuration file
+        /// Rollback the last backed up configuration file.
         #[arg(long, required = false)]
         rollback: bool,
     },
 }
 
 /// Adds a new backup job to the configuration file.
+///
+/// # Arguments
+/// * `source` - The source file or directory path.
+/// * `target` - The target file or directory path.
+/// * `comp` - Optional compression format.
+///
+/// # Errors
+/// Returns an error if the source path is invalid or the job cannot be saved.
 pub fn add(source: PathBuf, target: PathBuf, comp: Option<CompressFormat>) -> Result<()> {
     let source = canonicalize(source);
     let target = canonicalize(target);
@@ -103,7 +114,10 @@ pub fn add(source: PathBuf, target: PathBuf, comp: Option<CompressFormat>) -> Re
     Ok(())
 }
 
-/// Runs all backup jobs.
+/// Runs all backup jobs defined in the configuration.
+///
+/// # Errors
+/// Returns an error if any job fails to run.
 pub fn run() -> Result<()> {
     let jobs = Application::get_jobs();
     if jobs.is_empty() {
@@ -119,6 +133,11 @@ pub fn run() -> Result<()> {
 }
 
 /// Runs a backup job by its id.
+///
+/// # Arguments
+/// * `id` - The job id to run.
+///
+/// Exits the process with an error code if the job is not found or fails.
 pub fn run_by_id(id: u32) {
     let jobs = Application::get_jobs();
     if jobs.is_empty() {
@@ -139,7 +158,13 @@ pub fn run_by_id(id: u32) {
     }
 }
 
-/// Run a backup job
+/// Runs a backup job (single file or directory copy, with optional compression).
+///
+/// # Arguments
+/// * `job` - The job to execute.
+///
+/// # Errors
+/// Returns an error if the copy or compression fails.
 pub fn run_job(job: &Job) -> Result<()> {
     if let Some(ref format) = job.compression {
         file_util::compression(&job.source, &job.target, format)?;
@@ -158,13 +183,20 @@ pub fn run_job(job: &Job) -> Result<()> {
     Ok(())
 }
 
-/// Lists all backup jobs.
+/// Lists all backup jobs in the configuration.
 pub fn list() {
     let jobs = Application::get_jobs();
     println!("{}", JobList(jobs));
 }
 
 /// Deletes a job by id or deletes all jobs.
+///
+/// # Arguments
+/// * `id` - Optional job id to delete.
+/// * `all` - If true, delete all jobs.
+///
+/// # Errors
+/// Returns an error if neither `id` nor `all` is specified, or if deletion fails.
 pub fn delete(id: Option<u32>, all: bool) -> Result<()> {
     if all {
         let mut app = Application::load_config();
@@ -186,7 +218,15 @@ pub fn delete(id: Option<u32>, all: bool) -> Result<()> {
     Ok(())
 }
 
-/// Edits a job by id, updating its source and/or target.
+/// Edits a job by id, updating its source and/or target path.
+///
+/// # Arguments
+/// * `id` - The job id to edit.
+/// * `source` - Optional new source path.
+/// * `target` - Optional new target path.
+///
+/// # Errors
+/// Returns an error if the job is not found or the new path is invalid.
 pub fn edit(id: u32, source: Option<PathBuf>, target: Option<PathBuf>) -> Result<()> {
     let source = source.map(canonicalize);
     if let Some(ref file_path) = source {
@@ -219,6 +259,10 @@ pub fn config() {
     println!("config file: {}", application::config_file().display());
 }
 
+/// Back up the configuration file to a backup location.
+///
+/// # Errors
+/// Returns an error if the backup fails.
 pub fn backup_config_file() -> Result<()> {
     let config_file = application::config_file();
     let backed_config_file = application::backed_config_file();
@@ -233,7 +277,10 @@ pub fn backup_config_file() -> Result<()> {
     Ok(())
 }
 
-/// Reset the configuration file and back up the file before resetting
+/// Reset the configuration file and back up the file before resetting.
+///
+/// # Errors
+/// Returns an error if the reset or backup fails.
 pub fn reset_config_file() -> Result<()> {
     let config_file = application::config_file();
     let backed_config_file = application::backed_config_file();
@@ -248,7 +295,10 @@ pub fn reset_config_file() -> Result<()> {
     Ok(())
 }
 
-/// Rollback the last backed up configuration file
+/// Rollback the last backed up configuration file.
+///
+/// # Errors
+/// Returns an error if the backup does not exist or rollback fails.
 pub fn rollback_config_file() -> Result<()> {
     let backed_config_file = application::backed_config_file();
     if !backed_config_file.exists() {
@@ -267,6 +317,17 @@ pub fn rollback_config_file() -> Result<()> {
     Ok(())
 }
 
+/// Recursively collects all files in a directory for backup, mapping source to target paths.
+///
+/// # Arguments
+/// * `source` - The source directory.
+/// * `target` - The target directory.
+///
+/// # Returns
+/// A vector of (source_file, target_file) pairs.
+///
+/// # Errors
+/// Returns an error if directory traversal fails.
 fn get_all_jobs(source: &Path, target: &Path) -> Result<Vec<(PathBuf, PathBuf)>> {
     let prefix = source.parent().unwrap_or(Path::new(""));
     let mut vec = vec![];
@@ -285,9 +346,14 @@ fn get_all_jobs(source: &Path, target: &Path) -> Result<Vec<(PathBuf, PathBuf)>>
     Ok(vec)
 }
 
-/// Copy file from source to target
-/// source: Path to the source file
-/// target: Path to the target file
+/// Copy file from source to target, creating parent directories if needed.
+///
+/// # Arguments
+/// * `source` - Path to the source file.
+/// * `target` - Path to the target file or directory.
+///
+/// # Errors
+/// Returns an error if the copy fails.
 fn copy_file(source: &Path, target: &Path) -> Result<()> {
     let target_file = if (target.exists() && target.is_dir())
         || (!target.exists() && target.extension().is_none())
@@ -310,6 +376,12 @@ fn copy_file(source: &Path, target: &Path) -> Result<()> {
 
 /// Returns the canonical, absolute form of the path with all intermediate
 /// components normalized and symbolic links resolved.
+///
+/// # Arguments
+/// * `path` - The path to canonicalize.
+///
+/// # Panics
+/// Exits the process if the path is invalid.
 pub fn canonicalize(path: PathBuf) -> PathBuf {
     let source = &path;
     match source.canonicalize() {
