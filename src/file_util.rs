@@ -3,14 +3,14 @@
 //! This module provides functions to compress files and directories
 //! using gzip or zip formats, supporting both single files and entire directories.
 
+use crate::{application::CompressFormat, Result};
 use flate2::{write::GzEncoder, Compression};
 use std::io::{BufReader, Read, Write};
 use std::{fs, io};
 use std::{fs::File, path::Path};
 use walkdir::WalkDir;
 use zip::{write::FileOptions, ZipWriter};
-
-use crate::{application::CompressFormat, Result};
+use zstd::stream::write::Encoder as ZstdEncoder;
 
 /// Compresses a file or directory at `src` into the `dest` directory using the specified `format`.
 ///
@@ -32,17 +32,19 @@ pub fn compression(src: &Path, dest: &Path, format: &CompressFormat) -> Result<(
     }
     fs::create_dir_all(dest)?;
 
-    if src.is_file() {
-        match format {
-            CompressFormat::Gzip => compress_file_gzip(src, dest),
-            CompressFormat::Zip => compress_file_zip(src, dest),
-            CompressFormat::SevenZ => compress_sevenz(src, dest),
-        }
-    } else {
+    if src.is_dir() {
         match format {
             CompressFormat::Gzip => compress_dir_gzip(src, dest),
             CompressFormat::Zip => compress_dir_zip(src, dest),
             CompressFormat::SevenZ => compress_sevenz(src, dest),
+            CompressFormat::Zstd => compress_dir_zstd(src, dest),
+        }
+    } else {
+        match format {
+            CompressFormat::Gzip => compress_file_gzip(src, dest),
+            CompressFormat::Zip => compress_file_zip(src, dest),
+            CompressFormat::SevenZ => compress_sevenz(src, dest),
+            CompressFormat::Zstd => compress_file_zstd(src, dest),
         }
     }
 }
@@ -164,8 +166,37 @@ fn compress_sevenz(src: &Path, dest: &Path) -> Result<()> {
     let name = file.file_name().unwrap().to_string_lossy().into_owned();
     let name = format!("{name}.7z");
     let dest = dest.join(name);
-    dbg!(&src);
-    dbg!(&dest);
     sevenz_rust2::compress_to_path(src, &dest)?;
     Ok(())
+}
+
+fn compress_file_zstd(src: &Path, dest: &Path) -> Result<()> {
+    let mut file = src.to_path_buf();
+    file.set_extension("zst");
+    let name = get_file_name(&file);
+    let dest = dest.join(name);
+    let dest_file = File::create(dest)?;
+
+    let mut reader = BufReader::new(File::open(src)?);
+    let mut encoder = ZstdEncoder::new(dest_file, 0)?;
+    io::copy(&mut reader, &mut encoder)?;
+    encoder.finish()?;
+    Ok(())
+}
+
+fn compress_dir_zstd(src: &Path, dest: &Path) -> Result<()> {
+    let name = get_file_name(src);
+    let name = format!("{name}.tar.zst");
+    let dest = dest.join(&name);
+    let tar_szt = File::create(dest)?;
+
+    let encoder = ZstdEncoder::new(tar_szt, 0)?;
+    let mut tar_builder = tar::Builder::new(encoder);
+    tar_builder.append_dir_all(&name, src)?;
+    tar_builder.into_inner()?.finish()?;
+    Ok(())
+}
+
+fn get_file_name(file: &Path) -> String {
+    file.file_name().unwrap().to_string_lossy().into_owned()
 }
