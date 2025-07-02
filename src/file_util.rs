@@ -1,3 +1,8 @@
+//! File compression utilities for hbackup.
+//!
+//! This module provides functions to compress files and directories
+//! using gzip or zip formats, supporting both single files and entire directories.
+
 use flate2::{write::GzEncoder, Compression};
 use std::io::{BufReader, Read, Write};
 use std::{fs, io};
@@ -7,6 +12,16 @@ use zip::{write::FileOptions, ZipWriter};
 
 use crate::{application::CompressFormat, Result};
 
+/// Compresses a file or directory at `src` into the `dest` directory using the specified `format`.
+///
+/// # Arguments
+/// * `src` - The source file or directory to compress.
+/// * `dest` - The destination directory where the compressed file will be placed.
+/// * `format` - The compression format to use (`Gzip` or `Zip`).
+///
+/// # Errors
+/// Returns an error if the source does not exist, is not a file or directory,
+/// if the destination is not a directory, or if any IO error occurs during compression.
 pub fn compression(src: &Path, dest: &Path, format: &CompressFormat) -> Result<()> {
     assert!(src.exists());
     if !src.is_dir() && !src.is_file() {
@@ -30,6 +45,12 @@ pub fn compression(src: &Path, dest: &Path, format: &CompressFormat) -> Result<(
     }
 }
 
+/// Compresses a single file at `src` into a gzip file in the `dest` directory.
+///
+/// The output file will have a `.gz` extension.
+///
+/// # Errors
+/// Returns an error if any IO error occurs.
 fn compress_file_gzip(src: &Path, dest: &Path) -> Result<()> {
     let mut f = src.to_path_buf();
     f.set_extension("gz");
@@ -45,6 +66,12 @@ fn compress_file_gzip(src: &Path, dest: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Compresses a single file at `src` into a zip file in the `dest` directory.
+///
+/// The output file will have a `.zip` extension.
+///
+/// # Errors
+/// Returns an error if any IO error occurs.
 fn compress_file_zip(src: &Path, dest: &Path) -> Result<()> {
     let mut f = src.to_path_buf();
     f.set_extension("zip");
@@ -68,6 +95,12 @@ fn compress_file_zip(src: &Path, dest: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Compresses a directory at `src` into a tar.gz archive in the `dest` directory.
+///
+/// The output file will have a `.tar.gz` extension and will contain all files and subdirectories.
+///
+/// # Errors
+/// Returns an error if any IO error occurs.
 fn compress_dir_gzip(src: &Path, dest: &Path) -> Result<()> {
     let file_name = src.file_name().unwrap().to_string_lossy().into_owned();
     let file_name = format!("{}.{}", file_name, "tar.gz");
@@ -81,6 +114,12 @@ fn compress_dir_gzip(src: &Path, dest: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Compresses a directory at `src` into a zip archive in the `dest` directory.
+///
+/// The output file will have a `.zip` extension and will contain all files and subdirectories.
+///
+/// # Errors
+/// Returns an error if any IO error occurs.
 fn compress_dir_zip(src: &Path, dest: &Path) -> Result<()> {
     let file_name = src.file_name().unwrap().to_string_lossy().into_owned();
     let file_name = format!("{}.{}", file_name, "zip");
