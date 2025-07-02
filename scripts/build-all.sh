@@ -6,6 +6,8 @@ VERSION="v${VERSION}"
 
 echo "version: ${VERSION}"
 
+cargo fmt --all --check && cargo clippy -- -D warnings
+
 targets=(
     "x86_64-unknown-linux-gnu"
     "x86_64-unknown-linux-musl"
