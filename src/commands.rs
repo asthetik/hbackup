@@ -1,10 +1,10 @@
 //! Command-line interface definition for hbackup.
-use crate::application::{Application, Job, JobList};
-use crate::{application, path};
+use crate::application::{Application, CompressFormat, Job, JobList};
+use crate::{application, file_util, path};
 use crate::{sysexits, Result};
 use anyhow::Context;
 use clap::{Parser, Subcommand};
-use std::fs;
+use std::fs::{self};
 use std::path::{Path, PathBuf};
 use std::process;
 
@@ -28,6 +28,9 @@ pub enum Commands {
         /// Target file or directory path.
         #[arg(short, long)]
         target: PathBuf,
+        /// Compression format.
+        #[arg(short, long)]
+        compression: Option<CompressFormat>,
     },
     /// Run backup jobs.
     ///
@@ -42,6 +45,9 @@ pub enum Commands {
         /// Target file or directory (positional, optional). Must be used with source.
         #[arg(required = false, requires = "source")]
         target: Option<PathBuf>,
+        /// Compression format.
+        #[arg(required = false)]
+        compression: Option<CompressFormat>,
         /// Run a specific job by id. Cannot be used with source/target.
         #[arg(long, required = false, conflicts_with_all = ["source", "target"])]
         id: Option<u32>,
@@ -84,13 +90,13 @@ pub enum Commands {
 }
 
 /// Adds a new backup job to the configuration file.
-pub fn add(source: PathBuf, target: PathBuf) -> Result<()> {
+pub fn add(source: PathBuf, target: PathBuf, comp: Option<CompressFormat>) -> Result<()> {
     let source = canonicalize(source);
     let target = canonicalize(target);
     path::check_path(&source)?;
 
     let mut app = Application::load_config();
-    app.add_job(source, target);
+    app.add_job(source, target, comp);
     app.write()?;
 
     Ok(())
@@ -134,7 +140,9 @@ pub fn run_by_id(id: u32) {
 
 /// Run a backup job
 pub fn run_job(job: &Job) -> Result<()> {
-    if job.source.is_dir() {
+    if let Some(ref format) = job.compression {
+        file_util::compression(&job.source, &job.target, format)?;
+    } else if job.source.is_dir() {
         if job.target.exists() && job.target.is_file() {
             eprintln!("File exists");
             process::exit(sysexits::EX_CANTCREAT);

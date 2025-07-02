@@ -6,6 +6,7 @@ use std::error::Error;
 
 pub mod application;
 pub mod commands;
+pub mod file_util;
 pub mod path;
 pub mod sysexits;
 

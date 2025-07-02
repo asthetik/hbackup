@@ -20,6 +20,10 @@ serde_json = "1.0"
 anyhow = "1.0.98"
 dirs = "6.0.0"
 toml = "0.8.23"
+flate2 = "1.1.2"
+tar = "0.4.44"
+zip = "4.2.0"
+walkdir = "2.5.0"
 
 [[bin]]
 name = "bk"
