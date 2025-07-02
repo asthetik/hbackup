@@ -7,15 +7,24 @@
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
-hbackup is a simple, high-performance, cross-platform backup tool written in Rust. It is designed to be fast, efficient, and easy to use, with a focus on performance and reliability.
+**hbackup** is a simple, high-performance, cross-platform backup tool written in Rust. It is designed to be fast, efficient, and easy to use, with a focus on performance, reliability, and flexible backup management.
+
+---
 
 ## Features
 
-- Simple and fast file/directory backup via CLI
-- Cross-platform: macOS, Linux, Windows
-- Supports custom backup tasks with unique IDs
-- Configuration and task management via toml in user config directory
-- Supports '~', '$HOME' and relative paths for source and target paths
+- 🚀 **Fast and simple** file/directory backup via CLI
+- 🖥️ **Cross-platform**: macOS, Linux, Windows
+- 🗂️ **Custom backup jobs** with unique IDs
+- 📝 **Configuration and task management** via TOML in user config directory
+- 🏠 Supports `~`, `$HOME`, and relative paths for source and target
+- 🔄 **Edit, delete, and list** backup jobs easily
+- 🗜️ **Compression support**: gzip and zip for files and directories
+- 🛠️ **Config file backup, reset, and rollback**
+- 📦 **One-time backup**: run a backup without saving a job
+- 🧩 **Extensible**: easy to add new features
+
+---
 
 ## Quick Start
 
@@ -30,6 +39,9 @@ cargo install hbackup
 ```sh
 bk add --source ~/my_path1/my_file1.txt --target ~/back
 bk add --source ~/my_path2/my_file2.txt --target ~/back
+# Add a job with compression (gzip or zip)
+bk add -s ~/my_path3/my_dir -t ~/back -c gzip
+bk add -s ~/my_path4/my_dir -t ~/back -c zip
 ```
 
 ### 3. List all jobs
@@ -38,76 +50,139 @@ bk add --source ~/my_path2/my_file2.txt --target ~/back
 bk list
 ```
 
-### 4. Run all backed jobs
+### 4. Run backup jobs
 
-- run all jobs:
+- **Run all jobs:**
+  
+  ```sh
+  bk run
+  ```
 
-```sh
-bk run
-```
+- **Run a job by ID:**
+  
+  ```sh
+  bk run --id 1
+  ```
 
-- Run the job with the specified ID:
+- **Run a one-time backup (without saving as a job):**
+  
+  ```sh
+  bk run ~/my_path/myfile.txt ~/back
+  ```
 
-```sh
-bk run --id 1
-```
+  You can also specify compression for a one-time backup:
 
-- run a specific job with source and target:
+  ```sh
+  bk run ~/my_path/mydir ~/back gzip
+  bk run ~/my_path/mydir ~/back zip
+  ```
 
-```sh
-bk run ~/my_path/myfile.txt ~/back
-```
+### 5. Delete jobs
 
-### 5. Delete a job
+- **Delete a job by ID:**
 
-- Delete a job by id:
+  ```sh
+  bk delete --id 1
+  ```
 
-```sh
-bk delete --id 1
-```
-
-- Delete all jobs:
-
-```sh
-bk delete --all
-```
+- **Delete all jobs:**
+  
+  ```sh
+  bk delete --all
+  ```
 
 ### 6. Edit a job
+
+Update the source and/or target of a job by its ID:
 
 ```sh
 bk edit --id 1 --source ~/newfile.txt --target ~/newbackup/
 ```
 
-### 7. configuration file
+### 7. Manage configuration file
 
-display configuration file path
+- **Show configuration file path:**
 
-```shell
-bk config
-```
+  ```sh
+  bk config
+  ```
 
-- backup configutation file
+- **Backup configuration file:**
+
+  ```sh
+  bk config --copy
+  ```
+
+- **Reset configuration file (auto-backup before reset):**
+
+  ```sh
+  bk config --reset
+  ```
+
+- **Rollback to the last backed up configuration file:**
+
+  ```sh
+  bk config --rollback
+  ```
+
+---
+
+## Compression Support
+
+You can specify compression format (`gzip` or `zip`) when **adding** or **running** jobs:
 
 ```sh
-bk config --copy
+# Add a job with gzip compression
+bk add --source ~/file.txt --target ~/back --compression gzip
+# or a short command line
+bk add -s ~/file.txt -t ~/back -c gzip
+
+# One-time backup with compression
+bk run ~/my_path/mydir ~/back gzip
 ```
 
-- reset configuration file (The file will be automatically backed up before resetting it)
+- Compression works for both files and directories.
+- Output files will have `.gz` or `.zip` extensions.
+- If no compression is specified, files are copied as-is.
 
-```sh
-bk config --reset
-```
+---
 
-- Rollback the last backed up configuration file
+## Command Reference
 
-```sh
-bk config --rollback
-```
+| Command                | Description                                      |
+|------------------------|--------------------------------------------------|
+| `bk add`               | Add a new backup job                             |
+| `bk list`              | List all backup jobs                             |
+| `bk run`               | Run all jobs, a job by ID, or a one-time backup  |
+| `bk delete`            | Delete a job by ID or delete all jobs            |
+| `bk edit`              | Edit a job's source/target by ID                 |
+| `bk config`            | Show, backup, reset, or rollback config file     |
+
+Run `bk <command> --help` for detailed options.
+
+---
 
 ## Configuration File Location
 
-- macOS/Linux: `~/.config/hbackup/config.toml`
-- Windows: `C:\Users\<User>\AppData\Roaming\hbackup\config.toml`
+- **macOS/Linux:** `~/.config/hbackup/config.toml`
+- **Windows:** `C:\Users\<User>\AppData\Roaming\hbackup\config.toml`
+
+A backup of the config file is automatically created before resetting.
+
+---
+
+## Error Handling
+
+- All errors are reported with clear messages.
+- If you run `bk` without a command, you'll see:
+
+```sh
+  error: hbackup requires at least one command to execute.
+
+  See 'bk --help' for usage.
+```
+
+---
 
 ## License
 
