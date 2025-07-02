@@ -25,6 +25,7 @@ tar = "0.4.44"
 zip = "4.2.0"
 walkdir = "2.5.0"
 sevenz-rust2 = { version = "0.15", features = ["compress", "util"] }
+zstd = "0.13.3"
 
 [[bin]]
 name = "bk"

@@ -440,6 +440,7 @@ dependencies = [
  "toml",
  "walkdir",
  "zip",
+ "zstd",
 ]
 
 [[package]]
