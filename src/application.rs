@@ -5,7 +5,7 @@
 //! and config file management. It provides serialization/deserialization for TOML and JSON,
 //! and utilities for reading, writing, and migrating configuration files.
 
-use crate::{sysexits, Result, CONFIG_BACKUP_NAME, CONFIG_NAME};
+use crate::{CONFIG_BACKUP_NAME, CONFIG_NAME, Result, sysexits};
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
