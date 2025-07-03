@@ -18,7 +18,7 @@ targets=(
     "aarch64-apple-darwin"
 )
 
-profile="release-lto"
+profile="release"
 for target in "${targets[@]}"; do
     echo "==> Testing for $target"
     cross test --profile $profile --target "$target"
