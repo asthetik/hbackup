@@ -4,15 +4,15 @@
 //! using gzip, zip, 7z, zstd, and bzip2 formats. It supports both single files and entire directories,
 //! and automatically selects the correct compression strategy based on the input type and format.
 
-use crate::{application::CompressFormat, Result};
-use bzip2::write::BzEncoder;
+use crate::{Result, application::CompressFormat};
 use bzip2::Compression as BzCompression;
-use flate2::{write::GzEncoder, Compression};
+use bzip2::write::BzEncoder;
+use flate2::{Compression, write::GzEncoder};
 use std::io::{BufReader, Read, Write};
 use std::{fs, io};
 use std::{fs::File, path::Path};
 use walkdir::WalkDir;
-use zip::{write::FileOptions, ZipWriter};
+use zip::{ZipWriter, write::FileOptions};
 use zstd::stream::write::Encoder as ZstdEncoder;
 
 /// Compresses a file or directory at `src` into the `dest` directory using the specified `format`.
