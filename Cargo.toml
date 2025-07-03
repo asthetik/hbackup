@@ -1,7 +1,7 @@
 [package]
 name = "hbackup"
 version = "0.3.2"
-edition = "2021"
+edition = "2024"
 authors = ["asthetik"]
 repository = "https://github.com/asthetik/hbackup"
 description = "hbackup is a sample, high-performance, cross-platform backup tool written in Rust. It is designed to be fast, efficient, and easy to use, with a focus on performance and reliability."
@@ -12,6 +12,7 @@ exclude = [
     ".github/*",
     "scripts/*"
 ]
+rust-version = "1.85.0"
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
