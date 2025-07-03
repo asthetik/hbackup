@@ -1,6 +1,6 @@
 [package]
 name = "hbackup"
-version = "0.1.9"
+version = "0.1.10"
 edition = "2021"
 authors = ["asthetik"]
 repository = "https://github.com/asthetik/hbackup"
@@ -12,6 +12,7 @@ exclude = [
     ".github/*",
     "scripts/*"
 ]
+rust-version = "1.78.0"
 
 [dependencies]
 clap = { version = "4.5.40", features = ["derive"] }
