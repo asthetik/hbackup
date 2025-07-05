@@ -27,6 +27,7 @@ walkdir = "2.5"
 sevenz-rust2 = { version = "0.16", features = ["compress", "util"] }
 zstd = "0.13"
 bzip2 = "0.6"
+xz2 = { version = "0.1", features = ["static"] }
 
 [dependencies.zip]
 version = "4.2"
