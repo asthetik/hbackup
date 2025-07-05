@@ -11,6 +11,7 @@ use flate2::{Compression, write::GzEncoder};
 use std::io::{BufReader, Read, Write};
 use std::{fs, io};
 use std::{fs::File, path::Path};
+use tar::Builder;
 use walkdir::WalkDir;
 use xz2::write::XzEncoder;
 use zip::{ZipWriter, write::FileOptions};
@@ -89,7 +90,7 @@ fn compress_dir_gzip(src: &Path, dest: &Path) -> Result<()> {
 
     let encoder = GzEncoder::new(tar_gz, Compression::default());
     let mut tar_builder = tar::Builder::new(encoder);
-    tar_builder.append_dir_all(&file_name, src)?;
+    append_regular_only(&mut tar_builder, src)?;
     tar_builder.into_inner()?.finish()?;
     Ok(())
 }
@@ -121,6 +122,11 @@ fn compress_file_zip(src: &Path, dest: &Path) -> Result<()> {
 /// Compresses a directory at `src` into a zip archive in the `dest` directory.
 ///
 /// The output file will have a `.zip` extension and will contain all files and subdirectories.
+/// Only regular files and directories are included; symlinks are preserved as directories or files.
+///
+/// # Arguments
+/// * `src` - The source directory to compress.
+/// * `dest` - The destination directory where the zip file will be placed.
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
@@ -133,7 +139,6 @@ fn compress_dir_zip(src: &Path, dest: &Path) -> Result<()> {
     let options = FileOptions::<()>::default();
 
     let prefix = src.parent().unwrap_or_else(|| Path::new(""));
-
     for entry in WalkDir::new(src) {
         let entry = entry?;
         let path = entry.path();
@@ -141,10 +146,11 @@ fn compress_dir_zip(src: &Path, dest: &Path) -> Result<()> {
             .strip_prefix(prefix)
             .unwrap()
             .to_string_lossy()
-            .to_string();
-        if path.is_dir() {
+            .into_owned();
+        let md = fs::symlink_metadata(path)?;
+        if md.is_dir() {
             zip.add_directory(name, options)?;
-        } else {
+        } else if md.is_file() {
             zip.start_file(name, options)?;
             let mut f = File::open(path)?;
             io::copy(&mut f, &mut zip)?;
@@ -159,6 +165,10 @@ fn compress_dir_zip(src: &Path, dest: &Path) -> Result<()> {
 ///
 /// The output file will have a `.7z` extension.
 ///
+/// # Arguments
+/// * `src` - The source file or directory to compress.
+/// * `dest` - The destination directory where the 7z file will be placed.
+///
 /// # Errors
 /// Returns an error if any IO error occurs or if 7z compression fails.
 fn compress_sevenz(src: &Path, dest: &Path) -> Result<()> {
@@ -171,6 +181,10 @@ fn compress_sevenz(src: &Path, dest: &Path) -> Result<()> {
 /// Compresses a single file at `src` into a zstd file in the `dest` directory.
 ///
 /// The output file will have a `.zst` extension.
+///
+/// # Arguments
+/// * `src` - The source file to compress.
+/// * `dest` - The destination directory where the zst file will be placed.
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
@@ -190,6 +204,10 @@ fn compress_file_zstd(src: &Path, dest: &Path) -> Result<()> {
 ///
 /// The output file will have a `.tar.zst` extension and will contain all files and subdirectories.
 ///
+/// # Arguments
+/// * `src` - The source directory to compress.
+/// * `dest` - The destination directory where the tar.zst file will be placed.
+///
 /// # Errors
 /// Returns an error if any IO error occurs.
 fn compress_dir_zstd(src: &Path, dest: &Path) -> Result<()> {
@@ -199,7 +217,7 @@ fn compress_dir_zstd(src: &Path, dest: &Path) -> Result<()> {
 
     let encoder = ZstdEncoder::new(tar_zst, 0)?;
     let mut tar_builder = tar::Builder::new(encoder);
-    tar_builder.append_dir_all(&file_name, src)?;
+    append_regular_only(&mut tar_builder, src)?;
     tar_builder.into_inner()?.finish()?;
     Ok(())
 }
@@ -207,6 +225,10 @@ fn compress_dir_zstd(src: &Path, dest: &Path) -> Result<()> {
 /// Compresses a single file at `src` into a bzip2 file in the `dest` directory.
 ///
 /// The output file will have a `.bz2` extension.
+///
+/// # Arguments
+/// * `src` - The source file to compress.
+/// * `dest` - The destination directory where the bz2 file will be placed.
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
@@ -226,6 +248,10 @@ fn compress_file_bzip2(src: &Path, dest: &Path) -> Result<()> {
 ///
 /// The output file will have a `.tar.bz2` extension and will contain all files and subdirectories.
 ///
+/// # Arguments
+/// * `src` - The source directory to compress.
+/// * `dest` - The destination directory where the tar.bz2 file will be placed.
+///
 /// # Errors
 /// Returns an error if any IO error occurs.
 fn compress_dir_bzip2(src: &Path, dest: &Path) -> Result<()> {
@@ -235,7 +261,7 @@ fn compress_dir_bzip2(src: &Path, dest: &Path) -> Result<()> {
 
     let encoder = BzEncoder::new(tar_bz, BzCompression::default());
     let mut tar_builder = tar::Builder::new(encoder);
-    tar_builder.append_dir_all(&file_name, src)?;
+    append_regular_only(&mut tar_builder, src)?;
     tar_builder.into_inner()?.finish()?;
     Ok(())
 }
@@ -243,6 +269,10 @@ fn compress_dir_bzip2(src: &Path, dest: &Path) -> Result<()> {
 /// Compresses a single file at `src` into an xz file in the `dest` directory.
 ///
 /// The output file will have a `.xz` extension.
+///
+/// # Arguments
+/// * `src` - The source file to compress.
+/// * `dest` - The destination directory where the xz file will be placed.
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
@@ -262,6 +292,10 @@ fn compress_file_xz(src: &Path, dest: &Path) -> Result<()> {
 ///
 /// The output file will have a `.tar.xz` extension and will contain all files and subdirectories.
 ///
+/// # Arguments
+/// * `src` - The source directory to compress.
+/// * `dest` - The destination directory where the tar.xz file will be placed.
+///
 /// # Errors
 /// Returns an error if any IO error occurs.
 fn compress_dir_xz(src: &Path, dest: &Path) -> Result<()> {
@@ -271,15 +305,45 @@ fn compress_dir_xz(src: &Path, dest: &Path) -> Result<()> {
 
     let encoder = XzEncoder::new(tar_xz, 6);
     let mut tar_builder = tar::Builder::new(encoder);
-    tar_builder.append_dir_all(&file_name, src)?;
+    append_regular_only(&mut tar_builder, src)?;
     tar_builder.into_inner()?.finish()?;
     Ok(())
 }
 
 /// Returns the file or directory name as a `String`.
 ///
+/// # Arguments
+/// * `file` - The path to extract the file or directory name from.
+///
 /// # Panics
 /// Panics if the path does not have a file name.
 fn get_file_name(file: &Path) -> String {
     file.file_name().unwrap().to_string_lossy().into_owned()
+}
+
+/// Appends only regular files and directories from `src` into the provided tar archive builder.
+///
+/// This helper skips symlinks and special files for safety and portability.
+///
+/// # Arguments
+/// * `tar` - The tar archive builder to append files/directories to.
+/// * `src` - The source directory to walk and archive.
+///
+/// # Errors
+/// Returns an error if any IO error occurs during traversal or archiving.
+fn append_regular_only<W: Write>(tar: &mut Builder<W>, src: &Path) -> Result<()> {
+    let prefix = src.parent().unwrap_or(Path::new(""));
+    for entry in WalkDir::new(src) {
+        let entry = entry?;
+        let path = entry.path();
+        let rel = path.strip_prefix(prefix).unwrap();
+
+        let md = fs::symlink_metadata(path)?;
+        if md.is_dir() {
+            tar.append_dir(rel, path)?;
+        } else if md.is_file() {
+            tar.append_path_with_name(path, rel)?;
+        }
+    }
+    Ok(())
 }
