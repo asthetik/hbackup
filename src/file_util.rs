@@ -1,7 +1,7 @@
 //! File compression utilities for hbackup.
 //!
 //! This module provides functions to compress files and directories
-//! using gzip, zip, 7z, zstd, and bzip2 formats. It supports both single files and entire directories,
+//! using gzip, zip, 7z, zstd, bzip2, and xz formats. It supports both single files and entire directories,
 //! and automatically selects the correct compression strategy based on the input type and format.
 
 use crate::{Result, application::CompressFormat};
@@ -21,7 +21,7 @@ use zstd::stream::write::Encoder as ZstdEncoder;
 /// # Arguments
 /// * `src` - The source file or directory to compress.
 /// * `dest` - The destination directory where the compressed file will be placed.
-/// * `format` - The compression format to use (`Gzip`, `Zip`, `Sevenz`, `Zstd`, or `Bzip2`).
+/// * `format` - The compression format to use (`Gzip`, `Zip`, `Sevenz`, `Zstd`, `Bzip2`, or `Xz`).
 ///
 /// # Errors
 /// Returns an error if the source does not exist, is not a file or directory,
@@ -240,6 +240,12 @@ fn compress_dir_bzip2(src: &Path, dest: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Compresses a single file at `src` into an xz file in the `dest` directory.
+///
+/// The output file will have a `.xz` extension.
+///
+/// # Errors
+/// Returns an error if any IO error occurs.
 fn compress_file_xz(src: &Path, dest: &Path) -> Result<()> {
     let file_name = get_file_name(src);
     let dest = dest.join(format!("{file_name}.xz"));
@@ -252,6 +258,12 @@ fn compress_file_xz(src: &Path, dest: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Compresses a directory at `src` into a tar.xz archive in the `dest` directory.
+///
+/// The output file will have a `.tar.xz` extension and will contain all files and subdirectories.
+///
+/// # Errors
+/// Returns an error if any IO error occurs.
 fn compress_dir_xz(src: &Path, dest: &Path) -> Result<()> {
     let file_name = get_file_name(src);
     let dest = dest.join(format!("{file_name}.tar.xz"));
