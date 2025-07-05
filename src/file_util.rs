@@ -12,6 +12,7 @@ use std::io::{BufReader, Read, Write};
 use std::{fs, io};
 use std::{fs::File, path::Path};
 use walkdir::WalkDir;
+use xz2::write::XzEncoder;
 use zip::{ZipWriter, write::FileOptions};
 use zstd::stream::write::Encoder as ZstdEncoder;
 
@@ -42,6 +43,7 @@ pub fn compression(src: &Path, dest: &Path, format: &CompressFormat) -> Result<(
             CompressFormat::Sevenz => compress_sevenz(src, dest),
             CompressFormat::Zstd => compress_dir_zstd(src, dest),
             CompressFormat::Bzip2 => compress_dir_bzip2(src, dest),
+            CompressFormat::Xz => compress_dir_xz(src, dest),
         }
     } else {
         match format {
@@ -50,6 +52,7 @@ pub fn compression(src: &Path, dest: &Path, format: &CompressFormat) -> Result<(
             CompressFormat::Sevenz => compress_sevenz(src, dest),
             CompressFormat::Zstd => compress_file_zstd(src, dest),
             CompressFormat::Bzip2 => compress_file_bzip2(src, dest),
+            CompressFormat::Xz => compress_file_xz(src, dest),
         }
     }
 }
@@ -231,6 +234,30 @@ fn compress_dir_bzip2(src: &Path, dest: &Path) -> Result<()> {
     let tar_bz = File::create(dest)?;
 
     let encoder = BzEncoder::new(tar_bz, BzCompression::default());
+    let mut tar_builder = tar::Builder::new(encoder);
+    tar_builder.append_dir_all(&file_name, src)?;
+    tar_builder.into_inner()?.finish()?;
+    Ok(())
+}
+
+fn compress_file_xz(src: &Path, dest: &Path) -> Result<()> {
+    let file_name = get_file_name(src);
+    let dest = dest.join(format!("{file_name}.xz"));
+    let dest_file = File::create(dest)?;
+
+    let mut reader = BufReader::new(File::open(src)?);
+    let mut encoder = XzEncoder::new(dest_file, 6);
+    io::copy(&mut reader, &mut encoder)?;
+    encoder.finish()?;
+    Ok(())
+}
+
+fn compress_dir_xz(src: &Path, dest: &Path) -> Result<()> {
+    let file_name = get_file_name(src);
+    let dest = dest.join(format!("{file_name}.tar.xz"));
+    let tar_xz = File::create(dest)?;
+
+    let encoder = XzEncoder::new(tar_xz, 6);
     let mut tar_builder = tar::Builder::new(encoder);
     tar_builder.append_dir_all(&file_name, src)?;
     tar_builder.into_inner()?.finish()?;
