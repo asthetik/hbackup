@@ -23,11 +23,15 @@ dirs = "6.0"
 toml = "0.8"
 flate2 = "1.1"
 tar = "0.4"
-zip = "4.2"
 walkdir = "2.5"
-sevenz-rust2 = { version = "0.15", features = ["compress", "util"] }
+sevenz-rust2 = { version = "0.16", features = ["compress", "util"] }
 zstd = "0.13"
 bzip2 = "0.6"
+
+[dependencies.zip]
+version = "4.2"
+default-features = false
+features = ["deflate"]
 
 [[bin]]
 name = "bk"
