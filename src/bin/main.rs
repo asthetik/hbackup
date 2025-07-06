@@ -58,8 +58,14 @@ fn main() -> Result<()> {
         Commands::Delete { id, all } => {
             commands::delete(id, all)?;
         }
-        Commands::Edit { id, source, target } => {
-            commands::edit(id, source, target)?;
+        Commands::Edit {
+            id,
+            source,
+            target,
+            compression,
+            no_compression,
+        } => {
+            commands::edit(id, source, target, compression, no_compression)?;
         }
         Commands::Config {
             copy,
