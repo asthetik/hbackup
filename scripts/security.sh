@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 
+cargo deny --all-features check
 cargo audit --deny warnings
 
 profiles=(

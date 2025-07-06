@@ -4,6 +4,7 @@ on:
     paths: 
       - '**/Cargo.toml'
       - '**/Cargo.lock'
+      - '**/deny.toml'
   pull_request:
     branches: [ "master" ]
   schedule:
@@ -17,3 +18,9 @@ jobs:
       - uses: rustsec/audit-check@v2.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          log-level: warn
+          manifest-path: ./Cargo.toml
+          command: check
+          arguments: --all-features
