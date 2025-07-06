@@ -2,7 +2,7 @@
 ///
 /// This module defines all CLI commands, their arguments, and the logic for handling
 /// backup jobs, including add, run, list, delete, edit, and configuration management.
-use crate::application::{Application, CompressFormat, Job, JobList};
+use crate::application::{Application, CompressFormat, Job, JobList, Level};
 use crate::{Result, sysexits};
 use crate::{application, file_util, path};
 use anyhow::Context;
@@ -35,6 +35,8 @@ pub enum Commands {
         /// Compression format.
         #[arg(short, long)]
         compression: Option<CompressFormat>,
+        #[arg(short, long, requires = "compression")]
+        level: Option<Level>,
     },
     /// Run backup jobs.
     ///
@@ -52,6 +54,9 @@ pub enum Commands {
         /// Compression format.
         #[arg(required = false)]
         compression: Option<CompressFormat>,
+        /// Compression level
+        #[arg(required = false, requires = "compression")]
+        level: Option<Level>,
         /// Run a specific job by id. Cannot be used with source/target.
         #[arg(long, required = false, conflicts_with_all = ["source", "target", "compression"])]
         id: Option<u32>,
@@ -108,13 +113,18 @@ pub enum Commands {
 ///
 /// # Errors
 /// Returns an error if the source path is invalid or the job cannot be saved.
-pub fn add(source: PathBuf, target: PathBuf, comp: Option<CompressFormat>) -> Result<()> {
+pub fn add(
+    source: PathBuf,
+    target: PathBuf,
+    comp: Option<CompressFormat>,
+    level: Option<Level>,
+) -> Result<()> {
     let source = canonicalize(source);
     let target = canonicalize(target);
     path::check_path(&source)?;
 
     let mut app = Application::load_config();
-    app.add_job(source, target, comp);
+    app.add_job(source, target, comp, level);
     app.write()?;
 
     Ok(())
@@ -173,7 +183,12 @@ pub fn run_by_id(id: u32) {
 /// Returns an error if the copy or compression fails.
 pub fn run_job(job: &Job) -> Result<()> {
     if let Some(ref format) = job.compression {
-        file_util::compression(&job.source, &job.target, format)?;
+        let level = if let Some(ref level) = job.level {
+            level
+        } else {
+            &Level::Default
+        };
+        file_util::compression(&job.source, &job.target, format, level)?;
     } else if job.source.is_dir() {
         if job.target.exists() && job.target.is_file() {
             eprintln!("File exists");
