@@ -20,12 +20,13 @@ use xz2::write::XzEncoder;
 use zip::{ZipWriter, write::FileOptions};
 use zstd::stream::write::Encoder as ZstdEncoder;
 
-/// Compresses a file or directory at `src` into the `dest` directory using the specified `format`.
+/// Compresses a file or directory at `src` into the `dest` directory using the specified `format` and `level`.
 ///
 /// # Arguments
 /// * `src` - The source file or directory to compress.
 /// * `dest` - The destination directory where the compressed file will be placed.
 /// * `format` - The compression format to use (`Gzip`, `Zip`, `Sevenz`, `Zstd`, `Bzip2`, or `Xz`).
+/// * `level` - Compression level (see [`Level`]).
 ///
 /// # Errors
 /// Returns an error if the source does not exist, is not a file or directory,
@@ -65,6 +66,11 @@ pub fn compression(src: &Path, dest: &Path, format: &CompressFormat, level: &Lev
 ///
 /// The output file will have a `.gz` extension.
 ///
+/// # Arguments
+/// * `src` - The source file to compress.
+/// * `dest` - The destination directory.
+/// * `level` - Compression level.
+///
 /// # Errors
 /// Returns an error if any IO error occurs.
 fn compress_file_gzip(src: &Path, dest: &Path, level: &Level) -> Result<()> {
@@ -91,6 +97,11 @@ fn compress_file_gzip(src: &Path, dest: &Path, level: &Level) -> Result<()> {
 ///
 /// The output file will have a `.tar.gz` extension and will contain all files and subdirectories.
 ///
+/// # Arguments
+/// * `src` - The source directory to compress.
+/// * `dest` - The destination directory.
+/// * `level` - Compression level.
+///
 /// # Errors
 /// Returns an error if any IO error occurs.
 fn compress_dir_gzip(src: &Path, dest: &Path, level: &Level) -> Result<()> {
@@ -116,6 +127,11 @@ fn compress_dir_gzip(src: &Path, dest: &Path, level: &Level) -> Result<()> {
 ///
 /// The output file will have a `.zip` extension.
 ///
+/// # Arguments
+/// * `src` - The source file to compress.
+/// * `dest` - The destination directory.
+/// * `level` - Compression level (1-9).
+///
 /// # Errors
 /// Returns an error if any IO error occurs.
 fn compress_file_zip(src: &Path, dest: &Path, level: &Level) -> Result<()> {
@@ -132,7 +148,6 @@ fn compress_file_zip(src: &Path, dest: &Path, level: &Level) -> Result<()> {
         Level::Best => 9,
     };
     let options = FileOptions::<()>::default().compression_level(Some(level));
-    dbg!(&options);
     zip.start_file(file_name, options)?;
 
     let mut src_file = File::open(src)?;
@@ -152,6 +167,7 @@ fn compress_file_zip(src: &Path, dest: &Path, level: &Level) -> Result<()> {
 /// # Arguments
 /// * `src` - The source directory to compress.
 /// * `dest` - The destination directory where the zip file will be placed.
+/// * `level` - Compression level (1-9).
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
@@ -169,7 +185,6 @@ fn compress_dir_zip(src: &Path, dest: &Path, level: &Level) -> Result<()> {
         Level::Best => 9,
     };
     let options = FileOptions::<()>::default().compression_level(Some(level));
-    dbg!(&options);
 
     let prefix = src.parent().unwrap_or_else(|| Path::new(""));
     for entry in WalkDir::new(src) {
@@ -201,6 +216,7 @@ fn compress_dir_zip(src: &Path, dest: &Path, level: &Level) -> Result<()> {
 /// # Arguments
 /// * `src` - The source file or directory to compress.
 /// * `dest` - The destination directory where the 7z file will be placed.
+/// * `level` - Compression level (1-9).
 ///
 /// # Errors
 /// Returns an error if any IO error occurs or if 7z compression fails.
@@ -221,7 +237,6 @@ fn compress_sevenz(src: &Path, dest: &Path, level: &Level) -> Result<()> {
     writer.push_source_path(src, |_| true)?;
     writer.finish()?;
 
-    // sevenz_rust2::compress_to_path(src, &dest)?;
     Ok(())
 }
 
@@ -232,6 +247,7 @@ fn compress_sevenz(src: &Path, dest: &Path, level: &Level) -> Result<()> {
 /// # Arguments
 /// * `src` - The source file to compress.
 /// * `dest` - The destination directory where the zst file will be placed.
+/// * `level` - Compression level (1-22).
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
@@ -261,6 +277,7 @@ fn compress_file_zstd(src: &Path, dest: &Path, level: &Level) -> Result<()> {
 /// # Arguments
 /// * `src` - The source directory to compress.
 /// * `dest` - The destination directory where the tar.zst file will be placed.
+/// * `level` - Compression level (1-22).
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
@@ -290,6 +307,7 @@ fn compress_dir_zstd(src: &Path, dest: &Path, level: &Level) -> Result<()> {
 /// # Arguments
 /// * `src` - The source file to compress.
 /// * `dest` - The destination directory where the bz2 file will be placed.
+/// * `level` - Compression level.
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
@@ -319,6 +337,7 @@ fn compress_file_bzip2(src: &Path, dest: &Path, level: &Level) -> Result<()> {
 /// # Arguments
 /// * `src` - The source directory to compress.
 /// * `dest` - The destination directory where the tar.bz2 file will be placed.
+/// * `level` - Compression level.
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
@@ -348,6 +367,7 @@ fn compress_dir_bzip2(src: &Path, dest: &Path, level: &Level) -> Result<()> {
 /// # Arguments
 /// * `src` - The source file to compress.
 /// * `dest` - The destination directory where the xz file will be placed.
+/// * `level` - Compression level (1-9).
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
@@ -377,6 +397,7 @@ fn compress_file_xz(src: &Path, dest: &Path, level: &Level) -> Result<()> {
 /// # Arguments
 /// * `src` - The source directory to compress.
 /// * `dest` - The destination directory where the tar.xz file will be placed.
+/// * `level` - Compression level (1-9).
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
