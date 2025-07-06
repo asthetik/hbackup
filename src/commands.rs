@@ -53,7 +53,7 @@ pub enum Commands {
         #[arg(required = false)]
         compression: Option<CompressFormat>,
         /// Run a specific job by id. Cannot be used with source/target.
-        #[arg(long, required = false, conflicts_with_all = ["source", "target"])]
+        #[arg(long, required = false, conflicts_with_all = ["source", "target", "compression"])]
         id: Option<u32>,
     },
     /// List all backup jobs.
@@ -72,12 +72,18 @@ pub enum Commands {
         /// Edit job by id.
         #[arg(long)]
         id: u32,
-        /// New source file or directory path (optional, at least one of source/target required)
-        #[arg(short, long, required = false, required_unless_present = "target")]
+        /// New source file or directory path
+        #[arg(short, long, required = false, required_unless_present_any = ["target", "compression", "no_compression"])]
         source: Option<PathBuf>,
-        /// New target file or directory path (optional, at least one of source/target required)
-        #[arg(short, long, required = false, required_unless_present = "source")]
+        /// New target file or directory path
+        #[arg(short, long, required = false, required_unless_present_any = ["source", "compression", "no_compression"])]
         target: Option<PathBuf>,
+        /// Compression format.
+        #[arg(short, long, required = false, required_unless_present_any = ["source", "target", "no_compression"], conflicts_with_all = ["no_compression"])]
+        compression: Option<CompressFormat>,
+        /// Clear compression format
+        #[arg(short = 'C', long, required = false, required_unless_present_any = ["source", "target", "compression"], conflicts_with_all = ["compression"])]
+        no_compression: bool,
     },
     /// Display the absolute path of the configuration file and manage config backup/reset/rollback.
     Config {
@@ -218,16 +224,24 @@ pub fn delete(id: Option<u32>, all: bool) -> Result<()> {
     Ok(())
 }
 
-/// Edits a job by id, updating its source and/or target path.
+/// Edits a job by id, updating its source, target, and/or compression settings.
 ///
 /// # Arguments
 /// * `id` - The job id to edit.
-/// * `source` - Optional new source path.
-/// * `target` - Optional new target path.
+/// * `source` - Optional new source path. If provided, replaces the job's source.
+/// * `target` - Optional new target path. If provided, replaces the job's target.
+/// * `compression` - Optional new compression format. If provided and `no_compression` is false, replaces the job's compression.
+/// * `no_compression` - If true, clears the job's compression format (takes precedence over `compression`).
 ///
 /// # Errors
 /// Returns an error if the job is not found or the new path is invalid.
-pub fn edit(id: u32, source: Option<PathBuf>, target: Option<PathBuf>) -> Result<()> {
+pub fn edit(
+    id: u32,
+    source: Option<PathBuf>,
+    target: Option<PathBuf>,
+    compression: Option<CompressFormat>,
+    no_compression: bool,
+) -> Result<()> {
     let source = source.map(canonicalize);
     if let Some(ref file_path) = source {
         path::check_path(file_path)?;
@@ -245,6 +259,11 @@ pub fn edit(id: u32, source: Option<PathBuf>, target: Option<PathBuf>) -> Result
         }
         if let Some(path) = target {
             job.target = path;
+        }
+        if no_compression {
+            job.compression = None;
+        } else if compression.is_some() {
+            job.compression = compression;
         }
         app.write()?;
         println!("Job with id {id} edited successfully.");
