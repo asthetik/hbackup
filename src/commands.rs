@@ -78,17 +78,23 @@ pub enum Commands {
         #[arg(long)]
         id: u32,
         /// New source file or directory path
-        #[arg(short, long, required = false, required_unless_present_any = ["target", "compression", "no_compression"])]
+        #[arg(short, long, required = false, required_unless_present_any = ["target", "compression", "no_compression", "level", "no_level"])]
         source: Option<PathBuf>,
         /// New target file or directory path
-        #[arg(short, long, required = false, required_unless_present_any = ["source", "compression", "no_compression"])]
+        #[arg(short, long, required = false, required_unless_present_any = ["source", "compression", "no_compression", "level", "no_level"])]
         target: Option<PathBuf>,
         /// Compression format.
-        #[arg(short, long, required = false, required_unless_present_any = ["source", "target", "no_compression"], conflicts_with_all = ["no_compression"])]
+        #[arg(short, long, required = false, required_unless_present_any = ["source", "target", "no_compression", "level", "no_level"], conflicts_with_all = ["no_compression"])]
         compression: Option<CompressFormat>,
         /// Clear compression format
-        #[arg(short = 'C', long, required = false, required_unless_present_any = ["source", "target", "compression"], conflicts_with_all = ["compression"])]
+        #[arg(short = 'C', long, required = false, required_unless_present_any = ["source", "target", "compression", "level", "no_level"], conflicts_with_all = ["compression"])]
         no_compression: bool,
+        /// Compression level
+        #[arg(short, long, required = false, required_unless_present_any = ["source", "target", "compression", "no_compression", "no_level"], conflicts_with_all = ["no_level"] )]
+        level: Option<Level>,
+        /// Clear compression level
+        #[arg(short = 'L', long, required = false, required_unless_present_any = ["source", "target", "compression", "no_compression", "level"], conflicts_with_all = ["level"] )]
+        no_level: bool,
     },
     /// Display the absolute path of the configuration file and manage config backup/reset/rollback.
     Config {
@@ -256,6 +262,8 @@ pub fn edit(
     target: Option<PathBuf>,
     compression: Option<CompressFormat>,
     no_compression: bool,
+    level: Option<Level>,
+    no_level: bool,
 ) -> Result<()> {
     let source = source.map(canonicalize);
     if let Some(ref file_path) = source {
@@ -277,8 +285,19 @@ pub fn edit(
         }
         if no_compression {
             job.compression = None;
+            job.level = None;
         } else if compression.is_some() {
             job.compression = compression;
+        }
+        if no_level {
+            job.level = None;
+        } else if level.is_some() && job.compression.is_none() {
+            eprintln!(
+                "The compression format is not set, and the compression level cannot be updated."
+            );
+            process::exit(1);
+        } else if level.is_some() {
+            job.level = level;
         }
         app.write()?;
         println!("Job with id {id} edited successfully.");

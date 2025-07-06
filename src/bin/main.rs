@@ -67,8 +67,18 @@ fn main() -> Result<()> {
             target,
             compression,
             no_compression,
+            level,
+            no_level,
         } => {
-            commands::edit(id, source, target, compression, no_compression)?;
+            commands::edit(
+                id,
+                source,
+                target,
+                compression,
+                no_compression,
+                level,
+                no_level,
+            )?;
         }
         Commands::Config {
             copy,
