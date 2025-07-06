@@ -39,6 +39,8 @@ pub struct Job {
     pub target: PathBuf,
     /// Optional compression format for this job.
     pub compression: Option<CompressFormat>,
+    /// Optional compression level for this job.
+    pub level: Option<Level>,
 }
 
 impl fmt::Display for Job {
@@ -53,7 +55,15 @@ impl fmt::Display for Job {
             Some(CompressFormat::Xz) => "Xz",
             None => "",
         };
-        if comp.is_empty() {
+        let level = match self.level {
+            Some(Level::Fastest) => "Fastest",
+            Some(Level::Faster) => "Faster",
+            Some(Level::Default) => "Default",
+            Some(Level::Better) => "Better",
+            Some(Level::Best) => "Best",
+            None => "",
+        };
+        if comp.is_empty() && level.is_empty() {
             write!(
                 f,
                 "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\"\n}}",
@@ -61,7 +71,7 @@ impl fmt::Display for Job {
                 self.source.display(),
                 self.target.display(),
             )
-        } else {
+        } else if !comp.is_empty() && level.is_empty() {
             write!(
                 f,
                 "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\",\n    compression: \"{}\"\n}}",
@@ -69,6 +79,25 @@ impl fmt::Display for Job {
                 self.source.display(),
                 self.target.display(),
                 comp
+            )
+        } else if comp.is_empty() && !level.is_empty() {
+            write!(
+                f,
+                "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\",\n    level: \"{}\"\n}}",
+                self.id,
+                self.source.display(),
+                self.target.display(),
+                level
+            )
+        } else {
+            write!(
+                f,
+                "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\",\n    compression: \"{}\",\n    level: \"{}\"\n}}",
+                self.id,
+                self.source.display(),
+                self.target.display(),
+                comp,
+                level,
             )
         }
     }
@@ -83,6 +112,16 @@ pub enum CompressFormat {
     Zstd,
     Bzip2,
     Xz,
+}
+
+/// Supported compression level for backup jobs
+#[derive(ValueEnum, Serialize, Deserialize, Clone, Debug)]
+pub enum Level {
+    Fastest,
+    Faster,
+    Default,
+    Better,
+    Best,
 }
 
 /// A wrapper for displaying a list of jobs in a formatted way.
@@ -136,17 +175,13 @@ impl Application {
         source: PathBuf,
         target: PathBuf,
         compression: Option<CompressFormat>,
+        level: Option<Level>,
     ) {
-        if self.jobs.is_empty() {
-            self.jobs.push(Job {
-                id: 1,
-                source,
-                target,
-                compression,
-            });
+        let id = if self.jobs.is_empty() {
+            1
         } else {
             let job_ids: HashSet<u32> = self.jobs.iter().map(|j| j.id).collect();
-            let id = (1..u32::MAX)
+            (1..u32::MAX)
                 .find(|id| !job_ids.contains(id))
                 .unwrap_or_else(|| {
                     eprintln!(
@@ -154,14 +189,15 @@ impl Application {
                         u32::MAX
                     );
                     process::exit(sysexits::EX_SOFTWARE);
-                });
-            self.jobs.push(Job {
-                id,
-                source,
-                target,
-                compression,
-            });
-        }
+                })
+        };
+        self.jobs.push(Job {
+            id,
+            source,
+            target,
+            compression,
+            level,
+        });
     }
 
     /// Removes all jobs from the configuration.
