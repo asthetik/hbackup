@@ -10,7 +10,8 @@ keywords = ["hbackup", "bk", "backup", "cli"]
 categories = ["command-line-utilities"]
 exclude = [
     ".github/*",
-    "scripts/*"
+    "scripts/*",
+    "deny.toml",
 ]
 rust-version = "1.85.0"
 
