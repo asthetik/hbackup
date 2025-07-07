@@ -41,181 +41,117 @@ pub fn compression(src: &Path, dest: &Path, format: &CompressFormat, level: &Lev
     }
     fs::create_dir_all(dest)?;
 
+    match format {
+        CompressFormat::Gzip => compress_gzip(src, dest, level),
+        CompressFormat::Zip => compress_zip(src, dest, level),
+        CompressFormat::Sevenz => compress_sevenz(src, dest, level),
+        CompressFormat::Zstd => compress_zstd(src, dest, level),
+        CompressFormat::Bzip2 => compress_bzip2(src, dest, level),
+        CompressFormat::Xz => compress_xz(src, dest, level),
+    }
+}
+
+/// Compresses a file or directory at `src` into a gz/tar.gz archive in the `dest` directory.
+///
+/// # Arguments
+/// * `src` - The source directory to compress.
+/// * `dest` - The destination directory.
+/// * `level` - Compression level.
+///
+/// # Errors
+/// Returns an error if any IO error occurs.
+fn compress_gzip(src: &Path, dest: &Path, level: &Level) -> Result<()> {
+    let file_name = get_file_name(src);
+    let level = match level {
+        Level::Fastest => Compression::fast(),
+        Level::Faster => Compression::new(3),
+        Level::Default => Compression::default(),
+        Level::Better => Compression::new(8),
+        Level::Best => Compression::best(),
+    };
+
     if src.is_dir() {
-        match format {
-            CompressFormat::Gzip => compress_dir_gzip(src, dest, level),
-            CompressFormat::Zip => compress_dir_zip(src, dest, level),
-            CompressFormat::Sevenz => compress_sevenz(src, dest, level),
-            CompressFormat::Zstd => compress_dir_zstd(src, dest, level),
-            CompressFormat::Bzip2 => compress_dir_bzip2(src, dest, level),
-            CompressFormat::Xz => compress_dir_xz(src, dest, level),
+        let dest = dest.join(format!("{file_name}.tar.gz"));
+        let tar_gz = File::create(dest)?;
+
+        let encoder = GzEncoder::new(tar_gz, level);
+        let mut tar_builder = tar::Builder::new(encoder);
+        append_regular_only(&mut tar_builder, src)?;
+        tar_builder.into_inner()?.finish()?;
+    } else {
+        let dest = dest.join(format!("{file_name}.gz"));
+        let dest_file = File::create(&dest)?;
+
+        let mut reader = BufReader::new(File::open(src)?);
+        let mut encoder = GzEncoder::new(dest_file, level);
+        io::copy(&mut reader, &mut encoder)?;
+        encoder.finish()?;
+    }
+
+    Ok(())
+}
+
+/// Compresses a file or directory at `src` into a zip archive in the `dest` directory.
+///
+/// # Arguments
+/// * `src` - The source directory to compress.
+/// * `dest` - The destination directory.
+/// * `level` - Compression level (1-9).
+///
+/// # Errors
+/// Returns an error if any IO error occurs.
+fn compress_zip(src: &Path, dest: &Path, level: &Level) -> Result<()> {
+    let file_name = get_file_name(src);
+    let dest = dest.join(format!("{file_name}.zip"));
+    let dest_file = File::create(dest)?;
+
+    let mut zip = ZipWriter::new(dest_file);
+    let level = match level {
+        Level::Fastest => 1,
+        Level::Faster => 3,
+        Level::Default => 6,
+        Level::Better => 8,
+        Level::Best => 9,
+    };
+    let options = FileOptions::<()>::default().compression_level(Some(level));
+    if src.is_dir() {
+        let prefix = src.parent().unwrap_or_else(|| Path::new(""));
+        for entry in WalkDir::new(src) {
+            let entry = entry?;
+            let path = entry.path();
+            let name = path
+                .strip_prefix(prefix)
+                .unwrap()
+                .to_string_lossy()
+                .into_owned();
+            let md = fs::symlink_metadata(path)?;
+            if md.is_dir() {
+                zip.add_directory(name, options)?;
+            } else if md.is_file() {
+                zip.start_file(name, options)?;
+                let mut f = File::open(path)?;
+                io::copy(&mut f, &mut zip)?;
+            }
         }
     } else {
-        match format {
-            CompressFormat::Gzip => compress_file_gzip(src, dest, level),
-            CompressFormat::Zip => compress_file_zip(src, dest, level),
-            CompressFormat::Sevenz => compress_sevenz(src, dest, level),
-            CompressFormat::Zstd => compress_file_zstd(src, dest, level),
-            CompressFormat::Bzip2 => compress_file_bzip2(src, dest, level),
-            CompressFormat::Xz => compress_file_xz(src, dest, level),
-        }
+        zip.start_file(file_name, options)?;
+
+        let mut src_file = File::open(src)?;
+        let mut buffer = Vec::new();
+        src_file.read_to_end(&mut buffer)?;
+
+        zip.write_all(&buffer)?;
+        zip.finish()?;
     }
-}
-
-/// Compresses a single file at `src` into a gzip file in the `dest` directory.
-///
-/// The output file will have a `.gz` extension.
-///
-/// # Arguments
-/// * `src` - The source file to compress.
-/// * `dest` - The destination directory.
-/// * `level` - Compression level.
-///
-/// # Errors
-/// Returns an error if any IO error occurs.
-fn compress_file_gzip(src: &Path, dest: &Path, level: &Level) -> Result<()> {
-    let file_name = get_file_name(src);
-    let dest = dest.join(format!("{file_name}.gz"));
-    let dest_file = File::create(&dest)?;
-
-    let level = match level {
-        Level::Fastest => Compression::fast(),
-        Level::Faster => Compression::new(3),
-        Level::Default => Compression::default(),
-        Level::Better => Compression::new(8),
-        Level::Best => Compression::best(),
-    };
-    let mut reader = BufReader::new(File::open(src)?);
-    let mut encoder = GzEncoder::new(dest_file, level);
-    io::copy(&mut reader, &mut encoder)?;
-    encoder.finish()?;
-
-    Ok(())
-}
-
-/// Compresses a directory at `src` into a tar.gz archive in the `dest` directory.
-///
-/// The output file will have a `.tar.gz` extension and will contain all files and subdirectories.
-///
-/// # Arguments
-/// * `src` - The source directory to compress.
-/// * `dest` - The destination directory.
-/// * `level` - Compression level.
-///
-/// # Errors
-/// Returns an error if any IO error occurs.
-fn compress_dir_gzip(src: &Path, dest: &Path, level: &Level) -> Result<()> {
-    let file_name = get_file_name(src);
-    let dest = dest.join(format!("{file_name}.tar.gz"));
-    let tar_gz = File::create(dest)?;
-
-    let level = match level {
-        Level::Fastest => Compression::fast(),
-        Level::Faster => Compression::new(3),
-        Level::Default => Compression::default(),
-        Level::Better => Compression::new(8),
-        Level::Best => Compression::best(),
-    };
-    let encoder = GzEncoder::new(tar_gz, level);
-    let mut tar_builder = tar::Builder::new(encoder);
-    append_regular_only(&mut tar_builder, src)?;
-    tar_builder.into_inner()?.finish()?;
-    Ok(())
-}
-
-/// Compresses a single file at `src` into a zip file in the `dest` directory.
-///
-/// The output file will have a `.zip` extension.
-///
-/// # Arguments
-/// * `src` - The source file to compress.
-/// * `dest` - The destination directory.
-/// * `level` - Compression level (1-9).
-///
-/// # Errors
-/// Returns an error if any IO error occurs.
-fn compress_file_zip(src: &Path, dest: &Path, level: &Level) -> Result<()> {
-    let file_name = get_file_name(src);
-    let dest = dest.join(format!("{file_name}.zip"));
-    let dest_file = File::create(dest)?;
-
-    let mut zip = ZipWriter::new(dest_file);
-    let level = match level {
-        Level::Fastest => 1,
-        Level::Faster => 3,
-        Level::Default => 6,
-        Level::Better => 8,
-        Level::Best => 9,
-    };
-    let options = FileOptions::<()>::default().compression_level(Some(level));
-    zip.start_file(file_name, options)?;
-
-    let mut src_file = File::open(src)?;
-    let mut buffer = Vec::new();
-    src_file.read_to_end(&mut buffer)?;
-
-    zip.write_all(&buffer)?;
-    zip.finish()?;
-    Ok(())
-}
-
-/// Compresses a directory at `src` into a zip archive in the `dest` directory.
-///
-/// The output file will have a `.zip` extension and will contain all files and subdirectories.
-/// Only regular files and directories are included; symlinks are preserved as directories or files.
-///
-/// # Arguments
-/// * `src` - The source directory to compress.
-/// * `dest` - The destination directory where the zip file will be placed.
-/// * `level` - Compression level (1-9).
-///
-/// # Errors
-/// Returns an error if any IO error occurs.
-fn compress_dir_zip(src: &Path, dest: &Path, level: &Level) -> Result<()> {
-    let file_name = get_file_name(src);
-    let dest = dest.join(format!("{file_name}.zip"));
-    let dest_file = File::create(dest)?;
-
-    let mut zip = ZipWriter::new(dest_file);
-    let level = match level {
-        Level::Fastest => 1,
-        Level::Faster => 3,
-        Level::Default => 6,
-        Level::Better => 8,
-        Level::Best => 9,
-    };
-    let options = FileOptions::<()>::default().compression_level(Some(level));
-
-    let prefix = src.parent().unwrap_or_else(|| Path::new(""));
-    for entry in WalkDir::new(src) {
-        let entry = entry?;
-        let path = entry.path();
-        let name = path
-            .strip_prefix(prefix)
-            .unwrap()
-            .to_string_lossy()
-            .into_owned();
-        let md = fs::symlink_metadata(path)?;
-        if md.is_dir() {
-            zip.add_directory(name, options)?;
-        } else if md.is_file() {
-            zip.start_file(name, options)?;
-            let mut f = File::open(path)?;
-            io::copy(&mut f, &mut zip)?;
-        }
-    }
-    zip.finish()?;
 
     Ok(())
 }
 
 /// Compresses a file or directory at `src` into a 7z archive in the `dest` directory.
 ///
-/// The output file will have a `.7z` extension.
-///
 /// # Arguments
 /// * `src` - The source file or directory to compress.
-/// * `dest` - The destination directory where the 7z file will be placed.
+/// * `dest` - The destination directory.
 /// * `level` - Compression level (1-9).
 ///
 /// # Errors
@@ -240,83 +176,54 @@ fn compress_sevenz(src: &Path, dest: &Path, level: &Level) -> Result<()> {
     Ok(())
 }
 
-/// Compresses a single file at `src` into a zstd file in the `dest` directory.
-///
-/// The output file will have a `.zst` extension.
-///
-/// # Arguments
-/// * `src` - The source file to compress.
-/// * `dest` - The destination directory where the zst file will be placed.
-/// * `level` - Compression level (1-22).
-///
-/// # Errors
-/// Returns an error if any IO error occurs.
-fn compress_file_zstd(src: &Path, dest: &Path, level: &Level) -> Result<()> {
-    let file_name = get_file_name(src);
-    let dest = dest.join(format!("{file_name}.zst"));
-    let dest_file = File::create(dest)?;
-
-    let mut reader = BufReader::new(File::open(src)?);
-    let level = match level {
-        Level::Fastest => 1,
-        Level::Faster => 5,
-        Level::Default => 9,
-        Level::Better => 16,
-        Level::Best => 22,
-    };
-    let mut encoder = ZstdEncoder::new(dest_file, level)?;
-    io::copy(&mut reader, &mut encoder)?;
-    encoder.finish()?;
-    Ok(())
-}
-
-/// Compresses a directory at `src` into a tar.zst archive in the `dest` directory.
-///
-/// The output file will have a `.tar.zst` extension and will contain all files and subdirectories.
+/// Compresses a file or directory at `src` into a zst/tar.zst archive in the `dest` directory.
 ///
 /// # Arguments
 /// * `src` - The source directory to compress.
-/// * `dest` - The destination directory where the tar.zst file will be placed.
+/// * `dest` - The destination directory.
 /// * `level` - Compression level (1-22).
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
-fn compress_dir_zstd(src: &Path, dest: &Path, level: &Level) -> Result<()> {
+fn compress_zstd(src: &Path, dest: &Path, level: &Level) -> Result<()> {
     let file_name = get_file_name(src);
-    let dest = dest.join(format!("{file_name}.tar.zst"));
-    let tar_zst = File::create(dest)?;
-
     let level = match level {
         Level::Fastest => 1,
-        Level::Faster => 5,
-        Level::Default => 9,
-        Level::Better => 16,
+        Level::Faster => 2,
+        Level::Default => 3,
+        Level::Better => 19,
         Level::Best => 22,
     };
-    let encoder = ZstdEncoder::new(tar_zst, level)?;
-    let mut tar_builder = tar::Builder::new(encoder);
-    append_regular_only(&mut tar_builder, src)?;
-    tar_builder.into_inner()?.finish()?;
+    if src.is_dir() {
+        let dest = dest.join(format!("{file_name}.tar.zst"));
+        let tar_zst = File::create(dest)?;
+        let encoder = ZstdEncoder::new(tar_zst, level)?;
+        let mut tar_builder = tar::Builder::new(encoder);
+        append_regular_only(&mut tar_builder, src)?;
+        tar_builder.into_inner()?.finish()?;
+    } else {
+        let dest = dest.join(format!("{file_name}.zst"));
+        let dest_file = File::create(dest)?;
+        let mut reader = BufReader::new(File::open(src)?);
+        let mut encoder = ZstdEncoder::new(dest_file, level)?;
+        io::copy(&mut reader, &mut encoder)?;
+        encoder.finish()?;
+    }
+
     Ok(())
 }
 
-/// Compresses a single file at `src` into a bzip2 file in the `dest` directory.
-///
-/// The output file will have a `.bz2` extension.
+/// Compresses a file or directory at `src` into a bz/tar.bz2 archive in the `dest` directory.
 ///
 /// # Arguments
-/// * `src` - The source file to compress.
-/// * `dest` - The destination directory where the bz2 file will be placed.
+/// * `src` - The source directory to compress.
+/// * `dest` - The destination directory
 /// * `level` - Compression level.
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
-fn compress_file_bzip2(src: &Path, dest: &Path, level: &Level) -> Result<()> {
+fn compress_bzip2(src: &Path, dest: &Path, level: &Level) -> Result<()> {
     let file_name = get_file_name(src);
-    let dest = dest.join(format!("{file_name}.bz2"));
-    let dest_file = File::create(dest)?;
-
-    let mut reader = BufReader::new(File::open(src)?);
     let level = match level {
         Level::Fastest => BzCompression::fast(),
         Level::Faster => BzCompression::new(3),
@@ -324,88 +231,38 @@ fn compress_file_bzip2(src: &Path, dest: &Path, level: &Level) -> Result<()> {
         Level::Better => BzCompression::new(8),
         Level::Best => BzCompression::best(),
     };
-    let mut encoder = BzEncoder::new(dest_file, level);
-    io::copy(&mut reader, &mut encoder)?;
-    encoder.finish()?;
-    Ok(())
-}
+    if src.is_dir() {
+        let dest = dest.join(format!("{file_name}.tar.bz2"));
+        let tar_bz = File::create(dest)?;
 
-/// Compresses a directory at `src` into a tar.bz2 archive in the `dest` directory.
-///
-/// The output file will have a `.tar.bz2` extension and will contain all files and subdirectories.
-///
-/// # Arguments
-/// * `src` - The source directory to compress.
-/// * `dest` - The destination directory where the tar.bz2 file will be placed.
-/// * `level` - Compression level.
-///
-/// # Errors
-/// Returns an error if any IO error occurs.
-fn compress_dir_bzip2(src: &Path, dest: &Path, level: &Level) -> Result<()> {
-    let file_name = get_file_name(src);
-    let dest = dest.join(format!("{file_name}.tar.bz2"));
-    let tar_bz = File::create(dest)?;
+        let encoder = BzEncoder::new(tar_bz, level);
+        let mut tar_builder = tar::Builder::new(encoder);
+        append_regular_only(&mut tar_builder, src)?;
+        tar_builder.into_inner()?.finish()?;
+    } else {
+        let dest = dest.join(format!("{file_name}.bz2"));
+        let dest_file = File::create(dest)?;
 
-    let level = match level {
-        Level::Fastest => BzCompression::fast(),
-        Level::Faster => BzCompression::new(3),
-        Level::Default => BzCompression::default(),
-        Level::Better => BzCompression::new(8),
-        Level::Best => BzCompression::best(),
-    };
-    let encoder = BzEncoder::new(tar_bz, level);
-    let mut tar_builder = tar::Builder::new(encoder);
-    append_regular_only(&mut tar_builder, src)?;
-    tar_builder.into_inner()?.finish()?;
-    Ok(())
-}
+        let mut reader = BufReader::new(File::open(src)?);
+        let mut encoder = BzEncoder::new(dest_file, level);
+        io::copy(&mut reader, &mut encoder)?;
+        encoder.finish()?;
+    }
 
-/// Compresses a single file at `src` into an xz file in the `dest` directory.
-///
-/// The output file will have a `.xz` extension.
-///
-/// # Arguments
-/// * `src` - The source file to compress.
-/// * `dest` - The destination directory where the xz file will be placed.
-/// * `level` - Compression level (1-9).
-///
-/// # Errors
-/// Returns an error if any IO error occurs.
-fn compress_file_xz(src: &Path, dest: &Path, level: &Level) -> Result<()> {
-    let file_name = get_file_name(src);
-    let dest = dest.join(format!("{file_name}.xz"));
-    let dest_file = File::create(dest)?;
-
-    let mut reader = BufReader::new(File::open(src)?);
-    let level = match level {
-        Level::Fastest => 1,
-        Level::Faster => 3,
-        Level::Default => 6,
-        Level::Better => 8,
-        Level::Best => 9,
-    };
-    let mut encoder = XzEncoder::new(dest_file, level);
-    io::copy(&mut reader, &mut encoder)?;
-    encoder.finish()?;
     Ok(())
 }
 
 /// Compresses a directory at `src` into a tar.xz archive in the `dest` directory.
 ///
-/// The output file will have a `.tar.xz` extension and will contain all files and subdirectories.
-///
 /// # Arguments
 /// * `src` - The source directory to compress.
-/// * `dest` - The destination directory where the tar.xz file will be placed.
+/// * `dest` - The destination directory.
 /// * `level` - Compression level (1-9).
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
-fn compress_dir_xz(src: &Path, dest: &Path, level: &Level) -> Result<()> {
+fn compress_xz(src: &Path, dest: &Path, level: &Level) -> Result<()> {
     let file_name = get_file_name(src);
-    let dest = dest.join(format!("{file_name}.tar.xz"));
-    let tar_xz = File::create(dest)?;
-
     let level = match level {
         Level::Fastest => 1,
         Level::Faster => 3,
@@ -413,10 +270,24 @@ fn compress_dir_xz(src: &Path, dest: &Path, level: &Level) -> Result<()> {
         Level::Better => 8,
         Level::Best => 9,
     };
-    let encoder = XzEncoder::new(tar_xz, level);
-    let mut tar_builder = tar::Builder::new(encoder);
-    append_regular_only(&mut tar_builder, src)?;
-    tar_builder.into_inner()?.finish()?;
+    if src.is_dir() {
+        let dest = dest.join(format!("{file_name}.tar.xz"));
+        let tar_xz = File::create(dest)?;
+
+        let encoder = XzEncoder::new(tar_xz, level);
+        let mut tar_builder = tar::Builder::new(encoder);
+        append_regular_only(&mut tar_builder, src)?;
+        tar_builder.into_inner()?.finish()?;
+    } else {
+        let dest = dest.join(format!("{file_name}.xz"));
+        let dest_file = File::create(dest)?;
+
+        let mut reader = BufReader::new(File::open(src)?);
+        let mut encoder = XzEncoder::new(dest_file, level);
+        io::copy(&mut reader, &mut encoder)?;
+        encoder.finish()?;
+    }
+
     Ok(())
 }
 
