@@ -25,15 +25,11 @@ toml = "0.8"
 flate2 = "1.1"
 tar = "0.4"
 walkdir = "2.5"
+zip = { version = "4.2", default-features = false, features = ["deflate"] }
 sevenz-rust2 = { version = "0.16", features = ["compress"] }
 zstd = "0.13"
 bzip2 = "0.6"
 xz2 = { version = "0.1", features = ["static"] }
-
-[dependencies.zip]
-version = "4.2"
-default-features = false
-features = ["deflate"]
 
 [[bin]]
 name = "bk"
