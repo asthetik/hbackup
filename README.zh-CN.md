@@ -1,7 +1,7 @@
 # hbackup
 
-[![Build status](https://github.com/asthetik/hbackup/workflows/build/badge.svg)](https://github.com/asthetik/hbackup/actions/workflows/ci.yml)
-[![Security audit](https://github.com/asthetik/hbackup/workflows/Security%20audit/badge.svg)](https://github.com/asthetik/hbackup/actions/workflows/security.yml)
+[![CI](https://github.com/asthetik/hbackup/workflows/CI/badge.svg)](https://github.com/asthetik/hbackup/actions/workflows/ci.yml)
+[![Security](https://github.com/asthetik/hbackup/workflows/Security/badge.svg)](https://github.com/asthetik/hbackup/actions/workflows/security.yml)
 [![Crates.io](https://img.shields.io/crates/v/hbackup.svg)](https://crates.io/crates/hbackup)
 ![Crates.io](https://img.shields.io/crates/d/hbackup)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
