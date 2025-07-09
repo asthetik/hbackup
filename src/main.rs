@@ -1,8 +1,14 @@
+mod application;
+mod commands;
+mod common;
+mod file_util;
+mod path_util;
+mod sysexits;
+
+use application::{Job, init_config};
 use clap::Parser;
-use hbackup::Result;
-use hbackup::application::{Job, init_config};
-use hbackup::commands::{self, Cli, Commands, canonicalize};
-use hbackup::{path, sysexits};
+use commands::{Cli, Commands, canonicalize};
+use common::Result;
 use std::process;
 
 /// Entry point for the hbackup CLI application.
@@ -41,7 +47,7 @@ fn main() -> Result<()> {
             } else if let (Some(source), Some(target)) = (source, target) {
                 let source = canonicalize(source);
                 let target = canonicalize(target);
-                path::check_path(&source)?;
+                path_util::check_path(&source)?;
                 // The temporary job id is set to 0
                 let job = Job {
                     id: 0,

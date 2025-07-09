@@ -5,7 +5,7 @@
 //! and config file management. It provides serialization/deserialization for TOML and JSON,
 //! and utilities for reading, writing, and migrating configuration files.
 
-use crate::{CONFIG_BACKUP_NAME, CONFIG_NAME, Result, sysexits};
+use crate::{Result, common::CONFIG_BACKUP_NAME, common::CONFIG_NAME, sysexits};
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -16,12 +16,12 @@ use std::{fmt, fs, io, process};
 /// The main application configuration.
 /// Stores the version and all backup jobs.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub struct Application {
+pub(crate) struct Application {
     /// Configuration file version.
     #[serde(default = "default_version")]
-    pub version: String,
+    pub(crate) version: String,
     /// List of backup jobs.
-    pub jobs: Vec<Job>,
+    pub(crate) jobs: Vec<Job>,
 }
 
 fn default_version() -> String {
@@ -30,17 +30,17 @@ fn default_version() -> String {
 
 /// Represents a single backup job with a unique id, source, target, and optional compression.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Job {
+pub(crate) struct Job {
     /// Unique job id.
-    pub id: u32,
+    pub(crate) id: u32,
     /// Source file or directory path.
-    pub source: PathBuf,
+    pub(crate) source: PathBuf,
     /// Target file or directory path.
-    pub target: PathBuf,
+    pub(crate) target: PathBuf,
     /// Optional compression format for this job.
-    pub compression: Option<CompressFormat>,
+    pub(crate) compression: Option<CompressFormat>,
     /// Optional compression level for this job.
-    pub level: Option<Level>,
+    pub(crate) level: Option<Level>,
 }
 
 impl fmt::Display for Job {
@@ -105,7 +105,7 @@ impl fmt::Display for Job {
 
 /// Supported compression formats for backup jobs.
 #[derive(ValueEnum, Serialize, Deserialize, Clone, Debug)]
-pub enum CompressFormat {
+pub(crate) enum CompressFormat {
     Gzip,
     Zip,
     Sevenz,
@@ -116,7 +116,7 @@ pub enum CompressFormat {
 
 /// Supported compression level for backup jobs
 #[derive(ValueEnum, Serialize, Deserialize, Clone, Debug)]
-pub enum Level {
+pub(crate) enum Level {
     Fastest,
     Faster,
     Default,
@@ -125,7 +125,7 @@ pub enum Level {
 }
 
 /// A wrapper for displaying a list of jobs in a formatted way.
-pub struct JobList(pub Vec<Job>);
+pub(crate) struct JobList(pub(crate) Vec<Job>);
 
 impl fmt::Display for JobList {
     /// Pretty-print the job list as an array.
@@ -143,7 +143,7 @@ impl fmt::Display for JobList {
 
 impl Application {
     /// Creates a new, empty application configuration.
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Application {
             version: default_version(),
             jobs: vec![],
@@ -153,7 +153,7 @@ impl Application {
     /// Loads configuration from the config file, or returns a new config if not found.
     ///
     /// If the config file cannot be read, prints an error and exits.
-    pub fn load_config() -> Self {
+    pub(crate) fn load_config() -> Self {
         if config_file_exists() {
             match read_config_file() {
                 Ok(app) => app,
@@ -170,7 +170,7 @@ impl Application {
     /// Adds a new backup job with a unique id.
     ///
     /// The id is automatically assigned to avoid conflicts.
-    pub fn add_job(
+    pub(crate) fn add_job(
         &mut self,
         source: PathBuf,
         target: PathBuf,
@@ -201,23 +201,23 @@ impl Application {
     }
 
     /// Removes all jobs from the configuration.
-    pub fn reset_jobs(&mut self) {
+    pub(crate) fn reset_jobs(&mut self) {
         self.jobs = vec![];
     }
 
     /// Writes the current configuration to the config file.
-    pub fn write(&self) -> Result<()> {
+    pub(crate) fn write(&self) -> Result<()> {
         write_config(self)?;
         Ok(())
     }
 
     /// Returns all jobs from the current configuration.
-    pub fn get_jobs() -> Vec<Job> {
+    pub(crate) fn get_jobs() -> Vec<Job> {
         Application::load_config().jobs
     }
 
     /// Removes a job by id. Returns Some if removed, None if not found.
-    pub fn remove_job(&mut self, id: u32) -> Option<()> {
+    pub(crate) fn remove_job(&mut self, id: u32) -> Option<()> {
         if let Some(index) = self.jobs.iter().position(|j| j.id == id) {
             self.jobs.remove(index);
             Some(())
@@ -230,12 +230,12 @@ impl Application {
 const PKG_NAME: &str = env!("CARGO_PKG_NAME");
 
 /// Returns the absolute path to the configuration file.
-pub fn config_file() -> PathBuf {
+pub(crate) fn config_file() -> PathBuf {
     config_dir().join(CONFIG_NAME)
 }
 
 /// Returns the absolute path to the backup configuration file.
-pub fn backed_config_file() -> PathBuf {
+pub(crate) fn backed_config_file() -> PathBuf {
     config_dir().join(CONFIG_BACKUP_NAME)
 }
 
@@ -270,7 +270,7 @@ fn config_file_exists() -> bool {
 /// Writes the application configuration to the config file in TOML format.
 ///
 /// Creates the parent directory if it does not exist.
-pub fn write_config(data: &Application) -> Result<()> {
+pub(crate) fn write_config(data: &Application) -> Result<()> {
     let file_path = config_file();
     if !file_path.exists() {
         // The default configuration file path must exist in the parent folder
@@ -294,7 +294,7 @@ fn read_config_file() -> Result<Application> {
 }
 
 /// Reads the backup configuration file in TOML format.
-pub fn read_backed_config_file() -> Result<Application> {
+pub(crate) fn read_backed_config_file() -> Result<Application> {
     let file_path = backed_config_file();
     let toml_str = fs::read_to_string(&file_path)?;
     let app = toml::from_str(&toml_str)?;
@@ -309,7 +309,7 @@ pub fn read_backed_config_file() -> Result<Application> {
 /// - If only the old configuration file exists, it migrates the old configuration to the new location and format.
 ///
 /// This ensures that the application always has a valid configuration file to work with.
-pub fn init_config() {
+pub(crate) fn init_config() {
     let old_config_file = old_config_file();
     let config_file = config_file();
     if !config_file.exists() && !old_config_file.exists() {

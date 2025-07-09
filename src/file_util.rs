@@ -31,7 +31,12 @@ use zstd::stream::write::Encoder as ZstdEncoder;
 /// # Errors
 /// Returns an error if the source does not exist, is not a file or directory,
 /// if the destination is not a directory, or if any IO error occurs during compression.
-pub fn compression(src: &Path, dest: &Path, format: &CompressFormat, level: &Level) -> Result<()> {
+pub(crate) fn compression(
+    src: &Path,
+    dest: &Path,
+    format: &CompressFormat,
+    level: &Level,
+) -> Result<()> {
     assert!(src.exists());
     if !src.is_dir() && !src.is_file() {
         return Err("Does not support compression except for files and directories".into());
