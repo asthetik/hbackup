@@ -15,7 +15,6 @@ targets=(
   "aarch64-unknown-linux-gnu"
   "powerpc64-unknown-linux-gnu"
   "i686-pc-windows-msvc"
-  "i686-pc-windows-gnu"
   "x86_64-pc-windows-gnu"
   "x86_64-pc-windows-msvc"
   "x86_64-apple-darwin"
