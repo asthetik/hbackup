@@ -37,6 +37,7 @@ path = "src/main.rs"
 
 [profile.release]
 debug = 1
+panic = "abort"
 
 [profile.release-lto]
 inherits = "release"
