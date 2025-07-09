@@ -1,10 +1,12 @@
 //! Command-line interface definition for hbackup.
-///
-/// This module defines all CLI commands, their arguments, and the logic for handling
-/// backup jobs, including add, run, list, delete, edit, and configuration management.
-use crate::application::{Application, CompressFormat, Job, JobList, Level};
+//!
+//! This module defines all CLI commands, their arguments, and the logic for handling
+//! backup jobs, including add, run, list, delete, edit, and configuration management.
+
+use crate::application::{self, Application, CompressFormat, Job, JobList, Level};
+use crate::file_util;
+use crate::path_util;
 use crate::{Result, sysexits};
-use crate::{application, file_util, path};
 use anyhow::Context;
 use clap::{Parser, Subcommand};
 use std::fs::{self};
@@ -15,15 +17,15 @@ use walkdir::WalkDir;
 /// Command-line interface definition for hbackup.
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
-pub struct Cli {
+pub(crate) struct Cli {
     /// Subcommand to execute.
     #[command(subcommand)]
-    pub commands: Option<Commands>,
+    pub(crate) commands: Option<Commands>,
 }
 
 /// Supported hbackup commands.
 #[derive(Subcommand, Debug)]
-pub enum Commands {
+pub(crate) enum Commands {
     /// Add a new backup job to the configuration.
     Add {
         /// Source file path.
@@ -119,7 +121,7 @@ pub enum Commands {
 ///
 /// # Errors
 /// Returns an error if the source path is invalid or the job cannot be saved.
-pub fn add(
+pub(crate) fn add(
     source: PathBuf,
     target: PathBuf,
     comp: Option<CompressFormat>,
@@ -127,7 +129,7 @@ pub fn add(
 ) -> Result<()> {
     let source = canonicalize(source);
     let target = canonicalize(target);
-    path::check_path(&source)?;
+    path_util::check_path(&source)?;
 
     let mut app = Application::load_config();
     app.add_job(source, target, comp, level);
@@ -140,7 +142,7 @@ pub fn add(
 ///
 /// # Errors
 /// Returns an error if any job fails to run.
-pub fn run() -> Result<()> {
+pub(crate) fn run() -> Result<()> {
     let jobs = Application::get_jobs();
     if jobs.is_empty() {
         println!("No jobs are backed up!");
@@ -160,7 +162,7 @@ pub fn run() -> Result<()> {
 /// * `id` - The job id to run.
 ///
 /// Exits the process with an error code if the job is not found or fails.
-pub fn run_by_id(id: u32) {
+pub(crate) fn run_by_id(id: u32) {
     let jobs = Application::get_jobs();
     if jobs.is_empty() {
         eprintln!("No jobs are backed up!");
@@ -187,7 +189,7 @@ pub fn run_by_id(id: u32) {
 ///
 /// # Errors
 /// Returns an error if the copy or compression fails.
-pub fn run_job(job: &Job) -> Result<()> {
+pub(crate) fn run_job(job: &Job) -> Result<()> {
     if let Some(ref format) = job.compression {
         let level = if let Some(ref level) = job.level {
             level
@@ -211,7 +213,7 @@ pub fn run_job(job: &Job) -> Result<()> {
 }
 
 /// Lists all backup jobs in the configuration.
-pub fn list() {
+pub(crate) fn list() {
     let jobs = Application::get_jobs();
     println!("{}", JobList(jobs));
 }
@@ -224,7 +226,7 @@ pub fn list() {
 ///
 /// # Errors
 /// Returns an error if neither `id` nor `all` is specified, or if deletion fails.
-pub fn delete(id: Option<u32>, all: bool) -> Result<()> {
+pub(crate) fn delete(id: Option<u32>, all: bool) -> Result<()> {
     if all {
         let mut app = Application::load_config();
         app.reset_jobs();
@@ -256,7 +258,7 @@ pub fn delete(id: Option<u32>, all: bool) -> Result<()> {
 ///
 /// # Errors
 /// Returns an error if the job is not found or the new path is invalid.
-pub fn edit(
+pub(crate) fn edit(
     id: u32,
     source: Option<PathBuf>,
     target: Option<PathBuf>,
@@ -267,7 +269,7 @@ pub fn edit(
 ) -> Result<()> {
     let source = source.map(canonicalize);
     if let Some(ref file_path) = source {
-        path::check_path(file_path)?;
+        path_util::check_path(file_path)?;
     }
     let target = target.map(canonicalize);
 
@@ -308,7 +310,7 @@ pub fn edit(
 }
 
 /// Prints the absolute path to the configuration file.
-pub fn config() {
+pub(crate) fn config() {
     println!("config file: {}", application::config_file().display());
 }
 
@@ -316,7 +318,7 @@ pub fn config() {
 ///
 /// # Errors
 /// Returns an error if the backup fails.
-pub fn backup_config_file() -> Result<()> {
+pub(crate) fn backup_config_file() -> Result<()> {
     let config_file = application::config_file();
     let backed_config_file = application::backed_config_file();
     // If the configuration file does not exist, initialize it
@@ -334,7 +336,7 @@ pub fn backup_config_file() -> Result<()> {
 ///
 /// # Errors
 /// Returns an error if the reset or backup fails.
-pub fn reset_config_file() -> Result<()> {
+pub(crate) fn reset_config_file() -> Result<()> {
     let config_file = application::config_file();
     let backed_config_file = application::backed_config_file();
     // Backup the config file if it exists
@@ -352,7 +354,7 @@ pub fn reset_config_file() -> Result<()> {
 ///
 /// # Errors
 /// Returns an error if the backup does not exist or rollback fails.
-pub fn rollback_config_file() -> Result<()> {
+pub(crate) fn rollback_config_file() -> Result<()> {
     let backed_config_file = application::backed_config_file();
     if !backed_config_file.exists() {
         eprintln!("The backup configuration file does not exist.");
@@ -435,7 +437,7 @@ fn copy_file(source: &Path, target: &Path) -> Result<()> {
 ///
 /// # Panics
 /// Exits the process if the path is invalid.
-pub fn canonicalize(path: PathBuf) -> PathBuf {
+pub(crate) fn canonicalize(path: PathBuf) -> PathBuf {
     let source = &path;
     match source.canonicalize() {
         Ok(path) => path,
