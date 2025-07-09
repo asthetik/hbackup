@@ -24,7 +24,7 @@ dirs = "6.0"
 
 [[bin]]
 name = "bk"
-path = "src/bin/main.rs"
+path = "src/main.rs"
 
 [profile.release]
 debug = 1

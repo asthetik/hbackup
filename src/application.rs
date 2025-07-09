@@ -8,19 +8,19 @@ use std::{fmt, fs, io, process};
 /// Global configuration for this application.
 /// Stores all backup jobs.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub struct Application {
-    pub jobs: Vec<Job>,
+pub(crate) struct Application {
+    pub(crate) jobs: Vec<Job>,
 }
 
 /// Represents a single backup job with a unique id, source, and target path.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Job {
+pub(crate) struct Job {
     /// Unique job id.
-    pub id: u32,
+    pub(crate) id: u32,
     /// Source file path.
-    pub source: PathBuf,
+    pub(crate) source: PathBuf,
     /// Target file or directory path.
-    pub target: PathBuf,
+    pub(crate) target: PathBuf,
 }
 
 impl fmt::Display for Job {
@@ -36,7 +36,7 @@ impl fmt::Display for Job {
 }
 
 ///  A wrapper for displaying a list of jobs in a formatted way.
-pub struct JobList(pub Vec<Job>);
+pub(crate) struct JobList(pub(crate) Vec<Job>);
 
 impl fmt::Display for JobList {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -53,12 +53,12 @@ impl fmt::Display for JobList {
 
 impl Application {
     /// Creates a new, empty application configuration.
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self { jobs: vec![] }
     }
 
     /// Loads configuration from the config file, or returns a new config if not found.
-    pub fn load_config() -> Self {
+    pub(crate) fn load_config() -> Self {
         if config_file_exists() {
             match read_config_file() {
                 Ok(app) => app,
@@ -73,7 +73,7 @@ impl Application {
     }
 
     /// Adds a new backup job with a unique id.
-    pub fn add_job(&mut self, source: PathBuf, target: PathBuf) {
+    pub(crate) fn add_job(&mut self, source: PathBuf, target: PathBuf) {
         if self.jobs.is_empty() {
             self.jobs.push(Job {
                 id: 1,
@@ -96,23 +96,23 @@ impl Application {
     }
 
     /// Removes all jobs from the configuration.
-    pub fn reset_jobs(&mut self) {
+    pub(crate) fn reset_jobs(&mut self) {
         self.jobs = vec![];
     }
 
     /// Writes the current configuration to the config file.
-    pub fn write(&self) -> Result<()> {
+    pub(crate) fn write(&self) -> Result<()> {
         write_config(self)?;
         Ok(())
     }
 
     /// Returns all jobs from the current configuration.
-    pub fn get_jobs() -> Vec<Job> {
+    pub(crate) fn get_jobs() -> Vec<Job> {
         Application::load_config().jobs
     }
 
     /// Removes a job by id. Returns Some if removed, None if not found.
-    pub fn remove_job(&mut self, id: u32) -> Option<()> {
+    pub(crate) fn remove_job(&mut self, id: u32) -> Option<()> {
         if let Some(index) = self.jobs.iter().position(|j| j.id == id) {
             self.jobs.remove(index);
             Some(())
@@ -125,11 +125,11 @@ impl Application {
 const PKG_NAME: &str = env!("CARGO_PKG_NAME");
 
 /// Returns the absolute path to the configuration file.
-pub fn config_file() -> PathBuf {
+pub(crate) fn config_file() -> PathBuf {
     config_dir().join(format!("{PKG_NAME}.json"))
 }
 
-pub fn backed_config_file() -> PathBuf {
+pub(crate) fn backed_config_file() -> PathBuf {
     config_dir().join(format!("{PKG_NAME}_backup.json"))
 }
 
@@ -162,7 +162,7 @@ fn config_file_exists() -> bool {
 }
 
 /// Writes the application configuration to the config file.
-pub fn write_config(data: &Application) -> Result<()> {
+pub(crate) fn write_config(data: &Application) -> Result<()> {
     let file_path = config_file();
     if !file_path.exists() {
         // The default configuration file path must exist in the parent folder
@@ -184,7 +184,7 @@ fn read_config_file() -> Result<Application> {
     Ok(app)
 }
 
-pub fn read_backed_config_file() -> Result<Application> {
+pub(crate) fn read_backed_config_file() -> Result<Application> {
     let file_path = backed_config_file();
     let file = fs::File::open(&file_path)?;
     let reader = io::BufReader::new(&file);

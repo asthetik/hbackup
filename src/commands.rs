@@ -11,15 +11,15 @@ use std::process;
 /// Command-line interface definition for hbackup.
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
-pub struct Cli {
+pub(crate) struct Cli {
     /// Subcommand to execute.
     #[command(subcommand)]
-    pub commands: Option<Commands>,
+    pub(crate) commands: Option<Commands>,
 }
 
 /// Supported hbackup commands.
 #[derive(Subcommand, Debug)]
-pub enum Commands {
+pub(crate) enum Commands {
     /// Add a new backup job to the configuration.
     Add {
         /// Source file path.
@@ -84,7 +84,7 @@ pub enum Commands {
 }
 
 /// Adds a new backup job to the configuration file.
-pub fn add(source: PathBuf, target: PathBuf) -> Result<()> {
+pub(crate) fn add(source: PathBuf, target: PathBuf) -> Result<()> {
     let source = canonicalize(source);
     let target = canonicalize(target);
     path::check_path(&source)?;
@@ -97,7 +97,7 @@ pub fn add(source: PathBuf, target: PathBuf) -> Result<()> {
 }
 
 /// Runs all backup jobs.
-pub fn run() -> Result<()> {
+pub(crate) fn run() -> Result<()> {
     let jobs = Application::get_jobs();
     if jobs.is_empty() {
         println!("No jobs are backed up!");
@@ -112,7 +112,7 @@ pub fn run() -> Result<()> {
 }
 
 /// Runs a backup job by its id.
-pub fn run_by_id(id: u32) {
+pub(crate) fn run_by_id(id: u32) {
     let jobs = Application::get_jobs();
     if jobs.is_empty() {
         eprintln!("No jobs are backed up!");
@@ -133,7 +133,7 @@ pub fn run_by_id(id: u32) {
 }
 
 /// Run a backup job
-pub fn run_job(job: &Job) -> Result<()> {
+pub(crate) fn run_job(job: &Job) -> Result<()> {
     if job.source.is_dir() {
         if job.target.exists() && job.target.is_file() {
             eprintln!("File exists");
@@ -150,13 +150,13 @@ pub fn run_job(job: &Job) -> Result<()> {
 }
 
 /// Lists all backup jobs.
-pub fn list() {
+pub(crate) fn list() {
     let jobs = Application::get_jobs();
     println!("{}", JobList(jobs));
 }
 
 /// Deletes a job by id or deletes all jobs.
-pub fn delete(id: Option<u32>, all: bool) -> Result<()> {
+pub(crate) fn delete(id: Option<u32>, all: bool) -> Result<()> {
     if all {
         let mut app = Application::load_config();
         app.reset_jobs();
@@ -178,7 +178,7 @@ pub fn delete(id: Option<u32>, all: bool) -> Result<()> {
 }
 
 /// Edits a job by id, updating its source and/or target.
-pub fn edit(id: u32, source: Option<PathBuf>, target: Option<PathBuf>) -> Result<()> {
+pub(crate) fn edit(id: u32, source: Option<PathBuf>, target: Option<PathBuf>) -> Result<()> {
     let source = source.map(canonicalize);
     if let Some(ref file_path) = source {
         path::check_path(file_path)?;
@@ -206,11 +206,11 @@ pub fn edit(id: u32, source: Option<PathBuf>, target: Option<PathBuf>) -> Result
 }
 
 /// Prints the absolute path to the configuration file.
-pub fn config() {
+pub(crate) fn config() {
     println!("config file: {}", application::config_file().display());
 }
 
-pub fn backup_config_file() -> Result<()> {
+pub(crate) fn backup_config_file() -> Result<()> {
     let config_file = application::config_file();
     let backed_config_file = application::backed_config_file();
     // If the configuration file does not exist, initialize it
@@ -225,7 +225,7 @@ pub fn backup_config_file() -> Result<()> {
 }
 
 /// Reset the configuration file and back up the file before resetting
-pub fn reset_config_file() -> Result<()> {
+pub(crate) fn reset_config_file() -> Result<()> {
     let config_file = application::config_file();
     let backed_config_file = application::backed_config_file();
     // Backup the config file if it exists
@@ -240,7 +240,7 @@ pub fn reset_config_file() -> Result<()> {
 }
 
 /// Rollback the last backed up configuration file
-pub fn rollback_config_file() -> Result<()> {
+pub(crate) fn rollback_config_file() -> Result<()> {
     let backed_config_file = application::backed_config_file();
     if !backed_config_file.exists() {
         eprintln!("The backup configuration file does not exist.");
@@ -296,7 +296,7 @@ fn copy_file(source: &Path, target: &Path) -> Result<()> {
 
 /// Returns the canonical, absolute form of the path with all intermediate
 /// components normalized and symbolic links resolved.
-pub fn canonicalize(path: PathBuf) -> PathBuf {
+pub(crate) fn canonicalize(path: PathBuf) -> PathBuf {
     let source = &path;
     match source.canonicalize() {
         Ok(path) => path,

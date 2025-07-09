@@ -1,10 +1,14 @@
+mod application;
+mod common;
+mod sysexits;
 use clap::Parser;
-use hbackup::application::Job;
-use hbackup::commands::{self, canonicalize, Cli, Commands};
-use hbackup::Result;
-use hbackup::{path, sysexits};
-use std::process;
+mod commands;
+mod path;
 
+use application::Job;
+use commands::{canonicalize, Cli, Commands};
+use common::Result;
+use std::process;
 /// Entry point for the hbackup CLI application.
 /// Parses command-line arguments and dispatches to the appropriate command handler.
 fn main() -> Result<()> {
