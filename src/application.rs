@@ -133,26 +133,27 @@ pub fn backed_config_file() -> PathBuf {
     config_dir().join(format!("{PKG_NAME}_backup.json"))
 }
 
+/// Returns the configuration directory for the application, platform-specific.
+#[cfg(not(target_os = "macos"))]
 fn config_dir() -> PathBuf {
-    let config_dir = if cfg!(target_os = "macos") {
-        let home_dir = match dirs::home_dir() {
-            Some(home_dir) => home_dir,
-            None => {
-                eprintln!("Couldn't get the home directory!!!");
-                process::exit(sysexits::EX_UNAVAILABLE);
-            }
-        };
-        home_dir.join(".config")
-    } else {
-        match dirs::config_dir() {
-            Some(home_dir) => home_dir,
-            None => {
-                eprintln!("Couldn't get the home directory!!!");
-                process::exit(sysexits::EX_UNAVAILABLE);
-            }
+    let config_dir = dirs::config_dir().unwrap_or_else(|| {
+        eprintln!("Couldn't get the home directory!!!");
+        process::exit(sysexits::EX_UNAVAILABLE);
+    });
+    config_dir.join(PKG_NAME)
+}
+
+/// Returns the configuration directory for the application, platform-specific.
+#[cfg(target_os = "macos")]
+fn config_dir() -> PathBuf {
+    let home_dir = match dirs::home_dir() {
+        Some(home_dir) => home_dir,
+        None => {
+            eprintln!("Couldn't get the home directory!!!");
+            process::exit(sysexits::EX_UNAVAILABLE);
         }
     };
-    config_dir.join(PKG_NAME)
+    home_dir.join(".config").join(PKG_NAME)
 }
 
 /// Checks if the configuration file exists.
