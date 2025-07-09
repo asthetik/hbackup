@@ -9,16 +9,17 @@ echo "version: ${VERSION}"
 cargo fmt --all --check && cargo clippy -- -D warnings
 
 targets=(
-    "i686-unknown-linux-gnu"
-    "x86_64-unknown-linux-musl"
-    "aarch64-unknown-linux-gnu"
-    "powerpc64-unknown-linux-gnu"
-    "i686-pc-windows-msvc"
-    "i686-pc-windows-gnu"
-    "x86_64-pc-windows-gnu"
-    "x86_64-pc-windows-msvc"
-    "x86_64-apple-darwin"
-    "aarch64-apple-darwin"
+  "x86_64-unknown-linux-musl"
+  "x86_64-unknown-linux-gnu"
+  "i686-unknown-linux-gnu"
+  "aarch64-unknown-linux-gnu"
+  "powerpc64-unknown-linux-gnu"
+  "i686-pc-windows-msvc"
+  "i686-pc-windows-gnu"
+  "x86_64-pc-windows-gnu"
+  "x86_64-pc-windows-msvc"
+  "x86_64-apple-darwin"
+  "aarch64-apple-darwin"
 )
 
 profile="release"
