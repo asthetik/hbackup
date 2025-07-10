@@ -5,7 +5,7 @@ mod file_util;
 mod path_util;
 mod sysexits;
 
-use application::{CompressFormat, Job, init_config};
+use application::{Job, init_config};
 use clap::Parser;
 use commands::{Cli, Commands, canonicalize};
 use common::Result;
@@ -48,13 +48,7 @@ fn main() -> Result<()> {
                 let source = canonicalize(source);
                 let target = canonicalize(target);
                 path_util::check_path(&source)?;
-                if let Some(CompressFormat::Lz4) = compression
-                    && let Some(_) = level
-                {
-                    eprintln!(
-                        "Warning: lz4 does not support level compression, setting the level will not take effect"
-                    );
-                }
+
                 // The temporary job id is set to 0
                 let job = Job {
                     id: 0,
