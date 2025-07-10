@@ -9,6 +9,7 @@ use crate::{Result, application::CompressFormat};
 use bzip2::Compression as BzCompression;
 use bzip2::write::BzEncoder;
 use flate2::{Compression, write::GzEncoder};
+use lz4_flex::frame::FrameEncoder as Lz4Encoder;
 use sevenz_rust2::ArchiveWriter;
 use sevenz_rust2::encoder_options::LZMA2Options;
 use std::io::{BufReader, Read, Write};
@@ -53,6 +54,7 @@ pub(crate) fn compression(
         CompressFormat::Zstd => compress_zstd(src, dest, level),
         CompressFormat::Bzip2 => compress_bzip2(src, dest, level),
         CompressFormat::Xz => compress_xz(src, dest, level),
+        CompressFormat::Lz4 => compress_lz4(src, dest),
     }
 }
 
@@ -257,7 +259,7 @@ fn compress_bzip2(src: &Path, dest: &Path, level: &Level) -> Result<()> {
     Ok(())
 }
 
-/// Compresses a directory at `src` into a tar.xz archive in the `dest` directory.
+/// Compresses a file or directory at `src` into a xz/tar.xz archive in the `dest` directory.
 ///
 /// # Arguments
 /// * `src` - The source directory to compress.
@@ -289,6 +291,37 @@ fn compress_xz(src: &Path, dest: &Path, level: &Level) -> Result<()> {
 
         let mut reader = BufReader::new(File::open(src)?);
         let mut encoder = XzEncoder::new(dest_file, level);
+        io::copy(&mut reader, &mut encoder)?;
+        encoder.finish()?;
+    }
+
+    Ok(())
+}
+
+// Compresses a file or directory at `src` into a lz4/tar.lz4 archive in the `dest` directory.
+///
+/// # Arguments
+/// * `src` - The source directory to compress.
+/// * `dest` - The destination directory.
+///
+/// # Errors
+/// Returns an error if any IO error occurs.
+fn compress_lz4(src: &Path, dest: &Path) -> Result<()> {
+    let file_name = get_file_name(src);
+    if src.is_dir() {
+        let dest = dest.join(format!("{file_name}.tar.lz4"));
+        let tar_lz = File::create(dest)?;
+
+        let encoder = Lz4Encoder::new(tar_lz);
+        let mut tar_builder = tar::Builder::new(encoder);
+        append_regular_only(&mut tar_builder, src)?;
+        tar_builder.into_inner()?.finish()?;
+    } else {
+        let dest = dest.join(format!("{file_name}.lz4"));
+        let dest_file = File::create(dest)?;
+
+        let mut reader = BufReader::new(File::open(src)?);
+        let mut encoder = Lz4Encoder::new(dest_file);
         io::copy(&mut reader, &mut encoder)?;
         encoder.finish()?;
     }

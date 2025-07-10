@@ -419,10 +419,10 @@ fn copy_file(source: &Path, target: &Path) -> Result<()> {
         target.into()
     };
 
-    if let Some(parent) = target_file.parent() {
-        if !parent.exists() {
-            fs::create_dir_all(parent)?;
-        }
+    if let Some(parent) = target_file.parent()
+        && !parent.exists()
+    {
+        fs::create_dir_all(parent)?;
     }
     fs::copy(source, &target_file)?;
 
