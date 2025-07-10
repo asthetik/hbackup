@@ -53,6 +53,7 @@ impl fmt::Display for Job {
             Some(CompressFormat::Zstd) => "Zstd",
             Some(CompressFormat::Bzip2) => "Bzip2",
             Some(CompressFormat::Xz) => "Xz",
+            Some(CompressFormat::Lz4) => "Lz4",
             None => "",
         };
         let level = match self.level {
@@ -112,6 +113,7 @@ pub(crate) enum CompressFormat {
     Zstd,
     Bzip2,
     Xz,
+    Lz4,
 }
 
 /// Supported compression level for backup jobs
@@ -177,6 +179,13 @@ impl Application {
         compression: Option<CompressFormat>,
         level: Option<Level>,
     ) {
+        if let Some(CompressFormat::Lz4) = compression
+            && let Some(_) = level
+        {
+            eprintln!(
+                "Warning: lz4 does not support level compression, setting the level will not take effect"
+            );
+        }
         let id = if self.jobs.is_empty() {
             1
         } else {
