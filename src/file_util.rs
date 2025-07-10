@@ -9,7 +9,7 @@ use crate::{Result, application::CompressFormat};
 use bzip2::Compression as BzCompression;
 use bzip2::write::BzEncoder;
 use flate2::{Compression, write::GzEncoder};
-use lz4_flex::frame::FrameEncoder as Lz4Encoder;
+use lz4::EncoderBuilder as Lz4EncoderBuilder;
 use sevenz_rust2::ArchiveWriter;
 use sevenz_rust2::encoder_options::LZMA2Options;
 use std::io::{BufReader, Read, Write};
@@ -54,7 +54,7 @@ pub(crate) fn compression(
         CompressFormat::Zstd => compress_zstd(src, dest, level),
         CompressFormat::Bzip2 => compress_bzip2(src, dest, level),
         CompressFormat::Xz => compress_xz(src, dest, level),
-        CompressFormat::Lz4 => compress_lz4(src, dest),
+        CompressFormat::Lz4 => compress_lz4(src, dest, level),
     }
 }
 
@@ -303,27 +303,37 @@ fn compress_xz(src: &Path, dest: &Path, level: &Level) -> Result<()> {
 /// # Arguments
 /// * `src` - The source directory to compress.
 /// * `dest` - The destination directory.
+/// * `level` - Compression level (1-16).
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
-fn compress_lz4(src: &Path, dest: &Path) -> Result<()> {
+fn compress_lz4(src: &Path, dest: &Path, level: &Level) -> Result<()> {
     let file_name = get_file_name(src);
+    let level = match level {
+        Level::Fastest => 1,
+        Level::Faster => 3,
+        Level::Default => 6,
+        Level::Better => 14,
+        Level::Best => 16,
+    };
     if src.is_dir() {
         let dest = dest.join(format!("{file_name}.tar.lz4"));
         let tar_lz = File::create(dest)?;
 
-        let encoder = Lz4Encoder::new(tar_lz);
+        let encoder = Lz4EncoderBuilder::new().level(level).build(tar_lz)?;
         let mut tar_builder = tar::Builder::new(encoder);
         append_regular_only(&mut tar_builder, src)?;
-        tar_builder.into_inner()?.finish()?;
+        let (_, result) = tar_builder.into_inner()?.finish();
+        result?;
     } else {
         let dest = dest.join(format!("{file_name}.lz4"));
         let dest_file = File::create(dest)?;
 
         let mut reader = BufReader::new(File::open(src)?);
-        let mut encoder = Lz4Encoder::new(dest_file);
+        let mut encoder = Lz4EncoderBuilder::new().level(level).build(dest_file)?;
         io::copy(&mut reader, &mut encoder)?;
-        encoder.finish()?;
+        let (_, result) = encoder.finish();
+        result?;
     }
 
     Ok(())
