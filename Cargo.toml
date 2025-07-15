@@ -3,6 +3,7 @@ name = "hbackup"
 version = "0.3.10"
 edition = "2024"
 authors = ["asthetik"]
+homepage = "https://github.com/asthetik/hbackup"
 repository = "https://github.com/asthetik/hbackup"
 description = "hbackup is a sample, high-performance, cross-platform backup tool written in Rust. It is designed to be fast, efficient, and easy to use, with a focus on performance and reliability."
 license = "MIT"
@@ -21,12 +22,12 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 anyhow = "1.0.98"
 dirs = "6.0.0"
-toml = "0.9.0"
+toml = "0.9.2"
 flate2 = "1.1.2"
 tar = "0.4.44"
 walkdir = "2.5.0"
 zip = { version = "4.3.0", default-features = false, features = ["deflate"] }
-sevenz-rust2 = { version = "0.16.0", features = ["compress"] }
+sevenz-rust2 = { version = "0.16.1", features = ["compress"] }
 zstd = "0.13.3"
 bzip2 = "0.6.0"
 xz2 = { version = "0.1.7", features = ["static"] }
