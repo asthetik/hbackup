@@ -135,7 +135,7 @@ impl fmt::Display for JobList {
         write!(f, "[")?;
         for (i, job) in self.0.iter().enumerate() {
             write!(f, "{job}")?;
-            if i != self.0.len() - 1 {
+            if i < self.0.len() - 1 {
                 writeln!(f, ",")?;
             }
         }
@@ -146,7 +146,7 @@ impl fmt::Display for JobList {
 impl Application {
     /// Creates a new, empty application configuration.
     pub(crate) fn new() -> Self {
-        Application {
+        Self {
             version: default_version(),
             jobs: vec![],
         }
@@ -165,7 +165,7 @@ impl Application {
                 }
             }
         } else {
-            Application::new()
+            Self::new()
         }
     }
 
@@ -215,7 +215,7 @@ impl Application {
 
     /// Returns all jobs from the current configuration.
     pub(crate) fn get_jobs() -> Vec<Job> {
-        Application::load_config().jobs
+        Self::load_config().jobs
     }
 
     /// Removes a job by id. Returns Some if removed, None if not found.
