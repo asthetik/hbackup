@@ -42,8 +42,8 @@ fn main() -> Result<()> {
             id,
             level,
         } => {
-            if let Some(id) = id {
-                commands::run_by_id(id);
+            if let Some(ids) = id {
+                commands::run_by_id(ids);
             } else if let (Some(source), Some(target)) = (source, target) {
                 let source = canonicalize(source);
                 let target = canonicalize(target);
