@@ -59,9 +59,9 @@ pub(crate) enum Commands {
         /// Compression level
         #[arg(required = false, requires = "compression")]
         level: Option<Level>,
-        /// Run a specific job by id. Cannot be used with source/target.
-        #[arg(long, required = false, conflicts_with_all = ["source", "target", "compression"])]
-        id: Option<u32>,
+        /// Job id(s) to run.
+        #[arg(long, required = false, value_delimiter = ',', conflicts_with_all = ["source", "target", "compression"])]
+        id: Option<Vec<u32>>,
     },
     /// List all backup jobs.
     List,
@@ -162,22 +162,24 @@ pub(crate) fn run() -> Result<()> {
 /// * `id` - The job id to run.
 ///
 /// Exits the process with an error code if the job is not found or fails.
-pub(crate) fn run_by_id(id: u32) {
+pub(crate) fn run_by_id(ids: Vec<u32>) {
     let jobs = Application::get_jobs();
     if jobs.is_empty() {
         eprintln!("No jobs are backed up!");
         process::exit(sysexits::EX_DATAERR);
     }
-    match jobs.iter().find(|j| j.id == id) {
-        Some(job) => {
-            if let Err(e) = run_job(job) {
-                eprintln!("Failed to run job with id {}: {}\n", job.id, e);
-                process::exit(sysexits::EX_IOERR);
+    for id in ids {
+        match jobs.iter().find(|j| j.id == id) {
+            Some(job) => {
+                if let Err(e) = run_job(job) {
+                    eprintln!("Failed to run job with id {}: {}\n", job.id, e);
+                    process::exit(sysexits::EX_IOERR);
+                }
             }
-        }
-        None => {
-            eprintln!("Job with id {id} not found.");
-            process::exit(sysexits::EX_DATAERR);
+            None => {
+                eprintln!("Job with id {id} not found.");
+                process::exit(sysexits::EX_DATAERR);
+            }
         }
     }
 }

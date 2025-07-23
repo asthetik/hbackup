@@ -59,10 +59,11 @@ bk list
   bk run
   ```
 
-- **Run a job by ID:**
+- **Run mutiple job by ID:**
   
   ```sh
   bk run --id 1
+  bk run --id 1,2
   ```
 
 - **Run a one-time backup (without saving as a job):**
