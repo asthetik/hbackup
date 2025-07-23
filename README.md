@@ -59,7 +59,7 @@ bk list
   bk run
   ```
 
-- **Run mutiple job by ID:**
+- **Run multiple jobs by ID:**
   
   ```sh
   bk run --id 1
@@ -81,10 +81,11 @@ bk list
 
 ### 5. Delete jobs
 
-- **Delete a job by ID:**
+- **Delete multiple jobs by ID:**
 
   ```sh
   bk delete --id 1
+  bk delete --id 1,2
   ```
 
 - **Delete all jobs:**
