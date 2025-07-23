@@ -41,11 +41,6 @@ pub(crate) enum Commands {
         level: Option<Level>,
     },
     /// Run backup jobs.
-    ///
-    /// Usage examples:
-    ///   bk run                # Run all jobs
-    ///   bk run --id `<id>`      # Run a specific job by id
-    ///   bk run `<source>` `<target>`  # Run a one-time backup with given source and target
     Run {
         /// Source file (positional, optional). Must be used with target.
         #[arg(required = false, requires = "target")]
@@ -67,9 +62,9 @@ pub(crate) enum Commands {
     List,
     /// Delete backup jobs by id or delete all jobs.
     Delete {
-        /// Delete job by id. Cannot be used with --all.
-        #[arg(long, required = false, conflicts_with = "all")]
-        id: Option<u32>,
+        /// Delete multiple job by id. Cannot be used with --all.
+        #[arg(long, required = false, value_delimiter = ',', conflicts_with = "all")]
+        id: Option<Vec<u32>>,
         /// Delete all jobs. Cannot be used with --id.
         #[arg(long, required = false, conflicts_with = "id")]
         all: bool,
@@ -228,20 +223,22 @@ pub(crate) fn list() {
 ///
 /// # Errors
 /// Returns an error if neither `id` nor `all` is specified, or if deletion fails.
-pub(crate) fn delete(id: Option<u32>, all: bool) -> Result<()> {
+pub(crate) fn delete(id: Option<Vec<u32>>, all: bool) -> Result<()> {
     if all {
         let mut app = Application::load_config();
         app.reset_jobs();
         app.write()?;
         println!("All jobs deleted successfully.");
-    } else if let Some(id) = id {
+    } else if let Some(ids) = id {
         let mut app = Application::load_config();
-        match app.remove_job(id) {
-            Some(_) => {
-                app.write()?;
-                println!("Job with id {id} deleted successfully.");
+        for id in ids {
+            match app.remove_job(id) {
+                Some(_) => {
+                    app.write()?;
+                    println!("Job with id {id} deleted successfully.");
+                }
+                None => println!("Job deletion failed. Job with id {id} cannot be found."),
             }
-            None => println!("Job deletion failed. Job with id {id} cannot be found."),
         }
     } else {
         return Err("Either --all or --id must be specified.".into());
