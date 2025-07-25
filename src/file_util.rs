@@ -175,7 +175,7 @@ fn compress_sevenz(src: &Path, dest: &Path, level: &Level) -> Result<()> {
         Level::Better => 8,
         Level::Best => 9,
     };
-    let lzma2 = LZMA2Options::with_preset(level).into();
+    let lzma2 = LZMA2Options::from_level(level).into();
     writer.set_content_methods(vec![lzma2]);
     writer.push_source_path(src, |_| true)?;
     writer.finish()?;
