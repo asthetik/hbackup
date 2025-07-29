@@ -14,6 +14,7 @@ use futures::stream::{FuturesUnordered, StreamExt};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process;
+use tokio::runtime::Builder;
 use walkdir::WalkDir;
 
 /// Command-line interface definition for hbackup.
@@ -153,9 +154,7 @@ pub(crate) fn run() -> Result<()> {
 
 /// Runs multiple backup jobs concurrently.
 pub(crate) fn run_jobs(jobs: Vec<Job>) -> Result<()> {
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()?;
+    let rt = Builder::new_multi_thread().enable_all().build()?;
 
     rt.block_on(async move {
         let mut set = tokio::task::JoinSet::new();
@@ -221,9 +220,18 @@ pub(crate) fn run_job(job: &Job) -> Result<()> {
             process::exit(sysexits::EX_CANTCREAT);
         }
         let jobs = get_all_jobs(&job.source, &job.target)?;
-        for (source, target) in jobs {
-            copy_file(&source, &target)?;
-        }
+        let rt = Builder::new_multi_thread().enable_all().build()?;
+        rt.block_on(async {
+            use futures::stream::{FuturesUnordered, StreamExt};
+            let mut tasks = FuturesUnordered::new();
+            for (source, target) in jobs {
+                tasks.push(copy_file_async(source, target));
+            }
+            while let Some(res) = tasks.next().await {
+                res?;
+            }
+            Ok::<(), anyhow::Error>(())
+        })?;
     } else {
         copy_file(&job.source, &job.target)?;
     }
@@ -254,13 +262,13 @@ pub(crate) async fn run_job_async(job: &Job) -> Result<()> {
         let jobs = get_all_jobs(&job.source, &job.target)?;
         let mut tasks = FuturesUnordered::new();
         for (source, target) in jobs {
-            tasks.push(tokio::fs::copy(source, target));
+            tasks.push(copy_file_async(source, target));
         }
         while let Some(res) = tasks.next().await {
             res?;
         }
     } else {
-        tokio::fs::copy(&job.source, &job.target).await?;
+        copy_file_async(job.source.clone(), job.target.clone()).await?;
     }
     Ok(())
 }
@@ -481,6 +489,28 @@ fn copy_file(source: &Path, target: &Path) -> Result<()> {
     }
     fs::copy(source, &target_file)?;
 
+    Ok(())
+}
+
+/// Asynchronously copy file from source to target, creating parent directories if needed.
+async fn copy_file_async(source: PathBuf, target: PathBuf) -> Result<()> {
+    let target_file = if (target.exists() && target.is_dir())
+        || (!target.exists() && target.extension().is_none())
+    {
+        let file_name = source
+            .file_name()
+            .ok_or_else(|| anyhow!("Invalid file name"))?;
+        target.join(file_name)
+    } else {
+        target
+    };
+
+    if let Some(parent) = target_file.parent() {
+        if !parent.exists() {
+            fs::create_dir_all(parent)?;
+        }
+    }
+    tokio::fs::copy(source, &target_file).await?;
     Ok(())
 }
 
