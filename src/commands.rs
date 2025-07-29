@@ -202,11 +202,11 @@ pub(crate) fn run_by_id(ids: Vec<u32>) {
     assert!(!vec.is_empty(), "No jobs found to run");
     if vec.len() == 1 {
         if let Err(e) = run_job(&vec[0]) {
-            eprintln!("Failed to run job with id {}: {}\n", vec[0].id, e);
+            eprintln!("Failed to run job with id {}: {e}\n", vec[0].id);
             process::exit(sysexits::EX_IOERR);
         }
     } else if let Err(e) = run_jobs(vec) {
-        eprintln!("Failed to run jobs: {}\n", e);
+        eprintln!("Failed to run jobs: {e}\n");
         process::exit(sysexits::EX_IOERR);
     }
 }
