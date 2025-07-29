@@ -8,8 +8,10 @@ use crate::file_util;
 use crate::path_util;
 use crate::{Result, sysexits};
 use anyhow::Context;
+use anyhow::anyhow;
 use clap::{Parser, Subcommand};
-use std::fs::{self};
+use futures::stream::{FuturesUnordered, StreamExt};
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process;
 use walkdir::WalkDir;
@@ -141,13 +143,36 @@ pub(crate) fn run() -> Result<()> {
     let jobs = Application::get_jobs();
     if jobs.is_empty() {
         println!("No jobs are backed up!");
-        return Ok(());
+    } else if jobs.len() == 1 {
+        run_job(&jobs[0])?;
+    } else {
+        run_jobs(jobs)?;
     }
-    for job in jobs {
-        if let Err(e) = run_job(&job) {
-            eprintln!("Failed to run job with id {}: {}\n", job.id, e);
+    Ok(())
+}
+
+/// Runs multiple backup jobs concurrently.
+pub(crate) fn run_jobs(jobs: Vec<Job>) -> Result<()> {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?;
+
+    rt.block_on(async move {
+        let mut set = tokio::task::JoinSet::new();
+        for job in jobs {
+            set.spawn(async move {
+                if let Err(e) = run_job_async(&job).await {
+                    eprintln!("Failed to run job with id {}: {}\n", job.id, e);
+                }
+            });
         }
-    }
+        while let Some(res) = set.join_next().await {
+            if let Err(e) = res {
+                eprintln!("Failed to run job: {}\n", e);
+            }
+        }
+    });
+
     Ok(())
 }
 
@@ -188,11 +213,7 @@ pub(crate) fn run_by_id(ids: Vec<u32>) {
 /// Returns an error if the copy or compression fails.
 pub(crate) fn run_job(job: &Job) -> Result<()> {
     if let Some(ref format) = job.compression {
-        let level = if let Some(ref level) = job.level {
-            level
-        } else {
-            &Level::Default
-        };
+        let level = job.level.as_ref().unwrap_or(&Level::Default);
         file_util::compression(&job.source, &job.target, format, level)?;
     } else if job.source.is_dir() {
         if job.target.exists() && job.target.is_file() {
@@ -205,6 +226,41 @@ pub(crate) fn run_job(job: &Job) -> Result<()> {
         }
     } else {
         copy_file(&job.source, &job.target)?;
+    }
+    Ok(())
+}
+
+/// Runs a backup job (single file or directory copy, with optional compression).
+///
+/// # Arguments
+/// * `job` - The job to execute.
+///
+/// # Errors
+/// Returns an error if the copy or compression fails.
+pub(crate) async fn run_job_async(job: &Job) -> Result<()> {
+    if let Some(ref format) = job.compression {
+        let level = job.level.as_ref().unwrap_or(&Level::Default);
+        let src = job.source.clone();
+        let tgt = job.target.clone();
+        let fmt = format.clone();
+        let lvl = level.clone();
+        tokio::task::spawn_blocking(move || file_util::compression(&src, &tgt, &fmt, &lvl))
+            .await??;
+    } else if job.source.is_dir() {
+        if job.target.exists() && job.target.is_file() {
+            eprintln!("File exists");
+            process::exit(sysexits::EX_CANTCREAT);
+        }
+        let jobs = get_all_jobs(&job.source, &job.target)?;
+        let mut tasks = FuturesUnordered::new();
+        for (source, target) in jobs {
+            tasks.push(tokio::fs::copy(source, target));
+        }
+        while let Some(res) = tasks.next().await {
+            res?;
+        }
+    } else {
+        tokio::fs::copy(&job.source, &job.target).await?;
     }
     Ok(())
 }
@@ -241,7 +297,7 @@ pub(crate) fn delete(id: Option<Vec<u32>>, all: bool) -> Result<()> {
             }
         }
     } else {
-        return Err("Either --all or --id must be specified.".into());
+        return Err(anyhow!("Either --all or --id must be specified."));
     }
     Ok(())
 }

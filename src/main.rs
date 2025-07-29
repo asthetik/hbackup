@@ -5,10 +5,10 @@ mod file_util;
 mod path_util;
 mod sysexits;
 
+use anyhow::Result;
 use application::{Job, init_config};
 use clap::Parser;
 use commands::{Cli, Commands, canonicalize};
-use common::Result;
 use std::process;
 
 /// Entry point for the hbackup CLI application.

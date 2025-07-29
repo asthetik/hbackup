@@ -4,8 +4,10 @@
 //! using gzip, zip, 7z, zstd, bzip2, and xz formats. It supports both single files and entire directories,
 //! and automatically selects the correct compression strategy based on the input type and format.
 
+use crate::application::CompressFormat;
 use crate::application::Level;
-use crate::{Result, application::CompressFormat};
+use anyhow::Result;
+use anyhow::anyhow;
 use bzip2::Compression as BzCompression;
 use bzip2::write::BzEncoder;
 use flate2::{Compression, write::GzEncoder};
@@ -40,10 +42,12 @@ pub(crate) fn compression(
 ) -> Result<()> {
     assert!(src.exists());
     if !src.is_dir() && !src.is_file() {
-        return Err("Does not support compression except for files and directories".into());
+        return Err(anyhow!(
+            "Does not support compression except for files and directories"
+        ));
     }
     if dest.exists() && !dest.is_dir() {
-        return Err("Invalid file type".into());
+        return Err(anyhow!("Invalid file type"));
     }
     fs::create_dir_all(dest)?;
 
