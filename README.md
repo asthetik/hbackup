@@ -15,6 +15,7 @@
 ## Features
 
 - 🚀 **Fast and simple** file/directory backup via CLI
+- ⚡️ **Asynchronous multi-threaded backup** for higher performance, especially with large or multiple files
 - 🖥️ **Cross-platform**: macOS, Linux, Windows
 - 🗂️ **Custom backup jobs** with unique IDs
 - 📝 **Configuration and task management** via TOML in user config directory
