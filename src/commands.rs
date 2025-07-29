@@ -168,7 +168,7 @@ pub(crate) fn run_jobs(jobs: Vec<Job>) -> Result<()> {
         }
         while let Some(res) = set.join_next().await {
             if let Err(e) = res {
-                eprintln!("Failed to run job: {}\n", e);
+                eprintln!("Failed to run job: {e}\n");
             }
         }
     });
