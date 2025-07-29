@@ -187,18 +187,28 @@ pub(crate) fn run_by_id(ids: Vec<u32>) {
         eprintln!("No jobs are backed up!");
         process::exit(sysexits::EX_DATAERR);
     }
+    let mut vec = vec![];
     for id in ids {
         match jobs.iter().find(|j| j.id == id) {
             Some(job) => {
-                if let Err(e) = run_job(job) {
-                    eprintln!("Failed to run job with id {}: {}\n", job.id, e);
-                    process::exit(sysexits::EX_IOERR);
-                }
+                vec.push(job.clone());
             }
             None => {
                 eprintln!("Job with id {id} not found.");
                 process::exit(sysexits::EX_DATAERR);
             }
+        }
+    }
+    assert!(!vec.is_empty(), "No jobs found to run");
+    if vec.len() == 1 {
+        if let Err(e) = run_job(&vec[0]) {
+            eprintln!("Failed to run job with id {}: {}\n", vec[0].id, e);
+            process::exit(sysexits::EX_IOERR);
+        }
+    } else {
+        if let Err(e) = run_jobs(vec) {
+            eprintln!("Failed to run jobs: {}\n", e);
+            process::exit(sysexits::EX_IOERR);
         }
     }
 }
