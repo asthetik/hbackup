@@ -480,7 +480,7 @@ checksum = "5971ac85611da7067dbfcabef3c70ebb5606018acd9e2a3903a0da507521e0d5"
 
 [[package]]
 name = "hbackup"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "bzip2",
