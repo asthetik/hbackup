@@ -28,11 +28,9 @@ pub(crate) struct Cli {
 pub(crate) enum Commands {
     /// Add a new backup job to the configuration.
     Add {
-        /// Source file path.
-        #[arg(short, long)]
+        /// Source file or directory path.
         source: PathBuf,
         /// Target file or directory path.
-        #[arg(short, long)]
         target: PathBuf,
         /// Compression format.
         #[arg(short, long)]
@@ -42,17 +40,17 @@ pub(crate) enum Commands {
     },
     /// Run backup jobs.
     Run {
-        /// Source file (positional, optional). Must be used with target.
+        /// Source file or directory path (positional, optional). Must be used with target.
         #[arg(required = false, requires = "target")]
         source: Option<PathBuf>,
-        /// Target file or directory (positional, optional). Must be used with source.
+        /// Target file or directory path (positional, optional). Must be used with source.
         #[arg(required = false, requires = "source")]
         target: Option<PathBuf>,
         /// Compression format.
-        #[arg(required = false)]
+        #[arg(short, long, required = false)]
         compression: Option<CompressFormat>,
         /// Compression level
-        #[arg(required = false, requires = "compression")]
+        #[arg(short, long, required = false, requires = "compression")]
         level: Option<Level>,
         /// Job id(s) to run.
         #[arg(long, required = false, value_delimiter = ',', conflicts_with_all = ["source", "target", "compression"])]
