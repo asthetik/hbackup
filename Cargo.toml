@@ -17,12 +17,12 @@ exclude = [
 rust-version = "1.85.0"
 
 [dependencies]
-clap = { version = "4.5.41", features = ["derive"] }
+clap = { version = "4.5.42", features = ["derive"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.141"
 anyhow = "1.0.98"
 dirs = "6.0.0"
-toml = "0.9.3"
+toml = "0.9.4"
 flate2 = "1.1.2"
 tar = "0.4.44"
 walkdir = "2.5.0"
