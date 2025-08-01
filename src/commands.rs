@@ -81,23 +81,29 @@ pub(crate) enum Commands {
         #[arg(long)]
         id: u32,
         /// New source file or directory path
-        #[arg(short, long, required = false, required_unless_present_any = ["target", "compression", "no_compression", "level", "no_level"])]
+        #[arg(short, long, required = false, required_unless_present_any = ["target", "compression", "no_compression", "level", "no_level", "ignore", "no_ignore"])]
         source: Option<PathBuf>,
         /// New target file or directory path
-        #[arg(short, long, required = false, required_unless_present_any = ["source", "compression", "no_compression", "level", "no_level"])]
+        #[arg(short, long, required = false, required_unless_present_any = ["source", "compression", "no_compression", "level", "no_level", "ignore", "no_ignore"])]
         target: Option<PathBuf>,
         /// Compression format.
-        #[arg(short, long, required = false, required_unless_present_any = ["source", "target", "no_compression", "level", "no_level"], conflicts_with_all = ["no_compression"])]
+        #[arg(short, long, required = false, required_unless_present_any = ["source", "target", "no_compression", "level", "no_level", "ignore", "no_ignore"], conflicts_with_all = ["no_compression"])]
         compression: Option<CompressFormat>,
         /// Clear compression format
-        #[arg(short = 'C', long, required = false, required_unless_present_any = ["source", "target", "compression", "level", "no_level"], conflicts_with_all = ["compression"])]
+        #[arg(short = 'C', long, required = false, required_unless_present_any = ["source", "target", "compression", "level", "no_level", "ignore", "no_ignore"], conflicts_with_all = ["compression"])]
         no_compression: bool,
         /// Compression level
-        #[arg(short, long, required = false, required_unless_present_any = ["source", "target", "compression", "no_compression", "no_level"], conflicts_with_all = ["no_level"] )]
+        #[arg(short, long, required = false, required_unless_present_any = ["source", "target", "compression", "no_compression", "no_level", "ignore", "no_ignore"], conflicts_with_all = ["no_level"] )]
         level: Option<Level>,
         /// Clear compression level
-        #[arg(short = 'L', long, required = false, required_unless_present_any = ["source", "target", "compression", "no_compression", "level"], conflicts_with_all = ["level"] )]
+        #[arg(short = 'L', long, required = false, required_unless_present_any = ["source", "target", "compression", "no_compression", "level", "ignore", "no_ignore"], conflicts_with_all = ["level"] )]
         no_level: bool,
+        /// Ignore a specific list of files or directories
+        #[arg(short = 'g', long, value_delimiter = ',', required_unless_present_any = ["source", "target", "compression", "no_compression", "level", "no_level", "no_ignore"], conflicts_with_all = ["no_ignore"] )]
+        ignore: Option<Vec<String>>,
+        /// Clear ignore list
+        #[arg(short = 'G', long, required = false, required_unless_present_any = ["source", "target", "compression", "no_compression", "level", "no_level", "ignore"], conflicts_with_all = ["ignore"] )]
+        no_ignore: bool,
     },
     /// Display the absolute path of the configuration file and manage config backup/reset/rollback.
     Config {
@@ -340,6 +346,8 @@ pub(crate) fn edit(
     no_compression: bool,
     level: Option<Level>,
     no_level: bool,
+    ignore: Option<Vec<String>>,
+    no_ignore: bool,
 ) -> Result<()> {
     let source = source.map(canonicalize);
     if let Some(ref file_path) = source {
@@ -374,6 +382,11 @@ pub(crate) fn edit(
             process::exit(1);
         } else if level.is_some() {
             job.level = level;
+        }
+        if no_ignore {
+            job.ignore = None;
+        } else if ignore.is_some() {
+            job.ignore = ignore;
         }
         app.write()?;
         println!("Job with id {id} edited successfully.");

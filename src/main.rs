@@ -79,6 +79,8 @@ fn main() -> Result<()> {
             no_compression,
             level,
             no_level,
+            ignore,
+            no_ignore
         } => {
             commands::edit(
                 id,
@@ -88,6 +90,8 @@ fn main() -> Result<()> {
                 no_compression,
                 level,
                 no_level,
+                ignore,
+                no_ignore
             )?;
         }
         Commands::Config {
