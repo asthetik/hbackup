@@ -66,43 +66,23 @@ impl fmt::Display for Job {
             Some(Level::Best) => "Best",
             None => "",
         };
-        if comp.is_empty() && level.is_empty() {
-            write!(
-                f,
-                "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\"\n}}",
-                self.id,
-                self.source.display(),
-                self.target.display(),
-            )
-        } else if !comp.is_empty() && level.is_empty() {
-            write!(
-                f,
-                "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\",\n    compression: \"{}\"\n}}",
-                self.id,
-                self.source.display(),
-                self.target.display(),
-                comp
-            )
-        } else if comp.is_empty() && !level.is_empty() {
-            write!(
-                f,
-                "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\",\n    level: \"{}\"\n}}",
-                self.id,
-                self.source.display(),
-                self.target.display(),
-                level
-            )
-        } else {
-            write!(
-                f,
-                "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\",\n    compression: \"{}\",\n    level: \"{}\"\n}}",
-                self.id,
-                self.source.display(),
-                self.target.display(),
-                comp,
-                level,
-            )
+        let mut s = format!(
+            "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\"",
+            self.id,
+            self.source.display(),
+            self.target.display()
+        );
+        if !comp.is_empty() {
+            s.push_str(&format!(",\n    compression: \"{}\"", comp));
         }
+        if !level.is_empty() {
+            s.push_str(&format!(",\n    level: \"{}\"", level));
+        }
+        if let Some(ignore) = self.ignore.as_ref() {
+            s.push_str(&format!(",\n    ignore: {:?}", ignore));
+        }
+        s.push_str("\n}");
+        write!(f, "{}", s)
     }
 }
 
