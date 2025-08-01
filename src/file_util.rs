@@ -15,6 +15,7 @@ use lz4::EncoderBuilder as Lz4EncoderBuilder;
 use sevenz_rust2::ArchiveWriter;
 use sevenz_rust2::encoder_options::LZMA2Options;
 use std::io::{BufReader, Read, Write};
+use std::path::PathBuf;
 use std::{fs, io};
 use std::{fs::File, path::Path};
 use tar::Builder;
@@ -39,6 +40,7 @@ pub(crate) fn compression(
     dest: &Path,
     format: &CompressFormat,
     level: &Level,
+    ignore: &Option<Vec<String>>,
 ) -> Result<()> {
     assert!(src.exists());
     if !src.is_dir() && !src.is_file() {
@@ -52,13 +54,13 @@ pub(crate) fn compression(
     fs::create_dir_all(dest)?;
 
     match format {
-        CompressFormat::Gzip => compress_gzip(src, dest, level),
-        CompressFormat::Zip => compress_zip(src, dest, level),
-        CompressFormat::Sevenz => compress_sevenz(src, dest, level),
-        CompressFormat::Zstd => compress_zstd(src, dest, level),
-        CompressFormat::Bzip2 => compress_bzip2(src, dest, level),
-        CompressFormat::Xz => compress_xz(src, dest, level),
-        CompressFormat::Lz4 => compress_lz4(src, dest, level),
+        CompressFormat::Gzip => compress_gzip(src, dest, level, ignore),
+        CompressFormat::Zip => compress_zip(src, dest, level, ignore),
+        CompressFormat::Sevenz => compress_sevenz(src, dest, level, ignore),
+        CompressFormat::Zstd => compress_zstd(src, dest, level, ignore),
+        CompressFormat::Bzip2 => compress_bzip2(src, dest, level, ignore),
+        CompressFormat::Xz => compress_xz(src, dest, level, ignore),
+        CompressFormat::Lz4 => compress_lz4(src, dest, level, ignore),
     }
 }
 
@@ -71,7 +73,12 @@ pub(crate) fn compression(
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
-fn compress_gzip(src: &Path, dest: &Path, level: &Level) -> Result<()> {
+fn compress_gzip(
+    src: &Path,
+    dest: &Path,
+    level: &Level,
+    ignore: &Option<Vec<String>>,
+) -> Result<()> {
     let file_name = get_file_name(src);
     let level = match level {
         Level::Fastest => Compression::fast(),
@@ -87,7 +94,7 @@ fn compress_gzip(src: &Path, dest: &Path, level: &Level) -> Result<()> {
 
         let encoder = GzEncoder::new(tar_gz, level);
         let mut tar_builder = tar::Builder::new(encoder);
-        append_regular_only(&mut tar_builder, src)?;
+        append_regular_only(&mut tar_builder, src, ignore)?;
         tar_builder.into_inner()?.finish()?;
     } else {
         let dest = dest.join(format!("{file_name}.gz"));
@@ -111,7 +118,12 @@ fn compress_gzip(src: &Path, dest: &Path, level: &Level) -> Result<()> {
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
-fn compress_zip(src: &Path, dest: &Path, level: &Level) -> Result<()> {
+fn compress_zip(
+    src: &Path,
+    dest: &Path,
+    level: &Level,
+    ignore: &Option<Vec<String>>,
+) -> Result<()> {
     let file_name = get_file_name(src);
     let dest = dest.join(format!("{file_name}.zip"));
     let dest_file = File::create(dest)?;
@@ -127,9 +139,18 @@ fn compress_zip(src: &Path, dest: &Path, level: &Level) -> Result<()> {
     let options = FileOptions::<()>::default().compression_level(Some(level));
     if src.is_dir() {
         let prefix = src.parent().unwrap_or_else(|| Path::new(""));
+        let ignore_path = match ignore {
+            Some(ignore) => ignore.iter().map(|s| src.join(s)).collect::<Vec<PathBuf>>(),
+            None => vec![],
+        };
+
         for entry in WalkDir::new(src) {
             let entry = entry?;
             let path = entry.path();
+            if ignore_path.iter().any(|p| path.starts_with(p)) {
+                continue;
+            }
+
             let name = path
                 .strip_prefix(prefix)
                 .unwrap()
@@ -167,7 +188,12 @@ fn compress_zip(src: &Path, dest: &Path, level: &Level) -> Result<()> {
 ///
 /// # Errors
 /// Returns an error if any IO error occurs or if 7z compression fails.
-fn compress_sevenz(src: &Path, dest: &Path, level: &Level) -> Result<()> {
+fn compress_sevenz(
+    src: &Path,
+    dest: &Path,
+    level: &Level,
+    ignore: &Option<Vec<String>>,
+) -> Result<()> {
     let file_name = get_file_name(src);
     let dest = dest.join(format!("{file_name}.7z"));
 
@@ -181,7 +207,7 @@ fn compress_sevenz(src: &Path, dest: &Path, level: &Level) -> Result<()> {
     };
     let lzma2 = LZMA2Options::from_level(level).into();
     writer.set_content_methods(vec![lzma2]);
-    writer.push_source_path(src, |_| true)?;
+    writer.push_source_path(src, make_filter(src, ignore))?;
     writer.finish()?;
 
     Ok(())
@@ -196,7 +222,12 @@ fn compress_sevenz(src: &Path, dest: &Path, level: &Level) -> Result<()> {
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
-fn compress_zstd(src: &Path, dest: &Path, level: &Level) -> Result<()> {
+fn compress_zstd(
+    src: &Path,
+    dest: &Path,
+    level: &Level,
+    ignore: &Option<Vec<String>>,
+) -> Result<()> {
     let file_name = get_file_name(src);
     let level = match level {
         Level::Fastest => 1,
@@ -210,7 +241,7 @@ fn compress_zstd(src: &Path, dest: &Path, level: &Level) -> Result<()> {
         let tar_zst = File::create(dest)?;
         let encoder = ZstdEncoder::new(tar_zst, level)?;
         let mut tar_builder = tar::Builder::new(encoder);
-        append_regular_only(&mut tar_builder, src)?;
+        append_regular_only(&mut tar_builder, src, ignore)?;
         tar_builder.into_inner()?.finish()?;
     } else {
         let dest = dest.join(format!("{file_name}.zst"));
@@ -233,7 +264,12 @@ fn compress_zstd(src: &Path, dest: &Path, level: &Level) -> Result<()> {
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
-fn compress_bzip2(src: &Path, dest: &Path, level: &Level) -> Result<()> {
+fn compress_bzip2(
+    src: &Path,
+    dest: &Path,
+    level: &Level,
+    ignore: &Option<Vec<String>>,
+) -> Result<()> {
     let file_name = get_file_name(src);
     let level = match level {
         Level::Fastest => BzCompression::fast(),
@@ -248,7 +284,7 @@ fn compress_bzip2(src: &Path, dest: &Path, level: &Level) -> Result<()> {
 
         let encoder = BzEncoder::new(tar_bz, level);
         let mut tar_builder = tar::Builder::new(encoder);
-        append_regular_only(&mut tar_builder, src)?;
+        append_regular_only(&mut tar_builder, src, ignore)?;
         tar_builder.into_inner()?.finish()?;
     } else {
         let dest = dest.join(format!("{file_name}.bz2"));
@@ -272,7 +308,7 @@ fn compress_bzip2(src: &Path, dest: &Path, level: &Level) -> Result<()> {
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
-fn compress_xz(src: &Path, dest: &Path, level: &Level) -> Result<()> {
+fn compress_xz(src: &Path, dest: &Path, level: &Level, ignore: &Option<Vec<String>>) -> Result<()> {
     let file_name = get_file_name(src);
     let level = match level {
         Level::Fastest => 1,
@@ -287,7 +323,7 @@ fn compress_xz(src: &Path, dest: &Path, level: &Level) -> Result<()> {
 
         let encoder = XzEncoder::new(tar_xz, level);
         let mut tar_builder = tar::Builder::new(encoder);
-        append_regular_only(&mut tar_builder, src)?;
+        append_regular_only(&mut tar_builder, src, ignore)?;
         tar_builder.into_inner()?.finish()?;
     } else {
         let dest = dest.join(format!("{file_name}.xz"));
@@ -311,7 +347,12 @@ fn compress_xz(src: &Path, dest: &Path, level: &Level) -> Result<()> {
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
-fn compress_lz4(src: &Path, dest: &Path, level: &Level) -> Result<()> {
+fn compress_lz4(
+    src: &Path,
+    dest: &Path,
+    level: &Level,
+    ignore: &Option<Vec<String>>,
+) -> Result<()> {
     let file_name = get_file_name(src);
     let level = match level {
         Level::Fastest => 1,
@@ -326,7 +367,7 @@ fn compress_lz4(src: &Path, dest: &Path, level: &Level) -> Result<()> {
 
         let encoder = Lz4EncoderBuilder::new().level(level).build(tar_lz)?;
         let mut tar_builder = tar::Builder::new(encoder);
-        append_regular_only(&mut tar_builder, src)?;
+        append_regular_only(&mut tar_builder, src, ignore)?;
         let (_, result) = tar_builder.into_inner()?.finish();
         result?;
     } else {
@@ -364,13 +405,25 @@ fn get_file_name(file: &Path) -> String {
 ///
 /// # Errors
 /// Returns an error if any IO error occurs during traversal or archiving.
-fn append_regular_only<W: Write>(tar: &mut Builder<W>, src: &Path) -> Result<()> {
+fn append_regular_only<W: Write>(
+    tar: &mut Builder<W>,
+    src: &Path,
+    ignore: &Option<Vec<String>>,
+) -> Result<()> {
     let prefix = src.parent().unwrap_or(Path::new(""));
+    let ignore_paths: Vec<PathBuf> = ignore
+        .as_ref()
+        .map(|dirs| dirs.iter().map(|s| src.join(s)).collect())
+        .unwrap_or_default();
+
     for entry in WalkDir::new(src) {
         let entry = entry?;
         let path = entry.path();
-        let rel = path.strip_prefix(prefix).unwrap();
+        if ignore_paths.iter().any(|p| path.starts_with(p)) {
+            continue;
+        }
 
+        let rel = path.strip_prefix(prefix).unwrap();
         let md = fs::symlink_metadata(path)?;
         if md.is_dir() {
             tar.append_dir(rel, path)?;
@@ -379,4 +432,13 @@ fn append_regular_only<W: Write>(tar: &mut Builder<W>, src: &Path) -> Result<()>
         }
     }
     Ok(())
+}
+
+/// Creates a filter function that determines whether a given path should be ignored based on the provided ignore list.
+fn make_filter(base: &Path, ignore: &Option<Vec<String>>) -> impl Fn(&Path) -> bool {
+    let ignore_paths: Vec<PathBuf> = ignore
+        .as_ref()
+        .map(|dirs| dirs.iter().map(|s| base.join(s)).collect())
+        .unwrap_or_default();
+    move |path| !ignore_paths.iter().any(|p| path.starts_with(p))
 }

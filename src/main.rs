@@ -80,7 +80,7 @@ fn main() -> Result<()> {
             level,
             no_level,
             ignore,
-            no_ignore
+            no_ignore,
         } => {
             commands::edit(
                 id,
@@ -91,7 +91,7 @@ fn main() -> Result<()> {
                 level,
                 no_level,
                 ignore,
-                no_ignore
+                no_ignore,
             )?;
         }
         Commands::Config {

@@ -231,7 +231,7 @@ pub(crate) fn run_by_id(ids: Vec<u32>) {
 pub(crate) fn run_job(job: &Job) -> Result<()> {
     if let Some(ref format) = job.compression {
         let level = job.level.as_ref().unwrap_or(&Level::Default);
-        file_util::compression(&job.source, &job.target, format, level)?;
+        file_util::compression(&job.source, &job.target, format, level, &job.ignore)?;
     } else if job.source.is_dir() {
         if job.target.exists() && job.target.is_file() {
             eprintln!("File exists");
@@ -269,8 +269,11 @@ pub(crate) async fn run_job_async(job: &Job) -> Result<()> {
         let tgt = job.target.clone();
         let fmt = format.clone();
         let lvl = level.clone();
-        tokio::task::spawn_blocking(move || file_util::compression(&src, &tgt, &fmt, &lvl))
-            .await??;
+        let ignore = job.ignore.clone();
+        tokio::task::spawn_blocking(move || {
+            file_util::compression(&src, &tgt, &fmt, &lvl, &ignore)
+        })
+        .await??;
     } else if job.source.is_dir() {
         if job.target.exists() && job.target.is_file() {
             eprintln!("File exists");
@@ -477,18 +480,15 @@ fn get_jobs(
 ) -> Result<Vec<(PathBuf, PathBuf)>> {
     let prefix = source.parent().unwrap_or(Path::new(""));
     let mut vec = vec![];
-    let ignore_path = match ignore {
-        Some(ignore) => ignore
-            .iter()
-            .map(|s| source.join(s))
-            .collect::<Vec<PathBuf>>(),
-        None => vec![],
-    };
+    let ignore_paths: Vec<PathBuf> = ignore
+        .as_ref()
+        .map(|dirs| dirs.iter().map(|s| source.join(s)).collect())
+        .unwrap_or_default();
 
     for entry in WalkDir::new(source) {
         let entry = entry?;
         let path = entry.path();
-        if ignore_path.iter().any(|p| path.starts_with(p)) {
+        if ignore_paths.iter().any(|p| path.starts_with(p)) {
             continue;
         }
 
