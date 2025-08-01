@@ -119,6 +119,20 @@ pub(crate) enum Commands {
     },
 }
 
+/// Parameters for editing a backup job
+#[derive(Default)]
+pub(crate) struct EditParams {
+    pub id: u32,
+    pub source: Option<PathBuf>,
+    pub target: Option<PathBuf>,
+    pub compression: Option<CompressFormat>,
+    pub no_compression: bool,
+    pub level: Option<Level>,
+    pub no_level: bool,
+    pub ignore: Option<Vec<String>>,
+    pub no_ignore: bool,
+}
+
 /// Adds a new backup job to the configuration file.
 ///
 /// # Arguments
@@ -341,17 +355,18 @@ pub(crate) fn delete(id: Option<Vec<u32>>, all: bool) -> Result<()> {
 ///
 /// # Errors
 /// Returns an error if the job is not found or the new path is invalid.
-pub(crate) fn edit(
-    id: u32,
-    source: Option<PathBuf>,
-    target: Option<PathBuf>,
-    compression: Option<CompressFormat>,
-    no_compression: bool,
-    level: Option<Level>,
-    no_level: bool,
-    ignore: Option<Vec<String>>,
-    no_ignore: bool,
-) -> Result<()> {
+pub(crate) fn edit(params: EditParams) -> Result<()> {
+    let EditParams {
+        id,
+        source,
+        target,
+        compression,
+        no_compression,
+        level,
+        no_level,
+        ignore,
+        no_ignore,
+    } = params;
     let source = source.map(canonicalize);
     if let Some(ref file_path) = source {
         path_util::check_path(file_path)?;
