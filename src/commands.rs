@@ -40,6 +40,9 @@ pub(crate) enum Commands {
         compression: Option<CompressFormat>,
         #[arg(short, long, requires = "compression")]
         level: Option<Level>,
+        /// Ignore a specific list of files or directories
+        #[arg(short = 'g', long, value_delimiter = ',')]
+        ignore: Option<Vec<String>>,
     },
     /// Run backup jobs.
     Run {
@@ -58,6 +61,9 @@ pub(crate) enum Commands {
         /// Job id(s) to run.
         #[arg(long, required = false, value_delimiter = ',', conflicts_with_all = ["source", "target", "compression"])]
         id: Option<Vec<u32>>,
+        /// Ignore a specific list of files or directories
+        #[arg(short = 'g', long, value_delimiter = ',')]
+        ignore: Option<Vec<String>>,
     },
     /// List all backup jobs.
     List,
@@ -122,13 +128,14 @@ pub(crate) fn add(
     target: PathBuf,
     comp: Option<CompressFormat>,
     level: Option<Level>,
+    ignore: Option<Vec<String>>,
 ) -> Result<()> {
     let source = canonicalize(source);
     let target = canonicalize(target);
     path_util::check_path(&source)?;
 
     let mut app = Application::load_config();
-    app.add_job(source, target, comp, level);
+    app.add_job(source, target, comp, level, ignore);
     app.write()?;
 
     Ok(())
@@ -225,7 +232,7 @@ pub(crate) fn run_job(job: &Job) -> Result<()> {
             eprintln!("File exists");
             process::exit(sysexits::EX_CANTCREAT);
         }
-        let jobs = get_all_jobs(&job.source, &job.target)?;
+        let jobs = get_jobs(&job.source, &job.target, &job.ignore)?;
         let rt = Builder::new_multi_thread().enable_all().build()?;
         rt.block_on(async {
             use futures::stream::{FuturesUnordered, StreamExt};
@@ -265,7 +272,7 @@ pub(crate) async fn run_job_async(job: &Job) -> Result<()> {
             eprintln!("File exists");
             process::exit(sysexits::EX_CANTCREAT);
         }
-        let jobs = get_all_jobs(&job.source, &job.target)?;
+        let jobs = get_jobs(&job.source, &job.target, &job.ignore)?;
         let mut tasks = FuturesUnordered::new();
         for (source, target) in jobs {
             tasks.push(copy_file_async(source, target));
@@ -452,12 +459,28 @@ pub(crate) fn rollback_config_file() -> Result<()> {
 ///
 /// # Errors
 /// Returns an error if directory traversal fails.
-fn get_all_jobs(source: &Path, target: &Path) -> Result<Vec<(PathBuf, PathBuf)>> {
+fn get_jobs(
+    source: &Path,
+    target: &Path,
+    ignore: &Option<Vec<String>>,
+) -> Result<Vec<(PathBuf, PathBuf)>> {
     let prefix = source.parent().unwrap_or(Path::new(""));
     let mut vec = vec![];
+    let ignore_path = match ignore {
+        Some(ignore) => ignore
+            .iter()
+            .map(|s| source.join(s))
+            .collect::<Vec<PathBuf>>(),
+        None => vec![],
+    };
+
     for entry in WalkDir::new(source) {
         let entry = entry?;
         let path = entry.path();
+        if ignore_path.iter().any(|p| path.starts_with(p)) {
+            continue;
+        }
+
         if path.is_file() {
             let rel: PathBuf = path
                 .strip_prefix(prefix)

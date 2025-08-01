@@ -32,8 +32,9 @@ fn main() -> Result<()> {
             target,
             compression,
             level,
+            ignore,
         } => {
-            commands::add(source, target, compression, level)?;
+            commands::add(source, target, compression, level, ignore)?;
         }
         Commands::Run {
             source,
@@ -41,6 +42,7 @@ fn main() -> Result<()> {
             compression,
             id,
             level,
+            ignore,
         } => {
             if let Some(ids) = id {
                 commands::run_by_id(ids);
@@ -56,6 +58,7 @@ fn main() -> Result<()> {
                     target,
                     compression,
                     level,
+                    ignore,
                 };
                 commands::run_job(&job)?;
             } else {
