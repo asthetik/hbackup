@@ -65,8 +65,26 @@ fn main() -> Result<()> {
                 commands::run()?;
             }
         }
-        Commands::List => {
-            commands::list();
+        Commands::List {
+            id,
+            gt,
+            lt,
+            gte,
+            lte,
+        } => {
+            if let Some(ids) = id {
+                commands::list_by_ids(ids);
+            } else if let Some(gt) = gt {
+                commands::list_by_gt(gt);
+            } else if let Some(lt) = lt {
+                commands::list_by_lt(lt);
+            } else if let Some(gte) = gte {
+                commands::list_by_gte(gte);
+            } else if let Some(lte) = lte {
+                commands::list_by_lte(lte);
+            } else {
+                commands::list();
+            }
         }
         Commands::Delete { id, all } => {
             commands::delete(id, all)?;

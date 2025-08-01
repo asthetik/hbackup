@@ -65,7 +65,23 @@ pub(crate) enum Commands {
         ignore: Option<Vec<String>>,
     },
     /// List all backup jobs.
-    List,
+    List {
+        /// List jobs by ids.
+        #[arg(long, required = false, value_delimiter = ',')]
+        id: Option<Vec<u32>>,
+        /// List jobs by id greater than.
+        #[arg(long, required = false, conflicts_with_all = ["id", "lt", "gte", "lte"])]
+        gt: Option<u32>,
+        /// List jobs by id less than.
+        #[arg(long, required = false, conflicts_with_all = ["id", "gt", "gte", "lte"])]
+        lt: Option<u32>,
+        /// List jobs by id greater than or equal to.
+        #[arg(long, required = false, conflicts_with_all = ["id", "gt", "lt", "lte"])]
+        gte: Option<u32>,
+        /// List jobs by id less than or equal to.
+        #[arg(long, required = false, conflicts_with_all = ["id", "gt", "lt", "gte"])]
+        lte: Option<u32>,
+    },
     /// Delete backup jobs by id or delete all jobs.
     Delete {
         /// Delete multiple job by id. Cannot be used with --all.
@@ -309,6 +325,44 @@ pub(crate) async fn run_job_async(job: &Job) -> Result<()> {
 /// Lists all backup jobs in the configuration.
 pub(crate) fn list() {
     let jobs = Application::get_jobs();
+    println!("{}", JobList(jobs));
+}
+
+/// Lists backup jobs by their IDs.
+pub(crate) fn list_by_ids(ids: Vec<u32>) {
+    let jobs = Application::get_jobs();
+    let jobs = jobs
+        .into_iter()
+        .filter(|job| ids.contains(&job.id))
+        .collect();
+    println!("{}", JobList(jobs));
+}
+
+/// Lists backup jobs by their IDs.
+pub(crate) fn list_by_gt(id: u32) {
+    let jobs = Application::get_jobs();
+    let jobs = jobs.into_iter().filter(|job| job.id > id).collect();
+    println!("{}", JobList(jobs));
+}
+
+/// Lists backup jobs by their IDs.
+pub(crate) fn list_by_lt(id: u32) {
+    let jobs = Application::get_jobs();
+    let jobs = jobs.into_iter().filter(|job| job.id < id).collect();
+    println!("{}", JobList(jobs));
+}
+
+/// Lists backup jobs by their IDs.
+pub(crate) fn list_by_gte(id: u32) {
+    let jobs = Application::get_jobs();
+    let jobs = jobs.into_iter().filter(|job| job.id >= id).collect();
+    println!("{}", JobList(jobs));
+}
+
+/// Lists backup jobs by their IDs.
+pub(crate) fn list_by_lte(id: u32) {
+    let jobs = Application::get_jobs();
+    let jobs = jobs.into_iter().filter(|job| job.id <= id).collect();
     println!("{}", JobList(jobs));
 }
 
