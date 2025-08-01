@@ -16,7 +16,6 @@ use std::path::{Path, PathBuf};
 use std::process;
 use tokio::runtime::Builder;
 use walkdir::WalkDir;
-
 /// Command-line interface definition for hbackup.
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -235,7 +234,6 @@ pub(crate) fn run_job(job: &Job) -> Result<()> {
         let jobs = get_jobs(&job.source, &job.target, &job.ignore)?;
         let rt = Builder::new_multi_thread().enable_all().build()?;
         rt.block_on(async {
-            use futures::stream::{FuturesUnordered, StreamExt};
             let mut tasks = FuturesUnordered::new();
             for (source, target) in jobs {
                 tasks.push(copy_file_async(source, target));
