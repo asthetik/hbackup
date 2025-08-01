@@ -39,11 +39,10 @@ cargo install hbackup
 ### 2. Add one or more jobs
 
 ```sh
-bk add --source ~/my_path1/my_file1.txt --target ~/back
-bk add --source ~/my_path2/my_file2.txt --target ~/back
-# Add a job with compression (gzip or zip)
-bk add -s ~/my_path3/my_dir -t ~/back -c gzip
-bk add -s ~/my_path4/my_dir -t ~/back -c zip
+bk add ~/my_path1/my_file1.txt ~/back
+# Add a job with compression
+bk add ~/my_path3/my_dir ~/back -c gzip
+bk add ~/my_path4/my_dir ~/back -c zip -l best
 ```
 
 ### 3. List all jobs
@@ -76,8 +75,8 @@ bk list
   You can also specify compression for a one-time backup:
 
   ```sh
-  bk run ~/my_path/mydir ~/back gzip
-  bk run ~/my_path/mydir ~/back zip
+  bk run ~/my_path/mydir ~/back -c gzip
+  bk run ~/my_path/mydir ~/back -c zip -l best
   ```
 
 ### 5. Delete jobs
@@ -137,12 +136,12 @@ You can specify compression format (`gzip`, `zip`, `sevenz`, `zstd`, `bzip2` or 
 
 ```sh
 # Add a job with gzip compression
-bk add --source ~/file.txt --target ~/back --compression gzip
+bk add ~/file.txt ~/back --compression gzip --level fastest
 # or a short command line
-bk add -s ~/file.txt -t ~/back -c gzip
+bk add ~/file.txt ~/back -c gzip -l fastest
 
 # One-time backup with compression
-bk run ~/my_path/mydir ~/back gzip
+bk run ~/my_path/mydir ~/back -c gzip
 ```
 
 - Compression works for both files and directories.

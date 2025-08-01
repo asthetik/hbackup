@@ -39,11 +39,10 @@ cargo install hbackup
 ### 2. 添加一个或多个备份任务
 
 ```sh
-bk add --source ~/my_path1/my_file1.txt --target ~/back
-bk add --source ~/my_path2/my_file2.txt --target ~/back
-# 添加带压缩的任务（gzip 或 zip）
-bk add -s ~/my_path3/my_dir -t ~/back -c gzip
-bk add -s ~/my_path4/my_dir -t ~/back -c zip
+bk add ~/my_path1/my_file1.txt ~/back
+# 添加带压缩的任务
+bk add ~/my_path3/my_dir ~/back -c gzip
+bk add ~/my_path4/my_dir ~/back -c zip -l best
 ```
 
 ### 3. 查看所有任务
@@ -76,8 +75,8 @@ bk list
   也可以指定压缩格式：
 
   ```sh
-  bk run ~/my_path/mydir ~/back --compression gzip
-  bk run ~/my_path/mydir ~/back --compression zip
+  bk run ~/my_path/mydir ~/back -c gzip
+  bk run ~/my_path/mydir ~/back -c zip -l best
   ```
 
 ### 5. 删除任务
@@ -137,12 +136,12 @@ bk edit --id 1 --source ~/newfile.txt --target ~/newbackup/
 
 ```sh
 # 添加带 gzip 压缩的任务
-bk add --source ~/file.txt --target ~/back --compression gzip
+bk add ~/file.txt ~/back --compression gzip --level fastest
 # 或者简短的命令行
-bk add -s ~/file.txt -t ~/back -c gzip
+bk add ~/file.txt ~/back -c gzip -l fastest
 
 # 一次性备份并压缩
-bk run ~/my_path/mydir ~/back gzip
+bk run ~/my_path/mydir ~/back -c gzip
 ```
 
 - 压缩支持文件和目录。
