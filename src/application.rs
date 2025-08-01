@@ -41,6 +41,8 @@ pub(crate) struct Job {
     pub(crate) compression: Option<CompressFormat>,
     /// Optional compression level for this job.
     pub(crate) level: Option<Level>,
+    /// Optional ignore list
+    pub(crate) ignore: Option<Vec<String>>,
 }
 
 impl fmt::Display for Job {
@@ -178,6 +180,7 @@ impl Application {
         target: PathBuf,
         compression: Option<CompressFormat>,
         level: Option<Level>,
+        ignore: Option<Vec<String>>,
     ) {
         let id = if self.jobs.is_empty() {
             1
@@ -199,6 +202,7 @@ impl Application {
             target,
             compression,
             level,
+            ignore,
         });
     }
 
