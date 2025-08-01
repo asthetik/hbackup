@@ -120,7 +120,6 @@ pub(crate) enum Commands {
 }
 
 /// Parameters for editing a backup job
-#[derive(Default)]
 pub(crate) struct EditParams {
     pub id: u32,
     pub source: Option<PathBuf>,
