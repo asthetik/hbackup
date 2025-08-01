@@ -5,10 +5,10 @@ mod file_util;
 mod path_util;
 mod sysexits;
 
+use crate::commands::{Cli, Commands, EditParams, canonicalize};
 use anyhow::Result;
 use application::{Job, init_config};
 use clap::Parser;
-use commands::{Cli, Commands, canonicalize};
 use std::process;
 
 /// Entry point for the hbackup CLI application.
@@ -82,7 +82,7 @@ fn main() -> Result<()> {
             ignore,
             no_ignore,
         } => {
-            commands::edit(
+            let edit_params = EditParams {
                 id,
                 source,
                 target,
@@ -92,7 +92,8 @@ fn main() -> Result<()> {
                 no_level,
                 ignore,
                 no_ignore,
-            )?;
+            };
+            commands::edit(edit_params)?;
         }
         Commands::Config {
             copy,
