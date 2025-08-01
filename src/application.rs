@@ -73,16 +73,16 @@ impl fmt::Display for Job {
             self.target.display()
         );
         if !comp.is_empty() {
-            s.push_str(&format!(",\n    compression: \"{}\"", comp));
+            s.push_str(&format!(",\n    compression: \"{comp}\""));
         }
         if !level.is_empty() {
-            s.push_str(&format!(",\n    level: \"{}\"", level));
+            s.push_str(&format!(",\n    level: \"{level}\""));
         }
         if let Some(ignore) = self.ignore.as_ref() {
-            s.push_str(&format!(",\n    ignore: {:?}", ignore));
+            s.push_str(&format!(",\n    ignore: {ignore:?}"));
         }
         s.push_str("\n}");
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
