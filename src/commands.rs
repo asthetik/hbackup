@@ -22,7 +22,7 @@ use walkdir::WalkDir;
 pub(crate) struct Cli {
     /// Subcommand to execute.
     #[command(subcommand)]
-    pub(crate) commands: Option<Commands>,
+    pub commands: Option<Commands>,
 }
 
 /// Supported hbackup commands.

@@ -32,17 +32,17 @@ fn default_version() -> String {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub(crate) struct Job {
     /// Unique job id.
-    pub(crate) id: u32,
+    pub id: u32,
     /// Source file or directory path.
-    pub(crate) source: PathBuf,
+    pub source: PathBuf,
     /// Target file or directory path.
-    pub(crate) target: PathBuf,
+    pub target: PathBuf,
     /// Optional compression format for this job.
-    pub(crate) compression: Option<CompressFormat>,
+    pub compression: Option<CompressFormat>,
     /// Optional compression level for this job.
-    pub(crate) level: Option<Level>,
+    pub level: Option<Level>,
     /// Optional ignore list
-    pub(crate) ignore: Option<Vec<String>>,
+    pub ignore: Option<Vec<String>>,
 }
 
 impl fmt::Display for Job {
@@ -109,7 +109,7 @@ pub(crate) enum Level {
 }
 
 /// A wrapper for displaying a list of jobs in a formatted way.
-pub(crate) struct JobList(pub(crate) Vec<Job>);
+pub(crate) struct JobList(pub Vec<Job>);
 
 impl fmt::Display for JobList {
     /// Pretty-print the job list as an array.
