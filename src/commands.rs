@@ -564,9 +564,7 @@ fn get_jobs(
 /// # Errors
 /// Returns an error if the copy fails.
 fn copy_file(source: &Path, target: &Path) -> Result<()> {
-    let target_file = if (target.exists() && target.is_dir())
-        || (!target.exists() && target.extension().is_none())
-    {
+    let target_file = if target.exists() && target.is_dir() {
         let file_name = source.file_name().with_context(|| "Invalid file name")?;
         target.join(file_name)
     } else {
@@ -585,12 +583,8 @@ fn copy_file(source: &Path, target: &Path) -> Result<()> {
 
 /// Asynchronously copy file from source to target, creating parent directories if needed.
 async fn copy_file_async(source: PathBuf, target: PathBuf) -> Result<()> {
-    let target_file = if (target.exists() && target.is_dir())
-        || (!target.exists() && target.extension().is_none())
-    {
-        let file_name = source
-            .file_name()
-            .ok_or_else(|| anyhow!("Invalid file name"))?;
+    let target_file = if target.exists() && target.is_dir() {
+        let file_name = source.file_name().with_context(|| "Invalid file name")?;
         target.join(file_name)
     } else {
         target
