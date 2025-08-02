@@ -351,9 +351,7 @@ mod test {
     fn config_dir() -> PathBuf {
         if cfg!(target_os = "macos") {
             let home = env::var("HOME").unwrap();
-            let mut home_dir = PathBuf::from(home);
-            home_dir.push(".config");
-            home_dir
+            PathBuf::from(home).join(".config")
         } else {
             dirs::config_dir().unwrap()
         }
