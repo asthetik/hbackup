@@ -1,6 +1,6 @@
 [package]
 name = "hbackup"
-version = "0.3.13"
+version = "0.3.14"
 edition = "2024"
 authors = ["asthetik"]
 homepage = "https://github.com/asthetik/hbackup"
@@ -19,7 +19,7 @@ rust-version = "1.85.0"
 [dependencies]
 clap = { version = "4.5.42", features = ["derive"] }
 serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.141"
+serde_json = "1.0.142"
 anyhow = "1.0.98"
 dirs = "6.0.0"
 toml = "0.9.4"
