@@ -407,8 +407,7 @@ fn get_all_jobs(source: &Path, target: &Path) -> Result<Vec<(PathBuf, PathBuf)>>
 /// # Errors
 /// Returns an error if the copy fails.
 fn copy_file(source: &Path, target: &Path) -> Result<()> {
-    let target_file = if target.exists() && target.is_dir()
-    {
+    let target_file = if target.exists() && target.is_dir() {
         let file_name = source.file_name().with_context(|| "Invalid file name")?;
         target.join(file_name)
     } else {
