@@ -14,7 +14,7 @@ use std::process;
 pub(crate) struct Cli {
     /// Subcommand to execute.
     #[command(subcommand)]
-    pub(crate) commands: Option<Commands>,
+    pub commands: Option<Commands>,
 }
 
 /// Supported hbackup commands.
@@ -275,9 +275,7 @@ fn get_all_jobs(source: &Path, target: &Path) -> Result<Vec<(PathBuf, PathBuf)>>
 /// source: Path to the source file
 /// target: Path to the target file
 fn copy_file(source: &Path, target: &Path) -> Result<()> {
-    let target_file = if (target.exists() && target.is_dir())
-        || (!target.exists() && target.extension().is_none())
-    {
+    let target_file = if target.exists() && target.is_dir() {
         let file_name = source.file_name().with_context(|| "Invalid file name")?;
         target.join(file_name)
     } else {

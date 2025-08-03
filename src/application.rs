@@ -9,18 +9,18 @@ use std::{fmt, fs, io, process};
 /// Stores all backup jobs.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub(crate) struct Application {
-    pub(crate) jobs: Vec<Job>,
+    pub jobs: Vec<Job>,
 }
 
 /// Represents a single backup job with a unique id, source, and target path.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub(crate) struct Job {
     /// Unique job id.
-    pub(crate) id: u32,
+    pub id: u32,
     /// Source file path.
-    pub(crate) source: PathBuf,
+    pub source: PathBuf,
     /// Target file or directory path.
-    pub(crate) target: PathBuf,
+    pub target: PathBuf,
 }
 
 impl fmt::Display for Job {
@@ -36,7 +36,7 @@ impl fmt::Display for Job {
 }
 
 ///  A wrapper for displaying a list of jobs in a formatted way.
-pub(crate) struct JobList(pub(crate) Vec<Job>);
+pub(crate) struct JobList(pub Vec<Job>);
 
 impl fmt::Display for JobList {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
