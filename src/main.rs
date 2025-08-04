@@ -84,22 +84,18 @@ fn main() -> Result<()> {
             source,
             target,
             compression,
-            no_compression,
             level,
-            no_level,
             ignore,
-            no_ignore,
+            clear,
         } => {
             let edit_params = EditParams {
                 id,
                 source,
                 target,
                 compression,
-                no_compression,
                 level,
-                no_level,
                 ignore,
-                no_ignore,
+                clear,
             };
             commands::edit(edit_params)?;
         }
