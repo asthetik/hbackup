@@ -118,13 +118,13 @@ pub(crate) enum Commands {
     /// Display the absolute path of the configuration file and manage config backup/reset/rollback.
     Config {
         /// Backup the configuration file.
-        #[arg(long, required = false, conflicts_with_all = ["reset", "rollback"])]
+        #[arg(short = 'c', long, required = false, conflicts_with_all = ["reset", "rollback"])]
         copy: bool,
         /// Reset the configuration file and back up the file before resetting.
-        #[arg(long, required = false, conflicts_with_all = ["copy", "rollback"])]
+        #[arg(short = 'r', long, required = false, conflicts_with_all = ["copy", "rollback"])]
         reset: bool,
         /// Rollback the last backed up configuration file.
-        #[arg(long, required = false, conflicts_with_all = ["copy", "reset"])]
+        #[arg(short = 'R', long, required = false, conflicts_with_all = ["copy", "reset"])]
         rollback: bool,
     },
 }
