@@ -61,6 +61,7 @@ pub(crate) fn compression(
         CompressFormat::Bzip2 => compress_bzip2(src, dest, level, ignore),
         CompressFormat::Xz => compress_xz(src, dest, level, ignore),
         CompressFormat::Lz4 => compress_lz4(src, dest, level, ignore),
+        CompressFormat::Tar => compress_tar(src, dest, ignore),
     }
 }
 
@@ -441,4 +442,34 @@ fn make_filter(base: &Path, ignore: &Option<Vec<String>>) -> impl Fn(&Path) -> b
         .map(|dirs| dirs.iter().map(|s| base.join(s)).collect())
         .unwrap_or_default();
     move |path| !ignore_paths.iter().any(|p| path.starts_with(p))
+}
+
+/// Compresses a file or directory at `src` into a tar archive in the `dest` directory.
+///
+/// # Arguments
+/// * `src` - The source file or directory to archive.
+/// * `dest` - The destination directory.
+/// * `ignore` - Optional list of files/directories to ignore.
+///
+/// # Errors
+/// Returns an error if any IO error occurs.
+fn compress_tar(src: &Path, dest: &Path, ignore: &Option<Vec<String>>) -> Result<()> {
+    let file_name = get_file_name(src);
+
+    if src.is_dir() {
+        let dest = dest.join(format!("{file_name}.tar"));
+        let tar_file = File::create(dest)?;
+        let mut tar_builder = tar::Builder::new(tar_file);
+        append_regular_only(&mut tar_builder, src, ignore)?;
+        tar_builder.into_inner()?;
+    } else {
+        // For single files, create a tar archive containing just that file
+        let dest = dest.join(format!("{file_name}.tar"));
+        let tar_file = File::create(dest)?;
+        let mut tar_builder = tar::Builder::new(tar_file);
+        tar_builder.append_path_with_name(src, file_name)?;
+        tar_builder.into_inner()?;
+    }
+
+    Ok(())
 }
