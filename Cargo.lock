@@ -635,9 +635,9 @@ dependencies = [
 
 [[package]]
 name = "lzma-rust2"
-version = "0.6.0"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83a65d31a134f0b7be6b31e67ca3f828fc8234f644b3025abf5fc4914c6cb981"
+checksum = "26175dd096dfaab9f4fbf577a668842ebc48374d4d06b154bffb49918e242261"
 
 [[package]]
 name = "lzma-sys"
