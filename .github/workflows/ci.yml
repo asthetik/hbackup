@@ -24,6 +24,8 @@ jobs:
       run: cargo fmt --all --check
     - name: Cargo clippy
       run: cargo clippy -- -D warnings
+    - name: Cargo tests
+      run: cargo test --verbose -- --show-output
 
   tests:
     needs: code-quality
