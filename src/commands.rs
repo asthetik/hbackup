@@ -492,9 +492,6 @@ pub(crate) fn reset_config_file() -> Result<()> {
 }
 
 /// Rollback the last backed up configuration file.
-///
-/// # Errors
-/// Returns an error if the backup does not exist or rollback fails.
 pub(crate) fn rollback_config_file() {
     let backed_config_file = application::backed_config_file();
     if !backed_config_file.exists() {
