@@ -9,6 +9,7 @@ use crate::path_util;
 use crate::{Result, sysexits};
 use anyhow::Context;
 use anyhow::anyhow;
+use clap::ValueEnum;
 use clap::{Parser, Subcommand};
 use futures::stream::{FuturesUnordered, StreamExt};
 use std::fs;
@@ -16,6 +17,18 @@ use std::path::{Path, PathBuf};
 use std::process;
 use tokio::runtime::Builder;
 use walkdir::WalkDir;
+
+/// Fields that can be cleared in the edit command
+#[derive(Debug, Clone, ValueEnum)]
+pub(crate) enum ClearField {
+    /// Clear compression format
+    Compression,
+    /// Clear compression level
+    Level,
+    /// Clear ignore list
+    Ignore,
+}
+
 /// Command-line interface definition for hbackup.
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -85,35 +98,29 @@ pub(crate) enum Commands {
         #[arg(long, required = false, conflicts_with = "id")]
         all: bool,
     },
-    /// Edit a backup job by id. At least one of source/target must be provided.
+    /// Edit a backup job by id. At least one of source/target/compression/level/ignore/clear must be provided.
     Edit {
         /// Edit job by id.
         #[arg(long)]
         id: u32,
         /// New source file or directory path
-        #[arg(short, long, required = false, required_unless_present_any = ["target", "compression", "no_compression", "level", "no_level", "ignore", "no_ignore"])]
+        #[arg(short, long, required_unless_present_any = ["target", "compression", "level", "ignore", "clear"])]
         source: Option<PathBuf>,
         /// New target file or directory path
-        #[arg(short, long, required = false, required_unless_present_any = ["source", "compression", "no_compression", "level", "no_level", "ignore", "no_ignore"])]
+        #[arg(short, long, required_unless_present_any = ["source", "compression", "level", "ignore", "clear"])]
         target: Option<PathBuf>,
-        /// Compression format.
-        #[arg(short, long, required = false, required_unless_present_any = ["source", "target", "no_compression", "level", "no_level", "ignore", "no_ignore"], conflicts_with_all = ["no_compression"])]
+        /// Compression format
+        #[arg(short, long, required_unless_present_any = ["source", "target", "level", "ignore", "clear"])]
         compression: Option<CompressFormat>,
-        /// Clear compression format
-        #[arg(short = 'C', long, required = false, required_unless_present_any = ["source", "target", "compression", "level", "no_level", "ignore", "no_ignore"], conflicts_with_all = ["compression"])]
-        no_compression: bool,
         /// Compression level
-        #[arg(short, long, required = false, required_unless_present_any = ["source", "target", "compression", "no_compression", "no_level", "ignore", "no_ignore"], conflicts_with_all = ["no_level"] )]
+        #[arg(short, long, required_unless_present_any = ["source", "target", "compression", "ignore", "clear"])]
         level: Option<Level>,
-        /// Clear compression level
-        #[arg(short = 'L', long, required = false, required_unless_present_any = ["source", "target", "compression", "no_compression", "level", "ignore", "no_ignore"], conflicts_with_all = ["level"] )]
-        no_level: bool,
         /// Ignore a specific list of files or directories
-        #[arg(short = 'g', long, value_delimiter = ',', required_unless_present_any = ["source", "target", "compression", "no_compression", "level", "no_level", "no_ignore"], conflicts_with_all = ["no_ignore"] )]
+        #[arg(short = 'i', long, value_delimiter = ',', required_unless_present_any = ["source", "target", "compression", "level", "clear"])]
         ignore: Option<Vec<String>>,
-        /// Clear ignore list
-        #[arg(short = 'G', long, required = false, required_unless_present_any = ["source", "target", "compression", "no_compression", "level", "no_level", "ignore"], conflicts_with_all = ["ignore"] )]
-        no_ignore: bool,
+        /// Clear specified fields (comma-separated: compression,level,ignore)
+        #[arg(long, value_delimiter = ',', required_unless_present_any = ["source", "target", "compression", "level", "ignore"])]
+        clear: Option<Vec<ClearField>>,
     },
     /// Display the absolute path of the configuration file and manage config backup/reset/rollback.
     Config {
@@ -135,11 +142,9 @@ pub(crate) struct EditParams {
     pub source: Option<PathBuf>,
     pub target: Option<PathBuf>,
     pub compression: Option<CompressFormat>,
-    pub no_compression: bool,
     pub level: Option<Level>,
-    pub no_level: bool,
     pub ignore: Option<Vec<String>>,
-    pub no_ignore: bool,
+    pub clear: Option<Vec<ClearField>>,
 }
 
 /// Adds a new backup job to the configuration file.
@@ -386,8 +391,10 @@ pub(crate) fn delete(id: Option<Vec<u32>>, all: bool) -> Result<()> {
 /// * `id` - The job id to edit.
 /// * `source` - Optional new source path. If provided, replaces the job's source.
 /// * `target` - Optional new target path. If provided, replaces the job's target.
-/// * `compression` - Optional new compression format. If provided and `no_compression` is false, replaces the job's compression.
-/// * `no_compression` - If true, clears the job's compression format (takes precedence over `compression`).
+/// * `compression` - Optional new compression format. If provided, replaces the job's compression.
+/// * `level` - Optional new compression level. If provided, replaces the job's compression level.
+/// * `ignore` - Optional new ignore list. If provided, replaces the job's ignore list.
+/// * `clear` - Optional list of fields to clear (compression, level, ignore).
 ///
 /// # Errors
 /// Returns an error if the job is not found or the new path is invalid.
@@ -397,11 +404,9 @@ pub(crate) fn edit(params: EditParams) -> Result<()> {
         source,
         target,
         compression,
-        no_compression,
         level,
-        no_level,
         ignore,
-        no_ignore,
+        clear,
     } = params;
     let source = source.map(canonicalize);
     if let Some(ref file_path) = source {
@@ -421,26 +426,42 @@ pub(crate) fn edit(params: EditParams) -> Result<()> {
         if let Some(path) = target {
             job.target = path;
         }
-        if no_compression {
-            job.compression = None;
-            job.level = None;
-        } else if compression.is_some() {
-            job.compression = compression;
+
+        // Handle clear operations first
+        if let Some(clear_fields) = &clear {
+            for field in clear_fields {
+                match field {
+                    ClearField::Compression => {
+                        job.compression = None;
+                        job.level = None; // Clear level when clearing compression
+                    }
+                    ClearField::Level => {
+                        job.level = None;
+                    }
+                    ClearField::Ignore => {
+                        job.ignore = None;
+                    }
+                }
+            }
         }
-        if no_level {
-            job.level = None;
-        } else if level.is_some() && job.compression.is_none() {
-            eprintln!(
-                "The compression format is not set, and the compression level cannot be updated."
-            );
-            process::exit(1);
-        } else if level.is_some() {
-            job.level = level;
+
+        // Handle set operations
+        if let Some(comp) = compression {
+            job.compression = Some(comp);
         }
-        if no_ignore {
-            job.ignore = None;
-        } else if ignore.is_some() {
-            job.ignore = ignore;
+
+        if let Some(lvl) = level {
+            if job.compression.is_none() {
+                eprintln!(
+                    "The compression format is not set, and the compression level cannot be updated."
+                );
+                process::exit(1);
+            }
+            job.level = Some(lvl);
+        }
+
+        if let Some(ign) = ignore {
+            job.ignore = Some(ign);
         }
         app.write()?;
         println!("Job with id {id} edited successfully.");
