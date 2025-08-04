@@ -56,6 +56,7 @@ impl fmt::Display for Job {
             Some(CompressFormat::Bzip2) => "Bzip2",
             Some(CompressFormat::Xz) => "Xz",
             Some(CompressFormat::Lz4) => "Lz4",
+            Some(CompressFormat::Tar) => "Tar",
             None => "",
         };
         let level = match self.level {
@@ -96,6 +97,7 @@ pub(crate) enum CompressFormat {
     Bzip2,
     Xz,
     Lz4,
+    Tar,
 }
 
 /// Supported compression level for backup jobs
