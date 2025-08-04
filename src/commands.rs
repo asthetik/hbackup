@@ -118,13 +118,13 @@ pub(crate) enum Commands {
     /// Display the absolute path of the configuration file and manage config backup/reset/rollback.
     Config {
         /// Backup the configuration file.
-        #[arg(long, required = false)]
+        #[arg(long, required = false, conflicts_with_all = ["reset", "rollback"])]
         copy: bool,
         /// Reset the configuration file and back up the file before resetting.
-        #[arg(long, required = false)]
+        #[arg(long, required = false, conflicts_with_all = ["copy", "rollback"])]
         reset: bool,
         /// Rollback the last backed up configuration file.
-        #[arg(long, required = false)]
+        #[arg(long, required = false, conflicts_with_all = ["copy", "reset"])]
         rollback: bool,
     },
 }
@@ -456,39 +456,45 @@ pub(crate) fn config() {
 }
 
 /// Back up the configuration file to a backup location.
-///
-/// # Errors
-/// Returns an error if the backup fails.
-pub(crate) fn backup_config_file() -> Result<()> {
+pub(crate) fn backup_config_file() {
     let config_file = application::config_file();
     let backed_config_file = application::backed_config_file();
     // If the configuration file does not exist, initialize it
     if !config_file.exists() {
         let app = Application::new();
-        app.write()?;
+        if let Err(e) = app.write() {
+            eprintln!("Failed to initialize configuration file: {e}");
+            process::exit(1);
+        }
     }
-    fs::copy(config_file, backed_config_file)
-        .with_context(|| "Configuration file backup failed!")?;
-    println!("Backup successfully!");
-    Ok(())
+    match fs::copy(config_file, backed_config_file) {
+        Ok(_) => println!("Backup successfully!"),
+        Err(e) => {
+            eprintln!("Failed to backup configuration file: {e}");
+            process::exit(1);
+        }
+    }
 }
 
 /// Reset the configuration file and back up the file before resetting.
-///
-/// # Errors
-/// Returns an error if the reset or backup fails.
-pub(crate) fn reset_config_file() -> Result<()> {
+pub(crate) fn reset_config_file() {
     let config_file = application::config_file();
     let backed_config_file = application::backed_config_file();
     // Backup the config file if it exists
     if config_file.exists() {
-        fs::copy(config_file, backed_config_file)
-            .with_context(|| "Configuration file backup failed!")?;
+        if let Err(e) = fs::copy(config_file, backed_config_file) {
+            eprintln!("Failed to backup configuration file: {e}");
+            process::exit(1);
+        }
     }
     // Initialize or reset the config file
-    let app = Application::new();
-    app.write()?;
-    Ok(())
+    match Application::new().write() {
+        Ok(_) => println!("Configuration file reset successfully!"),
+        Err(e) => {
+            eprintln!("Failed to reset configuration file: {e}");
+            process::exit(1);
+        }
+    }
 }
 
 /// Rollback the last backed up configuration file.

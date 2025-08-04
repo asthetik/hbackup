@@ -108,14 +108,10 @@ fn main() -> Result<()> {
             reset,
             rollback,
         } => {
-            if (copy as u32 + reset as u32 + rollback as u32) >= 2 {
-                eprintln!(
-                    "You cannot specify the --copy, --reset, and --rollback options at the same time. Please choose only one of them."
-                );
-            } else if copy {
-                commands::backup_config_file()?;
+            if copy {
+                commands::backup_config_file();
             } else if reset {
-                commands::reset_config_file()?;
+                commands::reset_config_file();
             } else if rollback {
                 commands::rollback_config_file();
             } else {

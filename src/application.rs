@@ -252,16 +252,14 @@ fn config_file_exists() -> bool {
 /// Creates the parent directory if it does not exist.
 pub(crate) fn write_config(data: &Application) -> Result<()> {
     let file_path = config_file();
-    if !file_path.exists() {
-        // The default configuration file path must exist in the parent folder
-        let parent = file_path.parent().unwrap();
+    if let Some(parent) = file_path.parent() {
         fs::create_dir_all(parent)?;
     }
     let file = fs::File::create(file_path)?;
     let mut writer = io::BufWriter::new(file);
-    let toml_str = toml::to_string_pretty(&data).unwrap();
-    writer.write_all(toml_str.as_bytes()).unwrap();
-    writer.flush().unwrap();
+    let toml_str = toml::to_string_pretty(&data)?;
+    writer.write_all(toml_str.as_bytes())?;
+    writer.flush()?;
     Ok(())
 }
 
