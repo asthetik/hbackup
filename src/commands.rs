@@ -495,22 +495,20 @@ pub(crate) fn reset_config_file() -> Result<()> {
 ///
 /// # Errors
 /// Returns an error if the backup does not exist or rollback fails.
-pub(crate) fn rollback_config_file() -> Result<()> {
+pub(crate) fn rollback_config_file() {
     let backed_config_file = application::backed_config_file();
     if !backed_config_file.exists() {
         eprintln!("The backup configuration file does not exist.");
-        return Ok(());
+        process::exit(1);
     }
-    let app = match application::read_backed_config_file() {
-        Ok(app) => app,
+    let app = application::read_backed_config_file();
+    match app.write() {
+        Ok(_) => println!("Configuration file rolled back successfully."),
         Err(e) => {
-            eprintln!("Data format conversion error, unable to roll back configuration file\n{e}");
-            process::exit(sysexits::EX_IOERR);
+            eprintln!("Failed to rollback configuration file: {e}");
+            process::exit(1);
         }
-    };
-    app.write()?;
-
-    Ok(())
+    }
 }
 
 /// Recursively collects all files in a directory for backup, mapping source to target paths.

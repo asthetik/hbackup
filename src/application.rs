@@ -139,13 +139,7 @@ impl Application {
     /// If the config file cannot be read, prints an error and exits.
     pub(crate) fn load_config() -> Self {
         if config_file_exists() {
-            match read_config_file() {
-                Ok(app) => app,
-                Err(e) => {
-                    eprintln!("Failed to read configuration file\n{e}");
-                    process::exit(sysexits::EX_CONFIG);
-                }
-            }
+            read_config_file()
         } else {
             Self::new()
         }
@@ -272,19 +266,41 @@ pub(crate) fn write_config(data: &Application) -> Result<()> {
 }
 
 /// Reads the default configuration file in TOML format.
-fn read_config_file() -> Result<Application> {
+fn read_config_file() -> Application {
     let file_path = config_file();
-    let toml_str = fs::read_to_string(&file_path)?;
-    let app = toml::from_str(&toml_str)?;
-    Ok(app)
+    let toml_str = match fs::read_to_string(&file_path) {
+        Ok(toml_str) => toml_str,
+        Err(err) => {
+            eprintln!("Error reading config file: {err}");
+            std::process::exit(1);
+        }
+    };
+    match toml::from_str(&toml_str) {
+        Ok(app) => app,
+        Err(err) => {
+            eprintln!("Error parsing config file: {err}");
+            std::process::exit(1);
+        }
+    }
 }
 
 /// Reads the backup configuration file in TOML format.
-pub(crate) fn read_backed_config_file() -> Result<Application> {
+pub(crate) fn read_backed_config_file() -> Application {
     let file_path = backed_config_file();
-    let toml_str = fs::read_to_string(&file_path)?;
-    let app = toml::from_str(&toml_str)?;
-    Ok(app)
+    let toml_str = match fs::read_to_string(&file_path) {
+        Ok(toml_str) => toml_str,
+        Err(err) => {
+            eprintln!("Error reading backup config file: {err}");
+            process::exit(sysexits::EX_IOERR);
+        }
+    };
+    match toml::from_str(&toml_str) {
+        Ok(app) => app,
+        Err(err) => {
+            eprintln!("Error parsing backup config file: {err}");
+            process::exit(sysexits::EX_IOERR);
+        }
+    }
 }
 
 /// Initializes the configuration file for the application if it does not exist.

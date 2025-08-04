@@ -117,7 +117,7 @@ fn main() -> Result<()> {
             } else if reset {
                 commands::reset_config_file()?;
             } else if rollback {
-                commands::rollback_config_file()?;
+                commands::rollback_config_file();
             } else {
                 commands::config();
             }
