@@ -15,17 +15,21 @@ use std::{fmt, fs, io, process};
 
 /// The main application configuration.
 /// Stores the version and all backup jobs.
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub(crate) struct Application {
     /// Configuration file version.
-    #[serde(default = "default_version")]
-    pub(crate) version: String,
+    pub version: String,
     /// List of backup jobs.
-    pub(crate) jobs: Vec<Job>,
+    pub jobs: Vec<Job>,
 }
 
-fn default_version() -> String {
-    "1.0".to_string()
+impl Default for Application {
+    fn default() -> Self {
+        Self {
+            version: "1.0".to_string(),
+            jobs: Vec::new(),
+        }
+    }
 }
 
 /// Represents a single backup job with a unique id, source, target, and optional compression.
@@ -131,7 +135,7 @@ impl Application {
     /// Creates a new, empty application configuration.
     pub(crate) fn new() -> Self {
         Self {
-            version: default_version(),
+            version: "1.0".to_string(),
             jobs: vec![],
         }
     }
@@ -353,7 +357,7 @@ fn old_config_file() -> PathBuf {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use std::env;
 
@@ -361,6 +365,238 @@ mod test {
     fn test_config_file() {
         let file = config_dir().join("hbackup").join("config.toml");
         assert_eq!(config_file(), file);
+    }
+
+    #[test]
+    fn test_backed_config_file() {
+        let file = config_dir().join("hbackup").join("config_backup.toml");
+        assert_eq!(backed_config_file(), file);
+    }
+
+    #[test]
+    fn test_application_new() {
+        let app = Application::new();
+        assert_eq!(app.version, "1.0");
+        assert!(app.jobs.is_empty());
+    }
+
+    #[test]
+    fn test_application_add_job() {
+        let mut app = Application::new();
+        let source = PathBuf::from("/test/source");
+        let target = PathBuf::from("/test/target");
+
+        app.add_job(
+            source.clone(),
+            target.clone(),
+            Some(CompressFormat::Gzip),
+            Some(Level::Default),
+            None,
+        );
+
+        assert_eq!(app.jobs.len(), 1);
+        assert_eq!(app.jobs[0].id, 1);
+        assert_eq!(app.jobs[0].source, source);
+        assert_eq!(app.jobs[0].target, target);
+        assert!(matches!(
+            app.jobs[0].compression,
+            Some(CompressFormat::Gzip)
+        ));
+        assert!(matches!(app.jobs[0].level, Some(Level::Default)));
+    }
+
+    #[test]
+    fn test_application_add_multiple_jobs() {
+        let mut app = Application::new();
+
+        // Add first job
+        app.add_job(
+            PathBuf::from("/test/source1"),
+            PathBuf::from("/test/target1"),
+            Some(CompressFormat::Zip),
+            Some(Level::Fastest),
+            None,
+        );
+
+        // Add second job
+        app.add_job(
+            PathBuf::from("/test/source2"),
+            PathBuf::from("/test/target2"),
+            Some(CompressFormat::Zstd),
+            Some(Level::Best),
+            Some(vec!["*.log".to_string()]),
+        );
+
+        assert_eq!(app.jobs.len(), 2);
+        assert_eq!(app.jobs[0].id, 1);
+        assert_eq!(app.jobs[1].id, 2);
+        assert_ne!(app.jobs[0].id, app.jobs[1].id);
+    }
+
+    #[test]
+    fn test_application_remove_job() {
+        let mut app = Application::new();
+
+        // Add jobs
+        app.add_job(
+            PathBuf::from("/test/source1"),
+            PathBuf::from("/test/target1"),
+            None,
+            None,
+            None,
+        );
+        app.add_job(
+            PathBuf::from("/test/source2"),
+            PathBuf::from("/test/target2"),
+            None,
+            None,
+            None,
+        );
+
+        assert_eq!(app.jobs.len(), 2);
+
+        // Remove first job
+        let result = app.remove_job(1);
+        assert!(result.is_some());
+        assert_eq!(app.jobs.len(), 1);
+        assert_eq!(app.jobs[0].id, 2);
+
+        // Try to remove non-existent job
+        let result = app.remove_job(999);
+        assert!(result.is_none());
+        assert_eq!(app.jobs.len(), 1);
+    }
+
+    #[test]
+    fn test_application_reset_jobs() {
+        let mut app = Application::new();
+
+        // Add some jobs
+        app.add_job(
+            PathBuf::from("/test/source1"),
+            PathBuf::from("/test/target1"),
+            None,
+            None,
+            None,
+        );
+        app.add_job(
+            PathBuf::from("/test/source2"),
+            PathBuf::from("/test/target2"),
+            None,
+            None,
+            None,
+        );
+
+        assert_eq!(app.jobs.len(), 2);
+
+        app.reset_jobs();
+        assert!(app.jobs.is_empty());
+    }
+
+    #[test]
+    fn test_job_display() {
+        let job = Job {
+            id: 1,
+            source: PathBuf::from("/test/source"),
+            target: PathBuf::from("/test/target"),
+            compression: Some(CompressFormat::Gzip),
+            level: Some(Level::Default),
+            ignore: Some(vec!["*.log".to_string(), "temp/".to_string()]),
+        };
+
+        let display_str = format!("{}", job);
+        assert!(display_str.contains("id: 1"));
+        assert!(display_str.contains("/test/source"));
+        assert!(display_str.contains("/test/target"));
+        assert!(display_str.contains("Gzip"));
+        assert!(display_str.contains("Default"));
+        assert!(display_str.contains("*.log"));
+    }
+
+    #[test]
+    fn test_job_display_minimal() {
+        let job = Job {
+            id: 42,
+            source: PathBuf::from("/simple/source"),
+            target: PathBuf::from("/simple/target"),
+            compression: None,
+            level: None,
+            ignore: None,
+        };
+
+        let display_str = format!("{}", job);
+        assert!(display_str.contains("id: 42"));
+        assert!(display_str.contains("/simple/source"));
+        assert!(display_str.contains("/simple/target"));
+        assert!(!display_str.contains("compression:"));
+        assert!(!display_str.contains("level:"));
+        assert!(!display_str.contains("ignore:"));
+    }
+
+    #[test]
+    fn test_job_list_display() {
+        let jobs = vec![
+            Job {
+                id: 1,
+                source: PathBuf::from("/test/source1"),
+                target: PathBuf::from("/test/target1"),
+                compression: Some(CompressFormat::Zip),
+                level: Some(Level::Fastest),
+                ignore: None,
+            },
+            Job {
+                id: 2,
+                source: PathBuf::from("/test/source2"),
+                target: PathBuf::from("/test/target2"),
+                compression: Some(CompressFormat::Zstd),
+                level: Some(Level::Best),
+                ignore: Some(vec!["*.tmp".to_string()]),
+            },
+        ];
+
+        let job_list = JobList(jobs);
+        let display_str = format!("{}", job_list);
+
+        assert!(display_str.starts_with('['));
+        assert!(display_str.ends_with(']'));
+        assert!(display_str.contains("id: 1"));
+        assert!(display_str.contains("id: 2"));
+        assert!(display_str.contains("Zip"));
+        assert!(display_str.contains("Zstd"));
+    }
+
+    #[test]
+    fn test_application_serialization() {
+        let mut app = Application::new();
+        app.add_job(
+            PathBuf::from("/test/source"),
+            PathBuf::from("/test/target"),
+            Some(CompressFormat::Gzip),
+            Some(Level::Default),
+            Some(vec!["*.log".to_string()]),
+        );
+
+        // Test TOML serialization
+        let toml_str = toml::to_string(&app).expect("Failed to serialize to TOML");
+        assert!(toml_str.contains("version = \"1.0\""));
+        assert!(toml_str.contains("id = 1"));
+        assert!(toml_str.contains("Gzip"));
+
+        // Test TOML deserialization
+        let deserialized: Application =
+            toml::from_str(&toml_str).expect("Failed to deserialize from TOML");
+        assert_eq!(deserialized.version, app.version);
+        assert_eq!(deserialized.jobs.len(), app.jobs.len());
+        assert_eq!(deserialized.jobs[0].id, app.jobs[0].id);
+        assert_eq!(deserialized.jobs[0].source, app.jobs[0].source);
+        assert_eq!(deserialized.jobs[0].target, app.jobs[0].target);
+    }
+
+    #[test]
+    fn test_application_default() {
+        let app = Application::default();
+        assert_eq!(app.version, "1.0");
+        assert!(app.jobs.is_empty());
     }
 
     /// Returns the configuration directory for testing, platform-specific.
