@@ -92,7 +92,13 @@ pub(crate) enum Commands {
     /// Delete backup jobs by id or delete all jobs.
     Delete {
         /// Delete multiple job by id. Cannot be used with --all.
-        #[arg(short, long, required = false, value_delimiter = ',', conflicts_with = "all")]
+        #[arg(
+            short,
+            long,
+            required = false,
+            value_delimiter = ',',
+            conflicts_with = "all"
+        )]
         id: Option<Vec<u32>>,
         /// Delete all jobs. Cannot be used with --id.
         #[arg(short, long, required = false, conflicts_with = "id")]
