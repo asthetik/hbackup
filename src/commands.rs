@@ -95,7 +95,7 @@ pub(crate) enum Commands {
         #[arg(long, required = false, value_delimiter = ',', conflicts_with = "all")]
         id: Option<Vec<u32>>,
         /// Delete all jobs. Cannot be used with --id.
-        #[arg(long, required = false, conflicts_with = "id")]
+        #[arg(short, long, required = false, conflicts_with = "id")]
         all: bool,
     },
     /// Edit a backup job by id. At least one of source/target/compression/level/ignore/clear must be provided.
@@ -115,7 +115,7 @@ pub(crate) enum Commands {
         #[arg(short, long, required_unless_present_any = ["source", "target", "compression", "ignore", "clear"])]
         level: Option<Level>,
         /// Ignore a specific list of files or directories
-        #[arg(short = 'i', long, value_delimiter = ',', required_unless_present_any = ["source", "target", "compression", "level", "clear"])]
+        #[arg(short = 'g', long, value_delimiter = ',', required_unless_present_any = ["source", "target", "compression", "level", "clear"])]
         ignore: Option<Vec<String>>,
         /// Clear specified fields (comma-separated: compression,level,ignore)
         #[arg(long, value_delimiter = ',', required_unless_present_any = ["source", "target", "compression", "level", "ignore"])]
