@@ -99,7 +99,7 @@ bk list
 Update the source and/or target of a job by its ID:
 
 ```sh
-bk edit --id 1 --source ~/newfile.txt --target ~/newbackup/
+bk edit 1 --source ~/newfile.txt --target ~/newbackup/
 ```
 
 ### 7. Manage configuration file
