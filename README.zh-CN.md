@@ -99,7 +99,7 @@ bk list
 根据任务 ID 更新源和/或目标路径：
 
 ```sh
-bk edit --id 1 --source ~/newfile.txt --target ~/newbackup/
+bk edit 1 --source ~/newfile.txt --target ~/newbackup/
 ```
 
 ### 7. 配置文件管理

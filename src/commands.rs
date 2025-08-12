@@ -101,7 +101,6 @@ pub(crate) enum Commands {
     /// Edit a backup job by id. At least one of source/target/compression/level/ignore/clear must be provided.
     Edit {
         /// Edit job by id.
-        #[arg(long)]
         id: u32,
         /// New source file or directory path
         #[arg(short, long, required_unless_present_any = ["target", "compression", "level", "ignore", "clear"])]
