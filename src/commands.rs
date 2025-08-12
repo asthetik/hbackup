@@ -71,7 +71,7 @@ pub(crate) enum Commands {
         #[arg(short, long, required = false, requires = "compression")]
         level: Option<Level>,
         /// Job id(s) to run.
-        #[arg(long, required = false, value_delimiter = ',', conflicts_with_all = ["source", "target", "compression"])]
+        #[arg(short, long, required = false, value_delimiter = ',', conflicts_with_all = ["source", "target", "compression"])]
         id: Option<Vec<u32>>,
         /// Ignore a specific list of files or directories
         #[arg(short = 'g', long, value_delimiter = ',')]
@@ -80,7 +80,7 @@ pub(crate) enum Commands {
     /// List all backup jobs.
     List {
         /// List jobs by ids.
-        #[arg(long, required = false, value_delimiter = ',', conflicts_with_all = ["gte", "lte"])]
+        #[arg(short, long, required = false, value_delimiter = ',', conflicts_with_all = ["gte", "lte"])]
         id: Option<Vec<u32>>,
         /// List jobs by id greater than or equal to.
         #[arg(short = 'g', long, required = false, conflicts_with_all = ["id", "lte"])]
@@ -92,7 +92,7 @@ pub(crate) enum Commands {
     /// Delete backup jobs by id or delete all jobs.
     Delete {
         /// Delete multiple job by id. Cannot be used with --all.
-        #[arg(long, required = false, value_delimiter = ',', conflicts_with = "all")]
+        #[arg(short, long, required = false, value_delimiter = ',', conflicts_with = "all")]
         id: Option<Vec<u32>>,
         /// Delete all jobs. Cannot be used with --id.
         #[arg(short, long, required = false, conflicts_with = "id")]
