@@ -62,7 +62,9 @@ bk list
 - **Run multiple jobs by ID:**
   
   ```sh
-  bk run --id 1
+  bk run -i 1
+  bk run -i 1,2
+  # or using long form
   bk run --id 1,2
   ```
 
@@ -84,7 +86,9 @@ bk list
 - **Delete multiple jobs by ID:**
 
   ```sh
-  bk delete --id 1
+  bk delete -i 1
+  bk delete -i 1,2
+  # or using long form
   bk delete --id 1,2
   ```
 

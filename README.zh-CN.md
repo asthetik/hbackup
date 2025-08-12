@@ -62,7 +62,9 @@ bk list
 - **按 ID 执行多个任务：**
   
   ```sh
-  bk run --id 1
+  bk run -i 1
+  bk run -i 1,2
+  # 或使用完整形式
   bk run --id 1,2
   ```
 
@@ -81,10 +83,12 @@ bk list
 
 ### 5. 删除任务
 
-- **按 ID 删除d多个任务：**
+- **按 ID 删除多个任务：**
 
   ```sh
-  bk delete --id 1
+  bk delete -i 1
+  bk delete -i 1,2
+  # 或使用完整形式
   bk delete --id 1,2
   ```
 
