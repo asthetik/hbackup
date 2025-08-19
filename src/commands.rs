@@ -329,25 +329,31 @@ pub(crate) async fn run_job_async(job: &Job) -> Result<()> {
 /// Lists all backup jobs in the configuration.
 pub(crate) fn list() {
     let jobs = Application::get_jobs();
-    println!("{}", JobList(jobs));
+    if !jobs.is_empty() {
+        println!("{}", JobList(jobs));
+    }
 }
 
 /// Lists backup jobs by their IDs.
 pub(crate) fn list_by_ids(ids: Vec<u32>) {
-    let jobs = Application::get_jobs()
+    let jobs: Vec<_> = Application::get_jobs()
         .into_iter()
         .filter(|job| ids.contains(&job.id))
         .collect();
-    println!("{}", JobList(jobs));
+    if !jobs.is_empty() {
+        println!("{}", JobList(jobs));
+    }
 }
 
 /// Lists backup jobs by their IDs.
 pub(crate) fn list_by_gte(id: u32) {
-    let jobs = Application::get_jobs()
+    let jobs: Vec<_> = Application::get_jobs()
         .into_iter()
         .filter(|job| job.id >= id)
         .collect();
-    println!("{}", JobList(jobs));
+    if !jobs.is_empty() {
+        println!("{}", JobList(jobs));
+    }
 }
 
 /// Lists backup jobs by their IDs.
