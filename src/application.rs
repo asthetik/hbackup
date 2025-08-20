@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::io::Write;
 use std::path::PathBuf;
-use std::{fmt, fs, io, process};
+use std::{fs, io, process};
 
 /// The main application configuration.
 /// Stores the version and all backup jobs.
@@ -49,48 +49,6 @@ pub(crate) struct Job {
     pub ignore: Option<Vec<String>>,
 }
 
-impl fmt::Display for Job {
-    /// Pretty-print a job, including compression if present.
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let comp = match self.compression {
-            Some(CompressFormat::Gzip) => "Gzip",
-            Some(CompressFormat::Zip) => "Zip",
-            Some(CompressFormat::Sevenz) => "Sevenz",
-            Some(CompressFormat::Zstd) => "Zstd",
-            Some(CompressFormat::Bzip2) => "Bzip2",
-            Some(CompressFormat::Xz) => "Xz",
-            Some(CompressFormat::Lz4) => "Lz4",
-            Some(CompressFormat::Tar) => "Tar",
-            None => "",
-        };
-        let level = match self.level {
-            Some(Level::Fastest) => "Fastest",
-            Some(Level::Faster) => "Faster",
-            Some(Level::Default) => "Default",
-            Some(Level::Better) => "Better",
-            Some(Level::Best) => "Best",
-            None => "",
-        };
-        let mut s = format!(
-            "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\"",
-            self.id,
-            self.source.display(),
-            self.target.display()
-        );
-        if !comp.is_empty() {
-            s.push_str(&format!(",\n    compression: \"{comp}\""));
-        }
-        if !level.is_empty() {
-            s.push_str(&format!(",\n    level: \"{level}\""));
-        }
-        if let Some(ignore) = self.ignore.as_ref() {
-            s.push_str(&format!(",\n    ignore: {ignore:?}"));
-        }
-        s.push_str("\n}");
-        write!(f, "{s}")
-    }
-}
-
 /// Supported compression formats for backup jobs.
 #[derive(ValueEnum, Serialize, Deserialize, Clone, Debug)]
 pub(crate) enum CompressFormat {
@@ -112,23 +70,6 @@ pub(crate) enum Level {
     Default,
     Better,
     Best,
-}
-
-/// A wrapper for displaying a list of jobs in a formatted way.
-pub(crate) struct JobList(pub Vec<Job>);
-
-impl fmt::Display for JobList {
-    /// Pretty-print the job list as an array.
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[")?;
-        for (i, job) in self.0.iter().enumerate() {
-            write!(f, "{job}")?;
-            if i < self.0.len() - 1 {
-                writeln!(f, ",")?;
-            }
-        }
-        write!(f, "]")
-    }
 }
 
 impl Application {
@@ -493,77 +434,45 @@ mod tests {
         assert!(app.jobs.is_empty());
     }
 
-    #[test]
-    fn test_job_display() {
-        let job = Job {
-            id: 1,
-            source: PathBuf::from("/test/source"),
-            target: PathBuf::from("/test/target"),
-            compression: Some(CompressFormat::Gzip),
-            level: Some(Level::Default),
-            ignore: Some(vec!["*.log".to_string(), "temp/".to_string()]),
-        };
-
-        let display_str = format!("{}", job);
-        assert!(display_str.contains("id: 1"));
-        assert!(display_str.contains("/test/source"));
-        assert!(display_str.contains("/test/target"));
-        assert!(display_str.contains("Gzip"));
-        assert!(display_str.contains("Default"));
-        assert!(display_str.contains("*.log"));
-    }
-
-    #[test]
-    fn test_job_display_minimal() {
-        let job = Job {
-            id: 42,
-            source: PathBuf::from("/simple/source"),
-            target: PathBuf::from("/simple/target"),
-            compression: None,
-            level: None,
-            ignore: None,
-        };
-
-        let display_str = format!("{}", job);
-        assert!(display_str.contains("id: 42"));
-        assert!(display_str.contains("/simple/source"));
-        assert!(display_str.contains("/simple/target"));
-        assert!(!display_str.contains("compression:"));
-        assert!(!display_str.contains("level:"));
-        assert!(!display_str.contains("ignore:"));
-    }
-
-    #[test]
-    fn test_job_list_display() {
-        let jobs = vec![
-            Job {
-                id: 1,
-                source: PathBuf::from("/test/source1"),
-                target: PathBuf::from("/test/target1"),
-                compression: Some(CompressFormat::Zip),
-                level: Some(Level::Fastest),
-                ignore: None,
-            },
-            Job {
-                id: 2,
-                source: PathBuf::from("/test/source2"),
-                target: PathBuf::from("/test/target2"),
-                compression: Some(CompressFormat::Zstd),
-                level: Some(Level::Best),
-                ignore: Some(vec!["*.tmp".to_string()]),
-            },
-        ];
-
-        let job_list = JobList(jobs);
-        let display_str = format!("{}", job_list);
-
-        assert!(display_str.starts_with('['));
-        assert!(display_str.ends_with(']'));
-        assert!(display_str.contains("id: 1"));
-        assert!(display_str.contains("id: 2"));
-        assert!(display_str.contains("Zip"));
-        assert!(display_str.contains("Zstd"));
-    }
+    // #[test]
+    // fn test_job_display() {
+    //     let job = Job {
+    //         id: 1,
+    //         source: PathBuf::from("/test/source"),
+    //         target: PathBuf::from("/test/target"),
+    //         compression: Some(CompressFormat::Gzip),
+    //         level: Some(Level::Default),
+    //         ignore: Some(vec!["*.log".to_string(), "temp/".to_string()]),
+    //     };
+    //
+    //     let display_str = format!("{}", job);
+    //     assert!(display_str.contains("id: 1"));
+    //     assert!(display_str.contains("/test/source"));
+    //     assert!(display_str.contains("/test/target"));
+    //     assert!(display_str.contains("Gzip"));
+    //     assert!(display_str.contains("Default"));
+    //     assert!(display_str.contains("*.log"));
+    // }
+    //
+    // #[test]
+    // fn test_job_display_minimal() {
+    //     let job = Job {
+    //         id: 42,
+    //         source: PathBuf::from("/simple/source"),
+    //         target: PathBuf::from("/simple/target"),
+    //         compression: None,
+    //         level: None,
+    //         ignore: None,
+    //     };
+    //
+    //     let display_str = format!("{}", job);
+    //     assert!(display_str.contains("id: 42"));
+    //     assert!(display_str.contains("/simple/source"));
+    //     assert!(display_str.contains("/simple/target"));
+    //     assert!(!display_str.contains("compression:"));
+    //     assert!(!display_str.contains("level:"));
+    //     assert!(!display_str.contains("ignore:"));
+    // }
 
     #[test]
     fn test_application_serialization() {
