@@ -15,7 +15,7 @@
 ## Features
 
 - 🚀 **Fast and simple** file/directory backup via CLI
-- ⚡️ **Asynchronous multi-threaded backup** for higher performance, especially with large or multiple files
+- ⚡️ **Asynchronous multithreaded backup** for higher performance, especially with large or multiple files
 - 🖥️ **Cross-platform**: macOS, Linux, Windows
 - 🗂️ **Custom backup jobs** with unique IDs
 - 📝 **Configuration and task management** via TOML in user config directory
@@ -88,8 +88,6 @@ bk list
   ```sh
   bk delete 1
   bk delete 1,2
-  # or using long form
-  bk delete --id 1,2
   ```
 
 - **Delete all jobs:**
