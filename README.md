@@ -86,8 +86,8 @@ bk list
 - **Delete multiple jobs by ID:**
 
   ```sh
-  bk delete -i 1
-  bk delete -i 1,2
+  bk delete 1
+  bk delete 1,2
   # or using long form
   bk delete --id 1,2
   ```
@@ -95,7 +95,9 @@ bk list
 - **Delete all jobs:**
   
   ```sh
-  bk delete --all
+  bk delete -a
+  # or using long form
+  bk delete -all
   ```
 
 ### 6. Edit a job

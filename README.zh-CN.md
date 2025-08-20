@@ -86,15 +86,15 @@ bk list
 - **按 ID 删除多个任务：**
 
   ```sh
-  bk delete -i 1
-  bk delete -i 1,2
-  # 或使用完整形式
-  bk delete --id 1,2
+  bk delete 1
+  bk delete 1,2
   ```
 
 - **删除全部任务：**
   
   ```sh
+  bk delete -a
+  # 或使用完整形式
   bk delete --all
   ```
 
