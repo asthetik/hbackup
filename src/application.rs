@@ -434,46 +434,6 @@ mod tests {
         assert!(app.jobs.is_empty());
     }
 
-    // #[test]
-    // fn test_job_display() {
-    //     let job = Job {
-    //         id: 1,
-    //         source: PathBuf::from("/test/source"),
-    //         target: PathBuf::from("/test/target"),
-    //         compression: Some(CompressFormat::Gzip),
-    //         level: Some(Level::Default),
-    //         ignore: Some(vec!["*.log".to_string(), "temp/".to_string()]),
-    //     };
-    //
-    //     let display_str = format!("{}", job);
-    //     assert!(display_str.contains("id: 1"));
-    //     assert!(display_str.contains("/test/source"));
-    //     assert!(display_str.contains("/test/target"));
-    //     assert!(display_str.contains("Gzip"));
-    //     assert!(display_str.contains("Default"));
-    //     assert!(display_str.contains("*.log"));
-    // }
-    //
-    // #[test]
-    // fn test_job_display_minimal() {
-    //     let job = Job {
-    //         id: 42,
-    //         source: PathBuf::from("/simple/source"),
-    //         target: PathBuf::from("/simple/target"),
-    //         compression: None,
-    //         level: None,
-    //         ignore: None,
-    //     };
-    //
-    //     let display_str = format!("{}", job);
-    //     assert!(display_str.contains("id: 42"));
-    //     assert!(display_str.contains("/simple/source"));
-    //     assert!(display_str.contains("/simple/target"));
-    //     assert!(!display_str.contains("compression:"));
-    //     assert!(!display_str.contains("level:"));
-    //     assert!(!display_str.contains("ignore:"));
-    // }
-
     #[test]
     fn test_application_serialization() {
         let mut app = Application::new();
