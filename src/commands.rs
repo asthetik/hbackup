@@ -3,7 +3,7 @@
 //! This module defines all CLI commands, their arguments, and the logic for handling
 //! backup jobs, including add, run, list, delete, edit, and configuration management.
 
-use crate::application::{self, Application, CompressFormat, Job, JobList, Level};
+use crate::application::{self, Application, CompressFormat, Job, Level};
 use crate::file_util;
 use crate::path_util;
 use crate::{Result, sysexits};
@@ -330,7 +330,7 @@ pub(crate) async fn run_job_async(job: &Job) -> Result<()> {
 pub(crate) fn list() {
     let jobs = Application::get_jobs();
     if !jobs.is_empty() {
-        println!("{}", JobList(jobs));
+        println!("{}", display_jobs(jobs));
     }
 }
 
@@ -340,9 +340,7 @@ pub(crate) fn list_by_ids(ids: Vec<u32>) {
         .into_iter()
         .filter(|job| ids.contains(&job.id))
         .collect();
-    if !jobs.is_empty() {
-        println!("{}", JobList(jobs));
-    }
+    println!("{}", display_jobs(jobs));
 }
 
 /// Lists backup jobs by their IDs.
@@ -351,9 +349,7 @@ pub(crate) fn list_by_gte(id: u32) {
         .into_iter()
         .filter(|job| job.id >= id)
         .collect();
-    if !jobs.is_empty() {
-        println!("{}", JobList(jobs));
-    }
+    println!("{}", display_jobs(jobs));
 }
 
 /// Lists backup jobs by their IDs.
@@ -362,7 +358,53 @@ pub(crate) fn list_by_lte(id: u32) {
         .into_iter()
         .filter(|job| job.id <= id)
         .collect();
-    println!("{}", JobList(jobs));
+    println!("{}", display_jobs(jobs));
+}
+
+fn display_jobs(jobs: Vec<Job>) -> String {
+    if jobs.is_empty() {
+        return String::new();
+    }
+    let mut s = String::from('[');
+    for job in jobs {
+        let comp = match job.compression {
+            Some(CompressFormat::Gzip) => "Gzip",
+            Some(CompressFormat::Zip) => "Zip",
+            Some(CompressFormat::Sevenz) => "Sevenz",
+            Some(CompressFormat::Zstd) => "Zstd",
+            Some(CompressFormat::Bzip2) => "Bzip2",
+            Some(CompressFormat::Xz) => "Xz",
+            Some(CompressFormat::Lz4) => "Lz4",
+            Some(CompressFormat::Tar) => "Tar",
+            None => "",
+        };
+        let level = match job.level {
+            Some(Level::Fastest) => "Fastest",
+            Some(Level::Faster) => "Faster",
+            Some(Level::Default) => "Default",
+            Some(Level::Better) => "Better",
+            Some(Level::Best) => "Best",
+            None => "",
+        };
+        s.push_str(&format!(
+            "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\"",
+            job.id,
+            job.source.display(),
+            job.target.display()
+        ));
+        if !comp.is_empty() {
+            s.push_str(&format!(",\n    compression: \"{comp}\""));
+        }
+        if !level.is_empty() {
+            s.push_str(&format!(",\n    level: \"{level}\""));
+        }
+        if let Some(ignore) = &job.ignore {
+            s.push_str(&format!(",\n    ignore: {ignore:?}"));
+        }
+        s.push_str("\n}");
+    }
+    s.push(']');
+    s
 }
 
 /// Deletes a job by id or deletes all jobs.
@@ -648,5 +690,43 @@ pub(crate) fn canonicalize(path: PathBuf) -> PathBuf {
             eprintln!("The path or file '{source:?}' is invalid\n{e}");
             process::exit(1);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::application::{CompressFormat, Job, Level};
+    use crate::commands::display_jobs;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_job_list_display() {
+        let jobs = vec![
+            Job {
+                id: 1,
+                source: PathBuf::from("/test/source1"),
+                target: PathBuf::from("/test/target1"),
+                compression: Some(CompressFormat::Zip),
+                level: Some(Level::Fastest),
+                ignore: None,
+            },
+            Job {
+                id: 2,
+                source: PathBuf::from("/test/source2"),
+                target: PathBuf::from("/test/target2"),
+                compression: Some(CompressFormat::Zstd),
+                level: Some(Level::Best),
+                ignore: Some(vec!["*.tmp".to_string()]),
+            },
+        ];
+
+        let display_str = display_jobs(jobs);
+
+        assert!(display_str.starts_with('['));
+        assert!(display_str.ends_with(']'));
+        assert!(display_str.contains("id: 1"));
+        assert!(display_str.contains("id: 2"));
+        assert!(display_str.contains("Zip"));
+        assert!(display_str.contains("Zstd"));
     }
 }
