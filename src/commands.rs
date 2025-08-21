@@ -12,9 +12,10 @@ use anyhow::anyhow;
 use clap::ValueEnum;
 use clap::{Parser, Subcommand};
 use futures::stream::{FuturesUnordered, StreamExt};
-use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process;
+use std::{fs, io};
 use tokio::runtime::Builder;
 use walkdir::WalkDir;
 
@@ -410,9 +411,26 @@ fn display_jobs(jobs: Vec<Job>) -> String {
 pub(crate) fn delete(id: Option<Vec<u32>>, all: bool) -> Result<()> {
     if all {
         let mut app = Application::load_config();
-        app.reset_jobs();
-        app.write()?;
-        println!("All jobs deleted successfully.");
+        if app.jobs.is_empty() {
+            println!("No jobs to delete");
+            return Ok(());
+        }
+        loop {
+            print!("Are you sure you want to delete all jobs? (y/n): ");
+            io::stdout().flush()?;
+            let mut input = String::new();
+            io::stdin().read_line(&mut input)?;
+            if input.trim().to_lowercase() == "n" {
+                return Ok(());
+            } else if input.trim().to_lowercase() == "y" {
+                app.reset_jobs();
+                app.write()?;
+                println!("All jobs deleted successfully.");
+                return Ok(());
+            } else {
+                println!("\nInvalid input. Please enter 'y' or 'n'.");
+            }
+        }
     } else if let Some(ids) = id {
         let mut app = Application::load_config();
         let mut msg = String::new();
