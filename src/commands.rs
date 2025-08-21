@@ -415,15 +415,16 @@ pub(crate) fn delete(id: Option<Vec<u32>>, all: bool) -> Result<()> {
         println!("All jobs deleted successfully.");
     } else if let Some(ids) = id {
         let mut app = Application::load_config();
-        for id in ids {
-            match app.remove_job(id) {
-                Some(_) => {
-                    app.write()?;
-                    println!("Job with id {id} deleted successfully.");
-                }
-                None => println!("Job deletion failed. Job with id {id} cannot be found."),
-            }
-        }
+        let mut msg = String::new();
+        ids.into_iter().for_each(|id| match app.remove_job(id) {
+            Some(_) => msg.push_str(&format!("Job with id {id} deleted successfully.\n")),
+            None => msg.push_str(&format!(
+                "Job deletion failed. Job with id {id} cannot be found.\n"
+            )),
+        });
+        app.write()?;
+        msg.remove(msg.len() - 1);
+        println!("{}", msg);
     } else {
         return Err(anyhow!("Either --all or --id must be specified."));
     }
