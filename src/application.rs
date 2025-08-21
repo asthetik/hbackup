@@ -27,7 +27,7 @@ impl Default for Application {
     fn default() -> Self {
         Self {
             version: "1.0".to_string(),
-            jobs: Vec::new(),
+            jobs: vec![],
         }
     }
 }

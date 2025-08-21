@@ -14,9 +14,7 @@ use std::process;
 /// Entry point for the hbackup CLI application.
 /// Parses command-line arguments and dispatches to the appropriate command handler.
 fn main() -> Result<()> {
-    let cli = Cli::parse();
-
-    let commands = match cli.commands {
+    let commands = match Cli::parse().commands {
         Some(commands) => commands,
         None => {
             eprintln!("bk requires at least one command to execute. See 'bk --help' for usage.");
