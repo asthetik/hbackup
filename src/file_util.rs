@@ -6,8 +6,8 @@
 
 use crate::application::CompressFormat;
 use crate::application::Level;
-use anyhow::Result;
 use anyhow::anyhow;
+use anyhow::{Context, Result};
 use bzip2::Compression as BzCompression;
 use bzip2::write::BzEncoder;
 use flate2::{Compression, write::GzEncoder};
@@ -23,6 +23,43 @@ use walkdir::WalkDir;
 use xz2::write::XzEncoder;
 use zip::{ZipWriter, write::FileOptions};
 use zstd::stream::write::Encoder as ZstdEncoder;
+
+/// Copy file from source to target, creating parent directories if needed.
+pub(crate) fn copy_file(source: &Path, target: &Path) -> Result<()> {
+    let target_file = if target.exists() && target.is_dir() {
+        let file_name = source.file_name().with_context(|| "Invalid file name")?;
+        target.join(file_name)
+    } else {
+        target.into()
+    };
+
+    if let Some(parent) = target_file.parent() {
+        if !parent.exists() {
+            fs::create_dir_all(parent)?;
+        }
+    }
+    fs::copy(source, &target_file)?;
+
+    Ok(())
+}
+
+/// Asynchronously copy file from source to target, creating parent directories if needed.
+pub(crate) async fn copy_file_async(source: PathBuf, target: PathBuf) -> Result<()> {
+    let target_file = if target.exists() && target.is_dir() {
+        let file_name = source.file_name().with_context(|| "Invalid file name")?;
+        target.join(file_name)
+    } else {
+        target
+    };
+
+    if let Some(parent) = target_file.parent() {
+        if !parent.exists() {
+            fs::create_dir_all(parent)?;
+        }
+    }
+    tokio::fs::copy(source, &target_file).await?;
+    Ok(())
+}
 
 /// Compresses a file or directory at `src` into the `dest` directory using the specified `format` and `level`.
 ///
@@ -763,7 +800,7 @@ mod tests {
         let source_file =
             create_test_file(temp_dir.path(), "test.txt", b"Hello, compression levels!");
 
-        let levels = vec![
+        let levels = [
             Level::Fastest,
             Level::Faster,
             Level::Default,

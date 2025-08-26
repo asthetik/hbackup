@@ -5,7 +5,8 @@ mod path_util;
 mod sysexits;
 
 use crate::application::{Application, CompressFormat, Level};
-use anyhow::{Context, Result, anyhow};
+use crate::file_util::*;
+use anyhow::{Result, anyhow};
 use application::{Job, init_config};
 use clap::{Parser, Subcommand, ValueEnum};
 use futures::StreamExt;
@@ -686,43 +687,6 @@ fn get_jobs(
         }
     }
     Ok(vec)
-}
-
-/// Copy file from source to target, creating parent directories if needed.
-fn copy_file(source: &Path, target: &Path) -> Result<()> {
-    let target_file = if target.exists() && target.is_dir() {
-        let file_name = source.file_name().with_context(|| "Invalid file name")?;
-        target.join(file_name)
-    } else {
-        target.into()
-    };
-
-    if let Some(parent) = target_file.parent() {
-        if !parent.exists() {
-            fs::create_dir_all(parent)?;
-        }
-    }
-    fs::copy(source, &target_file)?;
-
-    Ok(())
-}
-
-/// Asynchronously copy file from source to target, creating parent directories if needed.
-async fn copy_file_async(source: PathBuf, target: PathBuf) -> Result<()> {
-    let target_file = if target.exists() && target.is_dir() {
-        let file_name = source.file_name().with_context(|| "Invalid file name")?;
-        target.join(file_name)
-    } else {
-        target
-    };
-
-    if let Some(parent) = target_file.parent() {
-        if !parent.exists() {
-            fs::create_dir_all(parent)?;
-        }
-    }
-    tokio::fs::copy(source, &target_file).await?;
-    Ok(())
 }
 
 /// Returns the canonical, absolute form of the path with all intermediate
