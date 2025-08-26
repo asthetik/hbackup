@@ -1,7 +1,6 @@
 mod application;
 mod common;
 mod file_util;
-mod path_util;
 mod sysexits;
 
 use crate::application::{Application, CompressFormat, Level};
@@ -55,7 +54,6 @@ fn main() -> Result<()> {
                 (_, Some(source), Some(target)) => {
                     let source = canonicalize(source);
                     let target = canonicalize(target);
-                    path_util::check_path(&source)?;
 
                     // The temporary job id is set to 0
                     let job = Job {
@@ -262,7 +260,6 @@ fn add(
 ) -> Result<()> {
     let source = canonicalize(source);
     let target = canonicalize(target);
-    path_util::check_path(&source)?;
 
     let mut app = Application::load_config();
     app.add_job(source, target, comp, level, ignore);
@@ -531,9 +528,6 @@ fn edit(params: EditParams) -> Result<()> {
         clear,
     } = params;
     let source = source.map(canonicalize);
-    if let Some(ref file_path) = source {
-        path_util::check_path(file_path)?;
-    }
     let target = target.map(canonicalize);
 
     let mut app = Application::load_config();
