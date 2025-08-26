@@ -183,10 +183,8 @@ A backup of the config file is automatically created before resetting.
 - All errors are reported with clear messages.
 - If you run `bk` without a command, you'll see:
 
-```sh
-  error: hbackup requires at least one command to execute.
-
-  See 'bk --help' for usage.
+```text
+bk requires at least one command to execute. See 'bk --help' for usage.
 ```
 
 ---

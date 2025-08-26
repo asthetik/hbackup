@@ -183,10 +183,8 @@ bk run ~/my_path/mydir ~/back -c gzip
 - 所有错误均有清晰提示。
 - 如果你直接运行 `bk`，会看到：
 
-```sh
-error: hbackup requires at least one command to execute.
-
-See 'bk --help' for usage.
+```text
+bk requires at least one command to execute. See 'bk --help' for usage.
 ```
 
 ---
