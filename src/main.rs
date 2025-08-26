@@ -10,7 +10,7 @@ use application::{Job, init_config};
 use clap::{Parser, Subcommand, ValueEnum};
 use futures::StreamExt;
 use futures::stream::FuturesUnordered;
-use std::io::Write;
+use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
 use std::{fs, io, process};
 use tokio::runtime::Builder;
@@ -115,7 +115,10 @@ fn main() -> Result<()> {
             } else if rollback {
                 rollback_config_file();
             } else {
-                config();
+                println!(
+                    "Configuration file path: {}",
+                    application::config_file().display()
+                );
             }
         }
     }
@@ -587,11 +590,6 @@ fn edit(params: EditParams) -> Result<()> {
     Ok(())
 }
 
-/// Prints the absolute path to the configuration file.
-fn config() {
-    println!("config file: {}", application::config_file().display());
-}
-
 /// Back up the configuration file to a backup location.
 fn backup_config_file() {
     let config_file = application::config_file();
@@ -686,11 +684,20 @@ fn get_jobs(
 /// Returns the canonical, absolute form of the path with all intermediate
 /// components normalized and symbolic links resolved.
 fn canonicalize(path: PathBuf) -> PathBuf {
-    let source = &path;
-    match source.canonicalize() {
+    match path.canonicalize() {
         Ok(path) => path,
         Err(e) => {
-            eprintln!("The path or file '{source:?}' is invalid\n{e}");
+            match e.kind() {
+                ErrorKind::NotFound => {
+                    eprintln!("The path {path:?} does not exist");
+                }
+                ErrorKind::PermissionDenied => {
+                    eprintln!("Permission denied for path {path:?}");
+                }
+                _ => {
+                    eprintln!("An error occurred while canonicalizing path {path:?}: {e}");
+                }
+            }
             process::exit(1);
         }
     }
