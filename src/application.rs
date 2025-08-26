@@ -10,7 +10,7 @@ use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{fs, io, process};
 
 /// The main application configuration.
@@ -249,20 +249,13 @@ pub(crate) fn read_backed_config_file() -> Application {
 }
 
 /// Initializes the configuration file for the application if it does not exist.
-///
-/// This function checks for the existence of both the new and old configuration files.
-/// - If neither exists, it creates a new default configuration file in TOML format,
-///   ensuring the parent directory exists.
-/// - If only the old configuration file exists, it migrates the old configuration to the new location and format.
-///
 /// This ensures that the application always has a valid configuration file to work with.
 pub(crate) fn init_config() {
-    let old_config_file = old_config_file();
     let config_file = config_file();
-    if !config_file.exists() && !old_config_file.exists() {
+    if !config_file.exists() {
         let app = Application::new();
 
-        let parent = config_file.parent().unwrap();
+        let parent = config_file.parent().unwrap_or_else(|| Path::new(""));
         fs::create_dir_all(parent).unwrap();
 
         let file = fs::File::create(config_file).unwrap();
@@ -270,31 +263,7 @@ pub(crate) fn init_config() {
         let toml_str = toml::to_string_pretty(&app).unwrap();
         writer.write_all(toml_str.as_bytes()).unwrap();
         writer.flush().unwrap();
-    } else if !config_file.exists() && old_config_file.exists() {
-        let app = read_old_config_file().unwrap();
-        let toml_str = toml::to_string_pretty(&app).unwrap();
-        let file = fs::File::create(config_file).unwrap();
-        let mut writer = io::BufWriter::new(file);
-        writer.write_all(toml_str.as_bytes()).unwrap();
-        writer.flush().unwrap();
     }
-}
-
-/// Reads the old configuration file in JSON format and converts it to Application.
-///
-/// # Errors
-/// Returns an error if the file cannot be read or parsed.
-fn read_old_config_file() -> Result<Application> {
-    let file_path = old_config_file();
-    let file = fs::File::open(&file_path)?;
-    let reader = io::BufReader::new(&file);
-    let app: Application = serde_json::from_reader(reader)?;
-    Ok(app)
-}
-
-/// Returns the path to the old JSON configuration file.
-fn old_config_file() -> PathBuf {
-    config_dir().join(format!("{PKG_NAME}.json"))
 }
 
 #[cfg(test)]
