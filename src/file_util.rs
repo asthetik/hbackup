@@ -16,6 +16,8 @@ use sevenz_rust2::ArchiveWriter;
 use sevenz_rust2::encoder_options::LZMA2Options;
 use std::io::{BufReader, Read, Write};
 use std::path::PathBuf;
+use std::time::Duration;
+use std::time::SystemTime;
 use std::{fs, io};
 use std::{fs::File, path::Path};
 use tar::Builder;
@@ -23,6 +25,8 @@ use walkdir::WalkDir;
 use xz2::write::XzEncoder;
 use zip::{ZipWriter, write::FileOptions};
 use zstd::stream::write::Encoder as ZstdEncoder;
+
+const TOLERANCE: Duration = Duration::from_millis(100);
 
 /// Copy file from source to target, creating parent directories if needed.
 pub(crate) fn copy_file(source: &Path, target: &Path) -> Result<()> {
@@ -38,8 +42,13 @@ pub(crate) fn copy_file(source: &Path, target: &Path) -> Result<()> {
             fs::create_dir_all(parent)?;
         }
     }
-    fs::copy(source, &target_file)?;
-
+    match needs_update(source, &target_file) {
+        Ok(true) => {
+            fs::copy(source, &target_file)?;
+        }
+        Ok(false) => (),
+        Err(e) => return Err(e),
+    }
     Ok(())
 }
 
@@ -57,8 +66,40 @@ pub(crate) async fn copy_file_async(source: PathBuf, target: PathBuf) -> Result<
             fs::create_dir_all(parent)?;
         }
     }
-    tokio::fs::copy(source, &target_file).await?;
+    match needs_update(&source, &target_file) {
+        Ok(true) => {
+            tokio::fs::copy(source, &target_file).await?;
+        }
+        Ok(false) => (),
+        Err(e) => return Err(e),
+    }
+
     Ok(())
+}
+
+fn needs_update(src: &Path, dest: &Path) -> Result<bool> {
+    if !dest.exists() {
+        return Ok(true);
+    }
+
+    let sm = fs::metadata(src).context(format!(
+        "Failed to get metadata for source file: {}",
+        src.display()
+    ))?;
+    let dm = fs::metadata(dest).context(format!(
+        "Failed to get metadata for destination file: {}",
+        dest.display()
+    ))?;
+    if sm.len() != dm.len() {
+        return Ok(true);
+    }
+
+    let s_mod = sm.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+    let d_mod = dm.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+    if s_mod > d_mod + TOLERANCE {
+        return Ok(true);
+    }
+    Ok(false)
 }
 
 /// Compresses a file or directory at `src` into the `dest` directory using the specified `format` and `level`.
