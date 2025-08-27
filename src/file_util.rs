@@ -4,6 +4,7 @@
 //! using gzip, zip, 7z, zstd, bzip2, and xz formats. It supports both single files and entire directories,
 //! and automatically selects the correct compression strategy based on the input type and format.
 
+use crate::application::BackupModel;
 use crate::application::CompressFormat;
 use crate::application::Level;
 use anyhow::anyhow;
@@ -29,7 +30,7 @@ use zstd::stream::write::Encoder as ZstdEncoder;
 const TOLERANCE: Duration = Duration::from_millis(100);
 
 /// Copy file from source to target, creating parent directories if needed.
-pub(crate) fn copy_file(source: &Path, target: &Path) -> Result<()> {
+pub(crate) fn copy_file(source: &Path, target: &Path, model: Option<BackupModel>) -> Result<()> {
     let target_file = if target.exists() && target.is_dir() {
         let file_name = source.file_name().with_context(|| "Invalid file name")?;
         target.join(file_name)
@@ -42,18 +43,29 @@ pub(crate) fn copy_file(source: &Path, target: &Path) -> Result<()> {
             fs::create_dir_all(parent)?;
         }
     }
-    match needs_update(source, &target_file) {
-        Ok(true) => {
+    let model = model.unwrap_or_default();
+    match model {
+        BackupModel::Full => {
             fs::copy(source, &target_file)?;
         }
-        Ok(false) => (),
-        Err(e) => return Err(e),
+        BackupModel::Mirror => match needs_update(source, &target_file) {
+            Ok(true) => {
+                fs::copy(source, &target_file)?;
+            }
+            Ok(false) => (),
+            Err(e) => return Err(e),
+        },
     }
+
     Ok(())
 }
 
 /// Asynchronously copy file from source to target, creating parent directories if needed.
-pub(crate) async fn copy_file_async(source: PathBuf, target: PathBuf) -> Result<()> {
+pub(crate) async fn copy_file_async(
+    source: PathBuf,
+    target: PathBuf,
+    model: Option<BackupModel>,
+) -> Result<()> {
     let target_file = if target.exists() && target.is_dir() {
         let file_name = source.file_name().with_context(|| "Invalid file name")?;
         target.join(file_name)
@@ -66,12 +78,19 @@ pub(crate) async fn copy_file_async(source: PathBuf, target: PathBuf) -> Result<
             fs::create_dir_all(parent)?;
         }
     }
-    match needs_update(&source, &target_file) {
-        Ok(true) => {
-            tokio::fs::copy(source, &target_file).await?;
+
+    let model = model.unwrap_or_default();
+    match model {
+        BackupModel::Full => {
+            fs::copy(source, &target_file)?;
         }
-        Ok(false) => (),
-        Err(e) => return Err(e),
+        BackupModel::Mirror => match needs_update(&source, &target_file) {
+            Ok(true) => {
+                tokio::fs::copy(source, &target_file).await?;
+            }
+            Ok(false) => (),
+            Err(e) => return Err(e),
+        },
     }
 
     Ok(())

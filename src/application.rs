@@ -47,6 +47,8 @@ pub(crate) struct Job {
     pub level: Option<Level>,
     /// Optional ignore list
     pub ignore: Option<Vec<String>>,
+    /// Backup model
+    pub model: Option<BackupModel>,
 }
 
 /// Supported compression formats for backup jobs.
@@ -70,6 +72,13 @@ pub(crate) enum Level {
     Default,
     Better,
     Best,
+}
+
+#[derive(ValueEnum, Serialize, Deserialize, Clone, Debug, Default)]
+pub(crate) enum BackupModel {
+    #[default]
+    Full,
+    Mirror,
 }
 
 impl Application {
@@ -102,6 +111,7 @@ impl Application {
         compression: Option<CompressFormat>,
         level: Option<Level>,
         ignore: Option<Vec<String>>,
+        model: Option<BackupModel>,
     ) {
         let id = if self.jobs.is_empty() {
             1
@@ -124,6 +134,7 @@ impl Application {
             compression,
             level,
             ignore,
+            model,
         });
     }
 
@@ -302,6 +313,7 @@ mod tests {
             Some(CompressFormat::Gzip),
             Some(Level::Default),
             None,
+            None,
         );
 
         assert_eq!(app.jobs.len(), 1);
@@ -326,6 +338,7 @@ mod tests {
             Some(CompressFormat::Zip),
             Some(Level::Fastest),
             None,
+            None,
         );
 
         // Add second job
@@ -335,6 +348,7 @@ mod tests {
             Some(CompressFormat::Zstd),
             Some(Level::Best),
             Some(vec!["*.log".to_string()]),
+            None,
         );
 
         assert_eq!(app.jobs.len(), 2);
@@ -354,10 +368,12 @@ mod tests {
             None,
             None,
             None,
+            None,
         );
         app.add_job(
             PathBuf::from("/test/source2"),
             PathBuf::from("/test/target2"),
+            None,
             None,
             None,
             None,
@@ -388,10 +404,12 @@ mod tests {
             None,
             None,
             None,
+            None,
         );
         app.add_job(
             PathBuf::from("/test/source2"),
             PathBuf::from("/test/target2"),
+            None,
             None,
             None,
             None,
@@ -412,6 +430,7 @@ mod tests {
             Some(CompressFormat::Gzip),
             Some(Level::Default),
             Some(vec!["*.log".to_string()]),
+            None,
         );
 
         // Test TOML serialization
