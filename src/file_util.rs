@@ -27,7 +27,7 @@ use xz2::write::XzEncoder;
 use zip::{ZipWriter, write::FileOptions};
 use zstd::stream::write::Encoder as ZstdEncoder;
 
-const TOLERANCE: Duration = Duration::from_millis(100);
+const TOLERANCE: Duration = Duration::from_secs(1);
 
 /// Copy file from source to target, creating parent directories if needed.
 pub(crate) fn copy_file(source: &Path, target: &Path, model: Option<BackupModel>) -> Result<()> {
