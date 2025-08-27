@@ -3,7 +3,7 @@ mod common;
 mod file_util;
 mod sysexits;
 
-use crate::application::{Application, CompressFormat, Level};
+use crate::application::{Application, BackupModel, CompressFormat, Level};
 use crate::file_util::*;
 use anyhow::{Result, anyhow};
 use application::{Job, init_config};
@@ -36,8 +36,9 @@ fn main() -> Result<()> {
             compression,
             level,
             ignore,
+            model,
         } => {
-            add(source, target, compression, level, ignore)?;
+            add(source, target, compression, level, ignore, model)?;
         }
         Command::Run {
             source,
@@ -46,6 +47,7 @@ fn main() -> Result<()> {
             id,
             level,
             ignore,
+            model,
         } => {
             match (id, source, target) {
                 (Some(ids), _, _) => {
@@ -63,6 +65,7 @@ fn main() -> Result<()> {
                         compression,
                         level,
                         ignore,
+                        model,
                     };
                     run_job(&job)?;
                 }
@@ -91,6 +94,7 @@ fn main() -> Result<()> {
             level,
             ignore,
             clear,
+            model,
         } => {
             let edit_params = EditParams {
                 id,
@@ -100,6 +104,7 @@ fn main() -> Result<()> {
                 level,
                 ignore,
                 clear,
+                model,
             };
             edit(edit_params)?;
         }
@@ -151,6 +156,9 @@ enum Command {
         /// Ignore a specific list of files or directories
         #[arg(short = 'g', long, value_delimiter = ',')]
         ignore: Option<Vec<String>>,
+        /// Backup model
+        #[arg(short, long, required = false)]
+        model: Option<BackupModel>,
     },
     /// Run backup jobs.
     Run {
@@ -172,6 +180,9 @@ enum Command {
         /// Ignore a specific list of files or directories
         #[arg(short = 'g', long, value_delimiter = ',')]
         ignore: Option<Vec<String>>,
+        /// Backup model
+        #[arg(short, long, required = false)]
+        model: Option<BackupModel>,
     },
     /// List all backup jobs.
     List {
@@ -199,22 +210,25 @@ enum Command {
         /// Edit job by id.
         id: u32,
         /// New source file or directory path
-        #[arg(short, long, required_unless_present_any = ["target", "compression", "level", "ignore", "clear"])]
+        #[arg(short, long, required_unless_present_any = ["target", "compression", "level", "ignore", "model", "clear"])]
         source: Option<PathBuf>,
         /// New target file or directory path
-        #[arg(short, long, required_unless_present_any = ["source", "compression", "level", "ignore", "clear"])]
+        #[arg(short, long, required_unless_present_any = ["source", "compression", "level", "ignore", "model", "clear"])]
         target: Option<PathBuf>,
         /// Compression format
-        #[arg(short, long, required_unless_present_any = ["source", "target", "level", "ignore", "clear"])]
+        #[arg(short, long, required_unless_present_any = ["source", "target", "level", "ignore", "model", "clear"])]
         compression: Option<CompressFormat>,
         /// Compression level
-        #[arg(short, long, required_unless_present_any = ["source", "target", "compression", "ignore", "clear"])]
+        #[arg(short, long, required_unless_present_any = ["source", "target", "compression", "ignore", "model", "clear"])]
         level: Option<Level>,
         /// Ignore a specific list of files or directories
-        #[arg(short = 'g', long, value_delimiter = ',', required_unless_present_any = ["source", "target", "compression", "level", "clear"])]
+        #[arg(short = 'g', long, value_delimiter = ',', required_unless_present_any = ["source", "target", "compression", "level", "model", "clear"])]
         ignore: Option<Vec<String>>,
+        /// Backup model
+        #[arg(short, long, required_unless_present_any = ["source", "target", "compression", "level", "ignore", "clear"])]
+        model: Option<BackupModel>,
         /// Clear specified fields (comma-separated: compression,level,ignore)
-        #[arg(long, value_delimiter = ',', required_unless_present_any = ["source", "target", "compression", "level", "ignore"])]
+        #[arg(long, value_delimiter = ',', required_unless_present_any = ["source", "target", "compression", "level", "ignore", "model"])]
         clear: Option<Vec<ClearField>>,
     },
     /// Display the absolute path of the configuration file and manage config backup/reset/rollback.
@@ -240,6 +254,8 @@ enum ClearField {
     Level,
     /// Clear ignore list
     Ignore,
+    /// Clear backup model
+    Model,
 }
 
 /// Parameters for editing a backup job
@@ -251,6 +267,7 @@ struct EditParams {
     pub level: Option<Level>,
     pub ignore: Option<Vec<String>>,
     pub clear: Option<Vec<ClearField>>,
+    pub model: Option<BackupModel>,
 }
 
 /// Adds a new backup job to the configuration file.
@@ -260,12 +277,13 @@ fn add(
     comp: Option<CompressFormat>,
     level: Option<Level>,
     ignore: Option<Vec<String>>,
+    model: Option<BackupModel>,
 ) -> Result<()> {
     let source = canonicalize(source);
     let target = canonicalize(target);
 
     let mut app = Application::load_config();
-    app.add_job(source, target, comp, level, ignore);
+    app.add_job(source, target, comp, level, ignore, model);
     app.write()?;
 
     Ok(())
@@ -348,12 +366,13 @@ fn run_job(job: &Job) -> Result<()> {
             eprintln!("File exists");
             process::exit(sysexits::EX_CANTCREAT);
         }
+        let model = job.model.clone();
         let jobs = get_jobs(&job.source, &job.target, &job.ignore)?;
         let rt = Builder::new_multi_thread().enable_all().build()?;
         rt.block_on(async {
             let mut tasks = FuturesUnordered::new();
             for (source, target) in jobs {
-                tasks.push(copy_file_async(source, target));
+                tasks.push(copy_file_async(source, target, model.clone()));
             }
             while let Some(res) = tasks.next().await {
                 res?;
@@ -361,7 +380,7 @@ fn run_job(job: &Job) -> Result<()> {
             Ok::<(), anyhow::Error>(())
         })?;
     } else {
-        copy_file(&job.source, &job.target)?;
+        copy_file(&job.source, &job.target, job.model.clone())?;
     }
     Ok(())
 }
@@ -384,16 +403,17 @@ async fn run_job_async(job: &Job) -> Result<()> {
             eprintln!("File exists");
             process::exit(sysexits::EX_CANTCREAT);
         }
+        let model = job.model.clone();
         let jobs = get_jobs(&job.source, &job.target, &job.ignore)?;
         let mut tasks = FuturesUnordered::new();
         for (source, target) in jobs {
-            tasks.push(copy_file_async(source, target));
+            tasks.push(copy_file_async(source, target, model.clone()));
         }
         while let Some(res) = tasks.next().await {
             res?;
         }
     } else {
-        copy_file_async(job.source.clone(), job.target.clone()).await?;
+        copy_file_async(job.source.clone(), job.target.clone(), job.model.clone()).await?;
     }
     Ok(())
 }
@@ -456,6 +476,11 @@ fn display_jobs(jobs: Vec<Job>) -> String {
             Some(Level::Best) => "Best",
             None => "",
         };
+        let model = match job.model {
+            Some(BackupModel::Full) => "Full",
+            Some(BackupModel::Mirror) => "Mirror",
+            None => "",
+        };
         s.push_str(&format!(
             "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\"",
             job.id,
@@ -470,6 +495,9 @@ fn display_jobs(jobs: Vec<Job>) -> String {
         }
         if let Some(ignore) = &job.ignore {
             s.push_str(&format!(",\n    ignore: {ignore:?}"));
+        }
+        if !model.is_empty() {
+            s.push_str(&format!(",\n    model: \"{model}\""));
         }
         s.push_str("\n}");
     }
@@ -528,6 +556,7 @@ fn edit(params: EditParams) -> Result<()> {
         compression,
         level,
         ignore,
+        model,
         clear,
     } = params;
     let source = source.map(canonicalize);
@@ -545,7 +574,6 @@ fn edit(params: EditParams) -> Result<()> {
         if let Some(path) = target {
             job.target = path;
         }
-
         // Handle clear operations first
         if let Some(clear_fields) = &clear {
             for field in clear_fields {
@@ -560,15 +588,16 @@ fn edit(params: EditParams) -> Result<()> {
                     ClearField::Ignore => {
                         job.ignore = None;
                     }
+                    ClearField::Model => {
+                        job.model = None;
+                    }
                 }
             }
         }
-
         // Handle set operations
         if let Some(comp) = compression {
             job.compression = Some(comp);
         }
-
         if let Some(lvl) = level {
             if job.compression.is_none() {
                 eprintln!(
@@ -578,10 +607,13 @@ fn edit(params: EditParams) -> Result<()> {
             }
             job.level = Some(lvl);
         }
-
         if let Some(ign) = ignore {
             job.ignore = Some(ign);
         }
+        if let Some(model) = model {
+            job.model = Some(model)
+        }
+
         app.write()?;
         println!("Job with id {id} edited successfully.");
     } else {
@@ -719,6 +751,7 @@ mod tests {
                 compression: Some(CompressFormat::Zip),
                 level: Some(Level::Fastest),
                 ignore: None,
+                model: None,
             },
             Job {
                 id: 2,
@@ -727,6 +760,7 @@ mod tests {
                 compression: Some(CompressFormat::Zstd),
                 level: Some(Level::Best),
                 ignore: Some(vec!["*.tmp".to_string()]),
+                model: None,
             },
         ];
 
