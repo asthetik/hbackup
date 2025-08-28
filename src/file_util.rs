@@ -4,7 +4,8 @@
 //! using gzip, zip, 7z, zstd, bzip2, and xz formats. It supports both single files and entire directories,
 //! and automatically selects the correct compression strategy based on the input type and format.
 
-use crate::application::BackupModel;
+use crate::Item;
+use crate::Strategy;
 use crate::application::CompressFormat;
 use crate::application::Level;
 use anyhow::anyhow;
@@ -29,74 +30,57 @@ use zstd::stream::write::Encoder as ZstdEncoder;
 
 const TOLERANCE: Duration = Duration::from_secs(1);
 
-/// Copy file from source to target, creating parent directories if needed.
-pub(crate) fn copy_file(source: &Path, target: &Path, model: Option<BackupModel>) -> Result<()> {
-    let target_file = if target.exists() && target.is_dir() {
-        let file_name = source.file_name().with_context(|| "Invalid file name")?;
-        target.join(file_name)
-    } else {
-        target.into()
-    };
+pub(crate) fn copy_item(item: Item) -> Result<()> {
+    let Item {
+        src,
+        dest,
+        strategy,
+    } = item;
 
-    if let Some(parent) = target_file.parent() {
-        if !parent.exists() {
-            fs::create_dir_all(parent)?;
-        }
-    }
-    let model = model.unwrap_or_default();
-    match model {
-        BackupModel::Full => {
-            fs::copy(source, &target_file)?;
-        }
-        BackupModel::Mirror => match needs_update(source, &target_file) {
-            Ok(true) => {
-                fs::copy(source, &target_file)?;
+    match strategy {
+        Strategy::Copy => {
+            if let Some(parent) = dest.parent() {
+                if !parent.exists() {
+                    fs::create_dir_all(parent)?;
+                }
             }
-            Ok(false) => (),
-            Err(e) => return Err(e),
-        },
+            fs::copy(src, dest)?;
+        }
+        Strategy::Delete => {
+            if dest.exists() {
+                fs::remove_file(dest)?;
+            }
+        }
+        _ => {}
     }
-
     Ok(())
 }
 
-/// Asynchronously copy file from source to target, creating parent directories if needed.
-pub(crate) async fn copy_file_async(
-    source: PathBuf,
-    target: PathBuf,
-    model: Option<BackupModel>,
-) -> Result<()> {
-    let target_file = if target.exists() && target.is_dir() {
-        let file_name = source.file_name().with_context(|| "Invalid file name")?;
-        target.join(file_name)
-    } else {
-        target
-    };
+pub(crate) async fn copy_item_async(item: Item) -> Result<()> {
+    let Item {
+        src,
+        dest,
+        strategy,
+    } = item;
 
-    if let Some(parent) = target_file.parent() {
-        if !parent.exists() {
-            fs::create_dir_all(parent)?;
-        }
-    }
-
-    let model = model.unwrap_or_default();
-    match model {
-        BackupModel::Full => {
-            fs::copy(source, &target_file)?;
-        }
-        BackupModel::Mirror => match needs_update(&source, &target_file) {
-            Ok(true) => {
-                tokio::fs::copy(source, &target_file).await?;
+    match strategy {
+        Strategy::Copy => {
+            if let Some(parent) = dest.parent() {
+                if !parent.exists() {
+                    fs::create_dir_all(parent)?;
+                }
             }
-            Ok(false) => (),
-            Err(e) => return Err(e),
-        },
+            tokio::fs::copy(src, dest).await?;
+        }
+        Strategy::Delete if dest.exists() => {
+            tokio::fs::remove_file(dest).await?;
+        }
+        _ => {}
     }
-
     Ok(())
 }
 
-fn needs_update(src: &Path, dest: &Path) -> Result<bool> {
+pub(crate) fn needs_update(src: &Path, dest: &Path) -> Result<bool> {
     if !dest.exists() {
         return Ok(true);
     }
