@@ -5,7 +5,7 @@ mod sysexits;
 
 use crate::application::{Application, BackupModel, CompressFormat, Level};
 use crate::file_util::*;
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use application::{Job, init_config};
 use clap::{Parser, Subcommand, ValueEnum};
 use futures::StreamExt;
@@ -363,13 +363,13 @@ fn run_job(job: &Job) -> Result<()> {
             eprintln!("File exists");
             process::exit(sysexits::EX_CANTCREAT);
         }
-        let model = job.model.clone();
-        let jobs = get_jobs(&job.source, &job.target, &job.ignore)?;
+
+        let items = get_items(job.clone())?;
         let rt = Builder::new_multi_thread().enable_all().build()?;
         rt.block_on(async {
             let mut tasks = FuturesUnordered::new();
-            for (source, target) in jobs {
-                tasks.push(copy_file_async(source, target, model.clone()));
+            for item in items {
+                tasks.push(copy_item_async(item));
             }
             while let Some(res) = tasks.next().await {
                 res?;
@@ -377,7 +377,8 @@ fn run_job(job: &Job) -> Result<()> {
             Ok::<(), anyhow::Error>(())
         })?;
     } else {
-        copy_file(&job.source, &job.target, job.model.clone())?;
+        let item = get_item(job.clone())?;
+        copy_item(item)?;
     }
     Ok(())
 }
@@ -400,17 +401,17 @@ async fn run_job_async(job: &Job) -> Result<()> {
             eprintln!("File exists");
             process::exit(sysexits::EX_CANTCREAT);
         }
-        let model = job.model.clone();
-        let jobs = get_jobs(&job.source, &job.target, &job.ignore)?;
+        let items = get_items(job.clone())?;
         let mut tasks = FuturesUnordered::new();
-        for (source, target) in jobs {
-            tasks.push(copy_file_async(source, target, model.clone()));
+        for item in items {
+            tasks.push(copy_item_async(item));
         }
         while let Some(res) = tasks.next().await {
             res?;
         }
     } else {
-        copy_file_async(job.source.clone(), job.target.clone(), job.model.clone()).await?;
+        let item = get_item(job.clone())?;
+        copy_item_async(item).await?;
     }
     Ok(())
 }
@@ -678,35 +679,129 @@ fn rollback_config_file() {
     }
 }
 
-/// Recursively collects all files in a directory for backup, mapping source to target paths.
-fn get_jobs(
-    source: &Path,
-    target: &Path,
-    ignore: &Option<Vec<String>>,
-) -> Result<Vec<(PathBuf, PathBuf)>> {
-    let prefix = source.parent().unwrap_or(Path::new(""));
-    let mut vec = vec![];
-    let ignore_paths: Vec<PathBuf> = ignore
-        .as_ref()
-        .map(|dirs| dirs.iter().map(|s| source.join(s)).collect())
-        .unwrap_or_default();
+pub(crate) struct Item {
+    pub src: PathBuf,
+    pub dest: PathBuf,
+    pub strategy: Strategy,
+}
 
-    for entry in WalkDir::new(source) {
-        let entry = entry?;
-        let path = entry.path();
-        if ignore_paths.iter().any(|p| path.starts_with(p)) {
-            continue;
-        }
-
-        if path.is_file() {
-            let rel: PathBuf = path
-                .strip_prefix(prefix)
-                .expect("strip_prefix failed")
-                .into();
-            let target_path = target.join(rel);
-            vec.push((path.to_path_buf(), target_path));
+impl Item {
+    pub fn new(src: PathBuf, dest: PathBuf, strategy: Strategy) -> Item {
+        Item {
+            src,
+            dest,
+            strategy,
         }
     }
+}
+
+#[derive(PartialEq)]
+pub(crate) enum Strategy {
+    Copy,
+    Ignore,
+    NotUpdate,
+    Delete,
+}
+
+fn get_item(job: Job) -> Result<Item> {
+    let src = job.source;
+    if !src.exists() {
+        eprintln!("The path {src:?} is not exists");
+        process::exit(1);
+    } else if !src.is_file() {
+        eprintln!("The path {src:?} is not file");
+        process::exit(1);
+    }
+
+    let dest = job.target;
+    let dest = if dest.exists() && dest.is_dir() {
+        let file_name = src.file_name().with_context(|| "Invalid file name")?;
+        dest.join(file_name)
+    } else {
+        dest
+    };
+    let model = job.model.unwrap_or_default();
+    match model {
+        BackupModel::Full => Ok(Item::new(src, dest, Strategy::Copy)),
+        BackupModel::Mirror => {
+            if needs_update(&src, &dest)? {
+                Ok(Item::new(src, dest, Strategy::Copy))
+            } else {
+                Ok(Item::new(src, dest, Strategy::NotUpdate))
+            }
+        }
+    }
+}
+
+fn get_items(job: Job) -> Result<Vec<Item>> {
+    let src = job.source;
+    if !src.exists() {
+        eprintln!("The path {src:?} is not exists");
+        process::exit(1);
+    } else if !src.is_dir() {
+        eprintln!("The path {src:?} is not directory");
+        process::exit(1);
+    }
+
+    let target = job.target;
+    fs::create_dir_all(&target)?;
+
+    let model = job.model.unwrap_or_default();
+    let prefix = src.parent().unwrap_or_else(|| Path::new(""));
+    let mut vec = vec![];
+    let ignore_paths: Vec<_> = job
+        .ignore
+        .as_ref()
+        .map(|dirs| dirs.iter().map(|s| src.join(s)).collect())
+        .unwrap_or_default();
+
+    for entry in WalkDir::new(&src) {
+        let entry = entry?;
+        let entry_path = entry.path();
+        if entry_path.is_file() {
+            let rel = entry_path.strip_prefix(prefix)?;
+            let dist = target.join(rel);
+            if ignore_paths.iter().any(|p| entry_path.starts_with(p)) {
+                vec.push(Item::new(entry_path.to_path_buf(), dist, Strategy::Ignore));
+                continue;
+            }
+            match model {
+                BackupModel::Full => {
+                    vec.push(Item::new(entry_path.to_path_buf(), dist, Strategy::Copy));
+                }
+                BackupModel::Mirror => {
+                    if needs_update(entry_path, &dist)? {
+                        vec.push(Item::new(entry_path.to_path_buf(), dist, Strategy::Copy));
+                    } else {
+                        vec.push(Item::new(
+                            entry_path.to_path_buf(),
+                            dist,
+                            Strategy::NotUpdate,
+                        ));
+                    }
+                }
+            }
+        }
+    }
+    for entry in WalkDir::new(&target) {
+        let entry = entry?;
+        let entry_path = entry.path();
+        if entry_path.is_file() {
+            if let Some(i) = vec.iter().position(|v| v.dest.eq(entry_path)) {
+                if vec[i].strategy == Strategy::Ignore {
+                    vec[i].src = PathBuf::new();
+                    vec[i].strategy = Strategy::Delete;
+                }
+            } else {
+                vec.push(Item::new(
+                    PathBuf::new(),
+                    entry_path.to_path_buf(),
+                    Strategy::Delete,
+                ));
+            }
+        }
+    }
+
     Ok(vec)
 }
 
