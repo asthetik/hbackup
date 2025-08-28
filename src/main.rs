@@ -1,5 +1,5 @@
 mod application;
-mod common;
+mod constants;
 mod file_util;
 mod sysexits;
 
