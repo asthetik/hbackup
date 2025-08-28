@@ -5,7 +5,11 @@ edition = "2024"
 authors = ["asthetik"]
 homepage = "https://github.com/asthetik/hbackup"
 repository = "https://github.com/asthetik/hbackup"
-description = "hbackup is a sample, high-performance, cross-platform backup tool written in Rust. It is designed to be fast, efficient, and easy to use, with a focus on performance and reliability."
+description = """
+hbackup is a sample, high-performance, cross-platform backup tool written
+in Rust. It is designed to be fast, efficient, and easy to use,
+with a focus on performance and reliability.
+"""
 license = "MIT"
 keywords = ["hbackup", "bk", "backup", "cli"]
 categories = ["command-line-utilities"]
