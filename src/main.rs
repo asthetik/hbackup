@@ -19,13 +19,10 @@ use walkdir::WalkDir;
 /// Entry point for the hbackup CLI application.
 /// Parses command-line arguments and dispatches to the appropriate command handler.
 fn main() -> Result<()> {
-    let subcommand = match Opt::parse().subcommand {
-        Some(subcommand) => subcommand,
-        None => {
-            eprintln!("bk requires at least one command to execute. See 'bk --help' for usage.");
-            process::exit(sysexits::EX_KEYWORD);
-        }
-    };
+    let subcommand = Opt::parse().subcommand.unwrap_or_else(|| {
+        eprintln!("bk requires at least one command to execute. See 'bk --help' for usage.");
+        process::exit(sysexits::EX_KEYWORD);
+    });
 
     init_config();
 
