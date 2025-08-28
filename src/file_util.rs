@@ -30,7 +30,7 @@ use zstd::stream::write::Encoder as ZstdEncoder;
 
 const TOLERANCE: Duration = Duration::from_secs(1);
 
-pub(crate) fn copy_item(item: Item) -> Result<()> {
+pub(crate) fn execute_item(item: Item) -> Result<()> {
     let Item {
         src,
         dest,
@@ -56,7 +56,7 @@ pub(crate) fn copy_item(item: Item) -> Result<()> {
     Ok(())
 }
 
-pub(crate) async fn copy_item_async(item: Item) -> Result<()> {
+pub(crate) async fn execute_item_async(item: Item) -> Result<()> {
     let Item {
         src,
         dest,

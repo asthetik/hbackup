@@ -369,7 +369,7 @@ fn run_job(job: &Job) -> Result<()> {
         rt.block_on(async {
             let mut tasks = FuturesUnordered::new();
             for item in items {
-                tasks.push(copy_item_async(item));
+                tasks.push(execute_item_async(item));
             }
             while let Some(res) = tasks.next().await {
                 res?;
@@ -378,7 +378,7 @@ fn run_job(job: &Job) -> Result<()> {
         })?;
     } else {
         let item = get_item(job.clone())?;
-        copy_item(item)?;
+        execute_item(item)?;
     }
     Ok(())
 }
@@ -404,14 +404,14 @@ async fn run_job_async(job: &Job) -> Result<()> {
         let items = get_items(job.clone())?;
         let mut tasks = FuturesUnordered::new();
         for item in items {
-            tasks.push(copy_item_async(item));
+            tasks.push(execute_item_async(item));
         }
         while let Some(res) = tasks.next().await {
             res?;
         }
     } else {
         let item = get_item(job.clone())?;
-        copy_item_async(item).await?;
+        execute_item_async(item).await?;
     }
     Ok(())
 }
