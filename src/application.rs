@@ -5,7 +5,7 @@
 //! and config file management. It provides serialization/deserialization for TOML and JSON,
 //! and utilities for reading, writing, and migrating configuration files.
 
-use crate::{Result, common::CONFIG_BACKUP_NAME, common::CONFIG_NAME, sysexits};
+use crate::{Result, constants::CONFIG_BACKUP_NAME, constants::CONFIG_NAME, sysexits};
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -165,8 +165,6 @@ impl Application {
     }
 }
 
-const PKG_NAME: &str = env!("CARGO_PKG_NAME");
-
 /// Returns the absolute path to the configuration file.
 pub(crate) fn config_file() -> PathBuf {
     config_dir().join(CONFIG_NAME)
@@ -180,6 +178,8 @@ pub(crate) fn backed_config_file() -> PathBuf {
 /// Returns the configuration directory for the application, platform-specific.
 #[cfg(not(target_os = "macos"))]
 fn config_dir() -> PathBuf {
+    use crate::constants::PKG_NAME;
+
     let config_dir = dirs::config_dir().unwrap_or_else(|| {
         eprintln!("Couldn't get the home directory!!!");
         process::exit(sysexits::EX_UNAVAILABLE);
@@ -190,13 +190,12 @@ fn config_dir() -> PathBuf {
 /// Returns the configuration directory for the application, platform-specific.
 #[cfg(target_os = "macos")]
 fn config_dir() -> PathBuf {
-    let home_dir = match dirs::home_dir() {
-        Some(home_dir) => home_dir,
-        None => {
-            eprintln!("Couldn't get the home directory!!!");
-            process::exit(sysexits::EX_UNAVAILABLE);
-        }
-    };
+    use crate::constants::PKG_NAME;
+
+    let home_dir = dirs::home_dir().unwrap_or_else(|| {
+        eprintln!("Couldn't get the home directory!!!");
+        process::exit(sysexits::EX_UNAVAILABLE);
+    });
     home_dir.join(".config").join(PKG_NAME)
 }
 
