@@ -17,10 +17,8 @@
 - 🚀 **Fast and simple** file/directory backup via CLI
 - ⚡️ **Asynchronous multithreaded backup** for higher performance, especially with large or multiple files
 - 🖥️ **Cross-platform**: macOS, Linux, Windows
-- 🗂️ **Custom backup jobs** with unique IDs
 - 📝 **Configuration and task management** via TOML in user config directory
-- 🏠 Supports `~`, `$HOME`, and relative paths for source and target
-- 🔄 **Edit, delete, and list** backup jobs easily
+- 🔄 **Add, edit, delete, and list** backup jobs easily
 - 🗜️ **Compression support**: `gzip`, `zip`, `sevenz`, `zstd`, `bzip2`, `xz`, `lz4`, and `tar` for files and directories
 - 🛠️ **Config file backup, reset, and rollback**
 - 📦 **One-time backup**: run a backup without saving a job
