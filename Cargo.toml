@@ -1,6 +1,6 @@
 [package]
 name = "hbackup"
-version = "0.4.10"
+version = "0.4.11"
 edition = "2024"
 authors = ["asthetik"]
 homepage = "https://github.com/asthetik/hbackup"
