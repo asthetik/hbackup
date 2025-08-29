@@ -679,6 +679,7 @@ fn rollback_config_file() {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct Item {
     pub src: PathBuf,
     pub dest: PathBuf,
@@ -716,7 +717,7 @@ impl Item {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub(crate) enum Strategy {
     Copy,
     Ignore,
