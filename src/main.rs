@@ -5,7 +5,10 @@ mod item;
 mod job;
 mod sysexits;
 
-use crate::application::{Application, init_config};
+use crate::application::{
+    Application, backup_config_file, config_file, init_config, reset_config_file,
+    rollback_config_file,
+};
 use crate::job::{BackupModel, CompressFormat, Job, Level, display_jobs, run_job, run_jobs};
 use anyhow::{Result, anyhow};
 use clap::{Parser, Subcommand, ValueEnum};
@@ -107,10 +110,7 @@ fn main() -> Result<()> {
             } else if rollback {
                 rollback_config_file();
             } else {
-                println!(
-                    "Configuration file path: {}",
-                    application::config_file().display()
-                );
+                println!("Configuration file path: {}", config_file().display());
             }
         }
     }
@@ -435,65 +435,6 @@ fn edit(params: EditParams) -> Result<()> {
         println!("Job with id {id} not found.");
     }
     Ok(())
-}
-
-/// Back up the configuration file to a backup location.
-fn backup_config_file() {
-    let config_file = application::config_file();
-    let backed_config_file = application::backed_config_file();
-    // If the configuration file does not exist, initialize it
-    if !config_file.exists() {
-        let app = Application::new();
-        if let Err(e) = app.write() {
-            eprintln!("Failed to initialize configuration file: {e}");
-            process::exit(1);
-        }
-    }
-    match fs::copy(config_file, backed_config_file) {
-        Ok(_) => println!("Backup successfully!"),
-        Err(e) => {
-            eprintln!("Failed to backup configuration file: {e}");
-            process::exit(1);
-        }
-    }
-}
-
-/// Reset the configuration file and back up the file before resetting.
-fn reset_config_file() {
-    let config_file = application::config_file();
-    let backed_config_file = application::backed_config_file();
-    // Backup the config file if it exists
-    if config_file.exists() {
-        if let Err(e) = fs::copy(config_file, backed_config_file) {
-            eprintln!("Failed to backup configuration file: {e}");
-            process::exit(1);
-        }
-    }
-    // Initialize or reset the config file
-    match Application::new().write() {
-        Ok(_) => println!("Configuration file reset successfully!"),
-        Err(e) => {
-            eprintln!("Failed to reset configuration file: {e}");
-            process::exit(1);
-        }
-    }
-}
-
-/// Rollback the last backed up configuration file.
-fn rollback_config_file() {
-    let backed_config_file = application::backed_config_file();
-    if !backed_config_file.exists() {
-        eprintln!("The backup configuration file does not exist.");
-        process::exit(1);
-    }
-    let app = application::read_backed_config_file();
-    match app.write() {
-        Ok(_) => println!("Configuration file rolled back successfully."),
-        Err(e) => {
-            eprintln!("Failed to rollback configuration file: {e}");
-            process::exit(1);
-        }
-    }
 }
 
 /// Returns the canonical, absolute form of the path with all intermediate
