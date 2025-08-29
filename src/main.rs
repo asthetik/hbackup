@@ -6,17 +6,12 @@ mod job;
 mod sysexits;
 
 use crate::application::{Application, init_config};
-use crate::file_util::*;
-use crate::item::{get_item, get_items};
-use crate::job::{BackupModel, CompressFormat, Job, Level, display_jobs};
+use crate::job::{BackupModel, CompressFormat, Job, Level, display_jobs, run_job, run_jobs};
 use anyhow::{Result, anyhow};
 use clap::{Parser, Subcommand, ValueEnum};
-use futures::StreamExt;
-use futures::stream::FuturesUnordered;
 use std::io::{ErrorKind, Write};
 use std::path::PathBuf;
 use std::{fs, io, process};
-use tokio::runtime::Builder;
 
 /// Entry point for the hbackup CLI application.
 /// Parses command-line arguments and dispatches to the appropriate command handler.
@@ -57,15 +52,7 @@ fn main() -> Result<()> {
                     let target = canonicalize(target);
 
                     // The temporary job id is set to 0
-                    let job = Job {
-                        id: 0,
-                        source,
-                        target,
-                        compression,
-                        level,
-                        ignore,
-                        model,
-                    };
+                    let job = Job::temp_job(source, target, compression, level, ignore, model);
                     run_job(&job)?;
                 }
                 _ => run()?,
@@ -301,29 +288,6 @@ fn run() -> Result<()> {
     Ok(())
 }
 
-/// Runs multiple backup jobs concurrently.
-fn run_jobs(jobs: Vec<Job>) -> Result<()> {
-    let rt = Builder::new_multi_thread().enable_all().build()?;
-
-    rt.block_on(async move {
-        let mut set = tokio::task::JoinSet::new();
-        for job in jobs {
-            set.spawn(async move {
-                if let Err(e) = run_job_async(&job).await {
-                    eprintln!("Failed to run job with id {}: {}\n", job.id, e);
-                }
-            });
-        }
-        while let Some(res) = set.join_next().await {
-            if let Err(e) = res {
-                eprintln!("Failed to run job: {e}\n");
-            }
-        }
-    });
-
-    Ok(())
-}
-
 /// Runs a backup job by its id.
 fn run_by_id(ids: Vec<u32>) {
     let jobs = Application::get_jobs();
@@ -353,69 +317,6 @@ fn run_by_id(ids: Vec<u32>) {
         eprintln!("Failed to run jobs: {e}\n");
         process::exit(sysexits::EX_IOERR);
     }
-}
-
-/// Runs a backup job (single file or directory copy, with optional compression).
-fn run_job(job: &Job) -> Result<()> {
-    if let Some(ref format) = job.compression {
-        let level = job.level.as_ref().unwrap_or(&Level::Default);
-        file_util::compression(&job.source, &job.target, format, level, &job.ignore)?;
-    } else if job.source.is_dir() {
-        if job.target.exists() && job.target.is_file() {
-            eprintln!("File exists");
-            process::exit(sysexits::EX_CANTCREAT);
-        }
-
-        let items = get_items(job.clone())?;
-        let rt = Builder::new_multi_thread().enable_all().build()?;
-        rt.block_on(async {
-            let mut tasks = FuturesUnordered::new();
-            for item in items {
-                tasks.push(execute_item_async(item));
-            }
-            while let Some(res) = tasks.next().await {
-                res?;
-            }
-            Ok::<(), anyhow::Error>(())
-        })?;
-    } else {
-        let item = get_item(job.clone())?;
-        execute_item(item)?;
-    }
-    Ok(())
-}
-
-/// Runs a backup job (single file or directory copy, with optional compression).
-async fn run_job_async(job: &Job) -> Result<()> {
-    if let Some(ref format) = job.compression {
-        let level = job.level.as_ref().unwrap_or(&Level::Default);
-        let src = job.source.clone();
-        let tgt = job.target.clone();
-        let fmt = format.clone();
-        let lvl = level.clone();
-        let ignore = job.ignore.clone();
-        tokio::task::spawn_blocking(move || {
-            file_util::compression(&src, &tgt, &fmt, &lvl, &ignore)
-        })
-        .await??;
-    } else if job.source.is_dir() {
-        if job.target.exists() && job.target.is_file() {
-            eprintln!("File exists");
-            process::exit(sysexits::EX_CANTCREAT);
-        }
-        let items = get_items(job.clone())?;
-        let mut tasks = FuturesUnordered::new();
-        for item in items {
-            tasks.push(execute_item_async(item));
-        }
-        while let Some(res) = tasks.next().await {
-            res?;
-        }
-    } else {
-        let item = get_item(job.clone())?;
-        execute_item_async(item).await?;
-    }
-    Ok(())
 }
 
 /// Lists all backup jobs in the configuration.
