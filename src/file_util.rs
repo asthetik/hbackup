@@ -562,7 +562,6 @@ mod tests {
     use std::fs::{self, File};
     use std::io::Write;
     use tempfile::TempDir;
-    use tokio;
 
     fn create_test_file(dir: &Path, name: &str, content: &[u8]) -> PathBuf {
         let file_path = dir.join(name);
