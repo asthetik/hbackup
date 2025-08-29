@@ -1,6 +1,14 @@
+use crate::{
+    file_util::{self, execute_item, execute_item_async},
+    item::{get_item, get_items},
+    sysexits,
+};
+use anyhow::Result;
 use clap::ValueEnum;
+use futures::{StreamExt, stream::FuturesUnordered};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::{path::PathBuf, process};
+use tokio::runtime::Builder as runtimeBuilder;
 
 /// Represents a single backup job with a unique id, source, target, and optional compression.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -49,6 +57,27 @@ pub(crate) enum BackupModel {
     #[default]
     Full,
     Mirror,
+}
+
+impl Job {
+    pub(crate) fn temp_job(
+        source: PathBuf,
+        target: PathBuf,
+        compression: Option<CompressFormat>,
+        level: Option<Level>,
+        ignore: Option<Vec<String>>,
+        model: Option<BackupModel>,
+    ) -> Job {
+        Job {
+            id: 0,
+            source,
+            target,
+            compression,
+            level,
+            ignore,
+            model,
+        }
+    }
 }
 
 pub(crate) fn display_jobs(jobs: Vec<Job>) -> String {
@@ -103,6 +132,92 @@ pub(crate) fn display_jobs(jobs: Vec<Job>) -> String {
     }
     s.push(']');
     s
+}
+
+/// Runs a backup job (single file or directory copy, with optional compression).
+pub(crate) fn run_job(job: &Job) -> Result<()> {
+    if let Some(ref format) = job.compression {
+        let level = job.level.as_ref().unwrap_or(&Level::Default);
+        file_util::compression(&job.source, &job.target, format, level, &job.ignore)?;
+    } else if job.source.is_dir() {
+        if job.target.exists() && job.target.is_file() {
+            eprintln!("File exists");
+            process::exit(sysexits::EX_CANTCREAT);
+        }
+
+        let items = get_items(job.clone())?;
+        let rt = runtimeBuilder::new_multi_thread().enable_all().build()?;
+        rt.block_on(async {
+            let mut tasks = FuturesUnordered::new();
+            for item in items {
+                tasks.push(execute_item_async(item));
+            }
+            while let Some(res) = tasks.next().await {
+                res?;
+            }
+            Ok::<(), anyhow::Error>(())
+        })?;
+    } else {
+        let item = get_item(job.clone())?;
+        execute_item(item)?;
+    }
+    Ok(())
+}
+
+/// Runs multiple backup jobs concurrently.
+pub(crate) fn run_jobs(jobs: Vec<Job>) -> Result<()> {
+    let rt = runtimeBuilder::new_multi_thread().enable_all().build()?;
+
+    rt.block_on(async move {
+        let mut set = tokio::task::JoinSet::new();
+        for job in jobs {
+            set.spawn(async move {
+                if let Err(e) = run_job_async(&job).await {
+                    eprintln!("Failed to run job with id {}: {}\n", job.id, e);
+                }
+            });
+        }
+        while let Some(res) = set.join_next().await {
+            if let Err(e) = res {
+                eprintln!("Failed to run job: {e}\n");
+            }
+        }
+    });
+
+    Ok(())
+}
+
+/// Runs a backup job (single file or directory copy, with optional compression).
+async fn run_job_async(job: &Job) -> Result<()> {
+    if let Some(ref format) = job.compression {
+        let level = job.level.as_ref().unwrap_or(&Level::Default);
+        let src = job.source.clone();
+        let tgt = job.target.clone();
+        let fmt = format.clone();
+        let lvl = level.clone();
+        let ignore = job.ignore.clone();
+        tokio::task::spawn_blocking(move || {
+            file_util::compression(&src, &tgt, &fmt, &lvl, &ignore)
+        })
+        .await??;
+    } else if job.source.is_dir() {
+        if job.target.exists() && job.target.is_file() {
+            eprintln!("File exists");
+            process::exit(sysexits::EX_CANTCREAT);
+        }
+        let items = get_items(job.clone())?;
+        let mut tasks = FuturesUnordered::new();
+        for item in items {
+            tasks.push(execute_item_async(item));
+        }
+        while let Some(res) = tasks.next().await {
+            res?;
+        }
+    } else {
+        let item = get_item(job.clone())?;
+        execute_item_async(item).await?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
