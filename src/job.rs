@@ -1,13 +1,13 @@
 use crate::{
     file_util::{self, execute_item, execute_item_async},
     item::{get_item, get_items},
-    sysexits,
 };
 use anyhow::Result;
+use anyhow::anyhow;
 use clap::ValueEnum;
 use futures::{StreamExt, stream::FuturesUnordered};
 use serde::{Deserialize, Serialize};
-use std::{path::PathBuf, process};
+use std::path::PathBuf;
 use tokio::runtime::Builder as runtimeBuilder;
 
 /// Represents a single backup job with a unique id, source, target, and optional compression.
@@ -140,9 +140,11 @@ pub(crate) fn run_job(job: &Job) -> Result<()> {
         let level = job.level.as_ref().unwrap_or(&Level::Default);
         file_util::compression(&job.source, &job.target, format, level, &job.ignore)?;
     } else if job.source.is_dir() {
-        if job.target.exists() && job.target.is_file() {
-            eprintln!("File exists");
-            process::exit(sysexits::EX_CANTCREAT);
+        let target = &job.target;
+        if target.exists() && target.is_file() {
+            return Err(anyhow!(
+                "The file {target:?} already exists and a directory with the same name cannot be created."
+            ));
         }
 
         let items = get_items(job.clone())?;
@@ -203,10 +205,9 @@ async fn run_job_async(job: &Job) -> Result<()> {
     } else if job.source.is_dir() {
         let target = &job.target;
         if target.exists() && target.is_file() {
-            eprintln!(
+            return Err(anyhow!(
                 "The file {target:?} already exists and a directory with the same name cannot be created."
-            );
-            process::exit(sysexits::EX_CANTCREAT);
+            ));
         }
         let items = get_items(job.clone())?;
         let mut tasks = FuturesUnordered::new();
