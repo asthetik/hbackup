@@ -292,8 +292,8 @@ fn run() -> Result<()> {
 fn run_by_id(ids: Vec<u32>) {
     let jobs = Application::get_jobs();
     if jobs.is_empty() {
-        eprintln!("No jobs are backed up!");
-        process::exit(sysexits::EX_DATAERR);
+        println!("No jobs are backed up!");
+        return;
     }
     let mut vec = vec![];
     for id in ids {
@@ -303,12 +303,12 @@ fn run_by_id(ids: Vec<u32>) {
             }
             None => {
                 eprintln!("Job with id {id} not found.");
-                process::exit(sysexits::EX_DATAERR);
             }
         }
     }
-    assert!(!vec.is_empty(), "No jobs found to run");
-    if vec.len() == 1 {
+    if vec.is_empty() {
+        process::exit(1);
+    } else if vec.len() == 1 {
         if let Err(e) = run_job(&vec[0]) {
             eprintln!("Failed to run job with id {}: {e}\n", vec[0].id);
             process::exit(sysexits::EX_IOERR);
