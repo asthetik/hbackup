@@ -646,11 +646,11 @@ fn get_jobs(
 fn copy_file(source: &Path, target: &Path) -> Result<()> {
     if !source.exists() {
         return Err(anyhow!("The path '{source:?}' does not exist"));
-    } else if source.is_dir() && target.exists() && !target.is_dir() {
+    } else if source.is_dir() && !target.is_dir() {
         return Err(anyhow!(
             "Cannot copy directory '{source:?}' to file '{target:?}'"
         ));
-    } else if source.is_dir() && !target.exists() {
+    } else if source.is_dir() {
         // Handle directory copy
         fs::create_dir_all(target)?;
         return Ok(());
@@ -677,11 +677,11 @@ fn copy_file(source: &Path, target: &Path) -> Result<()> {
 async fn copy_file_async(source: PathBuf, target: PathBuf) -> Result<()> {
     if !source.exists() {
         return Err(anyhow!("The path '{source:?}' does not exist"));
-    } else if source.is_dir() && target.exists() && !target.is_dir() {
+    } else if source.is_dir() && !target.is_dir() {
         return Err(anyhow!(
             "Cannot copy directory '{source:?}' to file '{target:?}'"
         ));
-    } else if source.is_dir() && !target.exists() {
+    } else if source.is_dir() {
         // Handle directory copy
         fs::create_dir_all(target)?;
         return Ok(());
