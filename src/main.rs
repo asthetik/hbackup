@@ -686,12 +686,33 @@ pub(crate) struct Item {
 }
 
 impl Item {
-    pub fn new(src: PathBuf, dest: PathBuf, strategy: Strategy) -> Item {
+    fn new(src: PathBuf, dest: PathBuf, strategy: Strategy) -> Item {
         Item {
             src,
             dest,
             strategy,
         }
+    }
+
+    fn from_delete_strategy(dest: PathBuf) -> Item {
+        Self::new(PathBuf::new(), dest, Strategy::Delete)
+    }
+
+    fn from_copy_strategy(src: PathBuf, dest: PathBuf) -> Item {
+        Self::new(src, dest, Strategy::Copy)
+    }
+
+    fn from_ignore_strategy(src: PathBuf, dest: PathBuf) -> Item {
+        Self::new(src, dest, Strategy::Ignore)
+    }
+
+    fn from_notupdate_strategy(src: PathBuf, dest: PathBuf) -> Item {
+        Self::new(src, dest, Strategy::NotUpdate)
+    }
+
+    fn change_delete_strategy(&mut self) {
+        self.src = PathBuf::new();
+        self.strategy = Strategy::Delete;
     }
 }
 
@@ -760,23 +781,22 @@ fn get_items(job: Job) -> Result<Vec<Item>> {
         let entry_path = entry.path();
         if entry_path.is_file() {
             let rel = entry_path.strip_prefix(prefix)?;
-            let dist = target.join(rel);
+            let dest = target.join(rel);
             if ignore_paths.iter().any(|p| entry_path.starts_with(p)) {
-                vec.push(Item::new(entry_path.to_path_buf(), dist, Strategy::Ignore));
+                vec.push(Item::from_ignore_strategy(entry_path.to_path_buf(), dest));
                 continue;
             }
             match model {
                 BackupModel::Full => {
-                    vec.push(Item::new(entry_path.to_path_buf(), dist, Strategy::Copy));
+                    vec.push(Item::from_copy_strategy(entry_path.to_path_buf(), dest));
                 }
                 BackupModel::Mirror => {
-                    if needs_update(entry_path, &dist)? {
-                        vec.push(Item::new(entry_path.to_path_buf(), dist, Strategy::Copy));
+                    if needs_update(entry_path, &dest)? {
+                        vec.push(Item::from_copy_strategy(entry_path.to_path_buf(), dest));
                     } else {
-                        vec.push(Item::new(
+                        vec.push(Item::from_notupdate_strategy(
                             entry_path.to_path_buf(),
-                            dist,
-                            Strategy::NotUpdate,
+                            dest,
                         ));
                     }
                 }
@@ -789,15 +809,10 @@ fn get_items(job: Job) -> Result<Vec<Item>> {
         if entry_path.is_file() {
             if let Some(i) = vec.iter().position(|v| v.dest.eq(entry_path)) {
                 if vec[i].strategy == Strategy::Ignore {
-                    vec[i].src = PathBuf::new();
-                    vec[i].strategy = Strategy::Delete;
+                    vec[i].change_delete_strategy();
                 }
             } else {
-                vec.push(Item::new(
-                    PathBuf::new(),
-                    entry_path.to_path_buf(),
-                    Strategy::Delete,
-                ));
+                vec.push(Item::from_delete_strategy(entry_path.to_path_buf()));
             }
         }
     }
