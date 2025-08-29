@@ -563,6 +563,7 @@ mod tests {
     use std::fs::{self, File};
     use std::io::Write;
     use tempfile::TempDir;
+    use tokio;
 
     fn create_test_file(dir: &Path, name: &str, content: &[u8]) -> PathBuf {
         let file_path = dir.join(name);
@@ -597,6 +598,107 @@ mod tests {
         );
 
         test_dir
+    }
+
+    #[test]
+    fn test_execute_item() -> Result<()> {
+        let filename = "hello.txt";
+        let content = b"Hello, World!";
+
+        let temp_dir = TempDir::new()?;
+        let src = create_test_file(temp_dir.path(), filename, content);
+        let dest = temp_dir.path().join("output").join(filename);
+        let item = Item::from_copy_strategy(src.clone(), dest.clone());
+        dbg!(&item);
+        execute_item(item)?;
+        assert!(dest.exists());
+        assert!(dest.is_file());
+        let output = fs::read_to_string(dest)?;
+        assert_eq!(output, "Hello, World!");
+
+        let temp_dir = TempDir::new()?;
+        let src = create_test_file(temp_dir.path(), filename, content);
+        let dest = temp_dir.path().join("output").join(filename);
+        let item = Item::from_notupdate_strategy(src.clone(), dest.clone());
+        dbg!(&item);
+        execute_item(item)?;
+        assert!(!dest.exists());
+
+        let temp_dir = TempDir::new()?;
+        let src = create_test_file(temp_dir.path(), filename, content);
+        let dest = temp_dir.path().join("output").join(filename);
+        let item = Item::from_ignore_strategy(src.clone(), dest.clone());
+        dbg!(&item);
+        execute_item(item)?;
+        assert!(!dest.exists());
+
+        let temp_dir = TempDir::new()?;
+        let dest = create_test_file(temp_dir.path(), filename, content);
+        let item = Item::from_delete_strategy(dest.clone());
+        dbg!(&item);
+        assert!(dest.exists());
+        execute_item(item)?;
+        assert!(!dest.exists());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_execute_item_async() -> Result<()> {
+        let filename = "hello.txt";
+        let content = b"Hello, World!";
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()?;
+
+        let temp_dir = TempDir::new()?;
+        let src = create_test_file(temp_dir.path(), filename, content);
+        let dest = temp_dir.path().join("output").join(filename);
+        let item = Item::from_copy_strategy(src.clone(), dest.clone());
+        dbg!(&item);
+        rt.block_on(async {
+            let res = execute_item_async(item).await;
+            assert!(res.is_ok());
+        });
+        assert!(dest.exists());
+        assert!(dest.is_file());
+        let output = fs::read_to_string(dest)?;
+        assert_eq!(output, "Hello, World!");
+
+        let temp_dir = TempDir::new()?;
+        let src = create_test_file(temp_dir.path(), filename, content);
+        let dest = temp_dir.path().join("output").join(filename);
+        let item = Item::from_notupdate_strategy(src.clone(), dest.clone());
+        dbg!(&item);
+        rt.block_on(async {
+            let res = execute_item_async(item).await;
+            assert!(res.is_ok());
+        });
+        assert!(!dest.exists());
+
+        let temp_dir = TempDir::new()?;
+        let src = create_test_file(temp_dir.path(), filename, content);
+        let dest = temp_dir.path().join("output").join(filename);
+        let item = Item::from_ignore_strategy(src.clone(), dest.clone());
+        dbg!(&item);
+        rt.block_on(async {
+            let res = execute_item_async(item).await;
+            assert!(res.is_ok());
+        });
+        assert!(!dest.exists());
+
+        let temp_dir = TempDir::new()?;
+        let dest = create_test_file(temp_dir.path(), filename, content);
+        let item = Item::from_delete_strategy(dest.clone());
+        dbg!(&item);
+        assert!(dest.exists());
+        rt.block_on(async {
+            let res = execute_item_async(item).await;
+            assert!(res.is_ok());
+        });
+        assert!(!dest.exists());
+
+        Ok(())
     }
 
     #[test]
