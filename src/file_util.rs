@@ -3,11 +3,9 @@
 //! This module provides functions to compress files and directories
 //! using gzip, zip, 7z, zstd, bzip2, and xz formats. It supports both single files and entire directories,
 //! and automatically selects the correct compression strategy based on the input type and format.
-
-use crate::Item;
-use crate::Strategy;
-use crate::application::CompressFormat;
-use crate::application::Level;
+use crate::item::{Item, Strategy};
+use crate::job::CompressFormat;
+use crate::job::Level;
 use anyhow::anyhow;
 use anyhow::{Context, Result};
 use bzip2::Compression as BzCompression;
@@ -560,6 +558,7 @@ fn compress_tar(src: &Path, dest: &Path, ignore: &Option<Vec<String>>) -> Result
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::job::Level;
     use std::fs::{self, File};
     use std::io::Write;
     use tempfile::TempDir;
