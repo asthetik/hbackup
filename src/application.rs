@@ -144,7 +144,7 @@ pub(crate) fn config_file() -> PathBuf {
 }
 
 /// Returns the absolute path to the backup configuration file.
-pub(crate) fn backed_config_file() -> PathBuf {
+fn backed_config_file() -> PathBuf {
     config_dir().join(CONFIG_BACKUP_NAME)
 }
 
@@ -234,6 +234,65 @@ pub(crate) fn init_config() {
         let toml_str = toml::to_string_pretty(&app).unwrap();
         writer.write_all(toml_str.as_bytes()).unwrap();
         writer.flush().unwrap();
+    }
+}
+
+/// Back up the configuration file to a backup location.
+pub(crate) fn backup_config_file() {
+    let config_file = config_file();
+    let backed_config_file = backed_config_file();
+    // If the configuration file does not exist, initialize it
+    if !config_file.exists() {
+        let app = Application::new();
+        if let Err(e) = app.write() {
+            eprintln!("Failed to initialize configuration file: {e}");
+            process::exit(1);
+        }
+    }
+    match fs::copy(config_file, backed_config_file) {
+        Ok(_) => println!("Backup successfully!"),
+        Err(e) => {
+            eprintln!("Failed to backup configuration file: {e}");
+            process::exit(1);
+        }
+    }
+}
+
+/// Reset the configuration file and back up the file before resetting.
+pub(crate) fn reset_config_file() {
+    let config_file = config_file();
+    let backed_config_file = backed_config_file();
+    // Backup the config file if it exists
+    if config_file.exists() {
+        if let Err(e) = fs::copy(config_file, backed_config_file) {
+            eprintln!("Failed to backup configuration file: {e}");
+            process::exit(1);
+        }
+    }
+    // Initialize or reset the config file
+    match Application::new().write() {
+        Ok(_) => println!("Configuration file reset successfully!"),
+        Err(e) => {
+            eprintln!("Failed to reset configuration file: {e}");
+            process::exit(1);
+        }
+    }
+}
+
+/// Rollback the last backed up configuration file.
+pub(crate) fn rollback_config_file() {
+    let backed_config_file = backed_config_file();
+    if !backed_config_file.exists() {
+        eprintln!("The backup configuration file does not exist.");
+        process::exit(1);
+    }
+    let app = read_backed_config_file();
+    match app.write() {
+        Ok(_) => println!("Configuration file rolled back successfully."),
+        Err(e) => {
+            eprintln!("Failed to rollback configuration file: {e}");
+            process::exit(1);
+        }
     }
 }
 
