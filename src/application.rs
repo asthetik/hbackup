@@ -105,6 +105,28 @@ impl Application {
         Self::load_config().jobs
     }
 
+    pub(crate) fn list_by_ids(ids: Vec<u32>) -> Vec<Job> {
+        Self::get_jobs()
+            .into_iter()
+            .filter(|job| ids.contains(&job.id))
+            .collect()
+    }
+
+    /// Lists backup jobs by their IDs.
+    pub(crate) fn list_by_gte(id: u32) -> Vec<Job> {
+        Self::get_jobs()
+            .into_iter()
+            .filter(|job| job.id >= id)
+            .collect()
+    }
+
+    pub(crate) fn list_by_lte(id: u32) -> Vec<Job> {
+        Self::get_jobs()
+            .into_iter()
+            .filter(|job| job.id <= id)
+            .collect()
+    }
+
     /// Removes a job by id. Returns Some if removed, None if not found.
     pub(crate) fn remove_job(&mut self, id: u32) -> Option<()> {
         if let Some(index) = self.jobs.iter().position(|j| j.id == id) {

@@ -59,15 +59,16 @@ fn main() -> Result<()> {
             }
         }
         Command::List { id, gte, lte } => {
-            if let Some(ids) = id {
-                list_by_ids(ids);
+            let jobs = if let Some(ids) = id {
+                Application::list_by_ids(ids)
             } else if let Some(gte) = gte {
-                list_by_gte(gte);
+                Application::list_by_gte(gte)
             } else if let Some(lte) = lte {
-                list_by_lte(lte);
+                Application::list_by_lte(lte)
             } else {
-                list();
-            }
+                Application::get_jobs()
+            };
+            println!("{}", display_jobs(jobs));
         }
         Command::Delete { id, all } => {
             delete(id, all)?;
@@ -317,39 +318,6 @@ fn run_by_id(ids: Vec<u32>) {
         eprintln!("Failed to run jobs: {e}\n");
         process::exit(sysexits::EX_IOERR);
     }
-}
-
-/// Lists all backup jobs in the configuration.
-fn list() {
-    let jobs = Application::get_jobs();
-    println!("{}", display_jobs(jobs));
-}
-
-/// Lists backup jobs by their IDs.
-fn list_by_ids(ids: Vec<u32>) {
-    let jobs = Application::get_jobs()
-        .into_iter()
-        .filter(|job| ids.contains(&job.id))
-        .collect();
-    println!("{}", display_jobs(jobs));
-}
-
-/// Lists backup jobs by their IDs.
-fn list_by_gte(id: u32) {
-    let jobs = Application::get_jobs()
-        .into_iter()
-        .filter(|job| job.id >= id)
-        .collect();
-    println!("{}", display_jobs(jobs));
-}
-
-/// Lists backup jobs by their IDs.
-fn list_by_lte(id: u32) {
-    let jobs = Application::get_jobs()
-        .into_iter()
-        .filter(|job| job.id <= id)
-        .collect();
-    println!("{}", display_jobs(jobs));
 }
 
 /// Deletes a job by id or deletes all jobs.

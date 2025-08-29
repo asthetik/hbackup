@@ -203,7 +203,9 @@ async fn run_job_async(job: &Job) -> Result<()> {
     } else if job.source.is_dir() {
         let target = &job.target;
         if target.exists() && target.is_file() {
-            eprintln!("The file {target:?} already exists and a directory with the same name cannot be created.");
+            eprintln!(
+                "The file {target:?} already exists and a directory with the same name cannot be created."
+            );
             process::exit(sysexits::EX_CANTCREAT);
         }
         let items = get_items(job.clone())?;
