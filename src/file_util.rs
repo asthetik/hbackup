@@ -3,7 +3,6 @@
 //! This module provides functions to compress files and directories
 //! using gzip, zip, 7z, zstd, bzip2, and xz formats. It supports both single files and entire directories,
 //! and automatically selects the correct compression strategy based on the input type and format.
-use crate::item::{Item, Strategy};
 use crate::job::CompressFormat;
 use crate::job::Level;
 use anyhow::anyhow;
@@ -28,53 +27,60 @@ use zstd::stream::write::Encoder as ZstdEncoder;
 
 const TOLERANCE: Duration = Duration::from_secs(1);
 
-pub(crate) fn execute_item(item: Item) -> Result<()> {
-    let Item {
-        src,
-        dest,
-        strategy,
-    } = item;
-
-    match strategy {
-        Strategy::Copy => {
-            if let Some(parent) = dest.parent() {
-                if !parent.exists() {
-                    fs::create_dir_all(parent)?;
-                }
-            }
-            fs::copy(src, dest)?;
-        }
-        Strategy::Delete => {
-            if dest.exists() {
-                fs::remove_file(dest)?;
-            }
-        }
-        _ => {}
+/// copy files and directories from src to dest
+pub(crate) fn copy(src: &Path, dest: &Path) -> Result<()> {
+    if !src.exists() {
+        return Err(anyhow!("The path {src:?} does not exist"));
+    } else if src.is_dir() {
+        return if dest.is_file() {
+            Err(anyhow!("Cannot copy directory {src:?} to file {dest:?}"))
+        } else {
+            // Handle directory copy
+            fs::create_dir_all(dest)?;
+            Ok(())
+        };
     }
+
+    let dest = if dest.is_dir() {
+        let file_name = src.file_name().with_context(|| "Invalid file name")?;
+        dest.join(file_name)
+    } else {
+        dest.into()
+    };
+
+    if let Some(parent) = dest.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::copy(src, &dest)?;
+
     Ok(())
 }
 
-pub(crate) async fn execute_item_async(item: Item) -> Result<()> {
-    let Item {
-        src,
-        dest,
-        strategy,
-    } = item;
-
-    match strategy {
-        Strategy::Copy => {
-            if let Some(parent) = dest.parent() {
-                if !parent.exists() {
-                    fs::create_dir_all(parent)?;
-                }
-            }
-            tokio::fs::copy(src, dest).await?;
-        }
-        Strategy::Delete if dest.exists() => {
-            tokio::fs::remove_file(dest).await?;
-        }
-        _ => {}
+/// Asynchronously copy files and directories from src to dest.
+pub(crate) async fn copy_async(src: PathBuf, dest: PathBuf) -> Result<()> {
+    if !src.exists() {
+        return Err(anyhow!("The path {src:?} does not exist"));
+    } else if src.is_dir() {
+        return if dest.is_file() {
+            Err(anyhow!("Cannot copy directory {src:?} to file {dest:?}"))
+        } else {
+            // Handle directory copy
+            fs::create_dir_all(dest)?;
+            Ok(())
+        };
     }
+
+    let dest = if dest.is_dir() {
+        let file_name = src.file_name().with_context(|| "Invalid file name")?;
+        dest.join(file_name)
+    } else {
+        dest
+    };
+
+    if let Some(parent) = dest.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    tokio::fs::copy(&src, &dest).await?;
     Ok(())
 }
 
@@ -596,107 +602,6 @@ mod tests {
         );
 
         test_dir
-    }
-
-    #[test]
-    fn test_execute_item() -> Result<()> {
-        let filename = "hello.txt";
-        let content = b"Hello, World!";
-
-        let temp_dir = TempDir::new()?;
-        let src = create_test_file(temp_dir.path(), filename, content);
-        let dest = temp_dir.path().join("output").join(filename);
-        let item = Item::from_copy_strategy(src.clone(), dest.clone());
-        dbg!(&item);
-        execute_item(item)?;
-        assert!(dest.exists());
-        assert!(dest.is_file());
-        let output = fs::read_to_string(dest)?;
-        assert_eq!(output, "Hello, World!");
-
-        let temp_dir = TempDir::new()?;
-        let src = create_test_file(temp_dir.path(), filename, content);
-        let dest = temp_dir.path().join("output").join(filename);
-        let item = Item::from_notupdate_strategy(src.clone(), dest.clone());
-        dbg!(&item);
-        execute_item(item)?;
-        assert!(!dest.exists());
-
-        let temp_dir = TempDir::new()?;
-        let src = create_test_file(temp_dir.path(), filename, content);
-        let dest = temp_dir.path().join("output").join(filename);
-        let item = Item::from_ignore_strategy(src.clone(), dest.clone());
-        dbg!(&item);
-        execute_item(item)?;
-        assert!(!dest.exists());
-
-        let temp_dir = TempDir::new()?;
-        let dest = create_test_file(temp_dir.path(), filename, content);
-        let item = Item::from_delete_strategy(dest.clone());
-        dbg!(&item);
-        assert!(dest.exists());
-        execute_item(item)?;
-        assert!(!dest.exists());
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_execute_item_async() -> Result<()> {
-        let filename = "hello.txt";
-        let content = b"Hello, World!";
-        let rt = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()?;
-
-        let temp_dir = TempDir::new()?;
-        let src = create_test_file(temp_dir.path(), filename, content);
-        let dest = temp_dir.path().join("output").join(filename);
-        let item = Item::from_copy_strategy(src.clone(), dest.clone());
-        dbg!(&item);
-        rt.block_on(async {
-            let res = execute_item_async(item).await;
-            assert!(res.is_ok());
-        });
-        assert!(dest.exists());
-        assert!(dest.is_file());
-        let output = fs::read_to_string(dest)?;
-        assert_eq!(output, "Hello, World!");
-
-        let temp_dir = TempDir::new()?;
-        let src = create_test_file(temp_dir.path(), filename, content);
-        let dest = temp_dir.path().join("output").join(filename);
-        let item = Item::from_notupdate_strategy(src.clone(), dest.clone());
-        dbg!(&item);
-        rt.block_on(async {
-            let res = execute_item_async(item).await;
-            assert!(res.is_ok());
-        });
-        assert!(!dest.exists());
-
-        let temp_dir = TempDir::new()?;
-        let src = create_test_file(temp_dir.path(), filename, content);
-        let dest = temp_dir.path().join("output").join(filename);
-        let item = Item::from_ignore_strategy(src.clone(), dest.clone());
-        dbg!(&item);
-        rt.block_on(async {
-            let res = execute_item_async(item).await;
-            assert!(res.is_ok());
-        });
-        assert!(!dest.exists());
-
-        let temp_dir = TempDir::new()?;
-        let dest = create_test_file(temp_dir.path(), filename, content);
-        let item = Item::from_delete_strategy(dest.clone());
-        dbg!(&item);
-        assert!(dest.exists());
-        rt.block_on(async {
-            let res = execute_item_async(item).await;
-            assert!(res.is_ok());
-        });
-        assert!(!dest.exists());
-
-        Ok(())
     }
 
     #[test]
