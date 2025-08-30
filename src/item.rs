@@ -5,6 +5,7 @@ use crate::{
 };
 use anyhow::Context;
 use anyhow::Result;
+use std::collections::HashSet;
 use std::{
     path::{Path, PathBuf},
     process,
@@ -12,49 +13,49 @@ use std::{
 use walkdir::WalkDir;
 
 #[derive(Debug)]
-pub(crate) struct Item {
-    pub src: PathBuf,
-    pub dest: PathBuf,
-    pub strategy: Strategy,
+#[allow(dead_code)]
+pub(crate) enum Item {
+    Copy { src: PathBuf, dest: PathBuf },
+    Ignore { src: PathBuf, dest: PathBuf },
+    NotUpdate { src: PathBuf, dest: PathBuf },
+    Delete(PathBuf),
 }
 
 impl Item {
-    fn new(src: PathBuf, dest: PathBuf, strategy: Strategy) -> Item {
-        Item {
-            src,
-            dest,
-            strategy,
+    fn new_copy(src: &Path, dest: &Path) -> Self {
+        Item::Copy {
+            src: src.to_path_buf(),
+            dest: dest.to_path_buf(),
         }
     }
 
-    pub fn from_delete_strategy(dest: PathBuf) -> Item {
-        Self::new(PathBuf::new(), dest, Strategy::Delete)
+    fn new_ignore(src: &Path, dest: &Path) -> Self {
+        Item::Ignore {
+            src: src.to_path_buf(),
+            dest: dest.to_path_buf(),
+        }
     }
 
-    pub fn from_copy_strategy(src: PathBuf, dest: PathBuf) -> Item {
-        Self::new(src, dest, Strategy::Copy)
+    fn new_notupdate(src: &Path, dest: &Path) -> Self {
+        Item::NotUpdate {
+            src: src.to_path_buf(),
+            dest: dest.to_path_buf(),
+        }
     }
 
-    pub fn from_ignore_strategy(src: PathBuf, dest: PathBuf) -> Item {
-        Self::new(src, dest, Strategy::Ignore)
+    fn new_delete(path: &Path) -> Self {
+        Item::Delete(path.to_path_buf())
     }
-
-    pub fn from_notupdate_strategy(src: PathBuf, dest: PathBuf) -> Item {
-        Self::new(src, dest, Strategy::NotUpdate)
+    fn change_to_delete(&mut self) {
+        match self {
+            Item::Copy { src: _, dest }
+            | Item::Ignore { src: _, dest }
+            | Item::NotUpdate { src: _, dest } => {
+                *self = Item::Delete(dest.clone());
+            }
+            Item::Delete(_) => {}
+        }
     }
-
-    pub fn change_delete_strategy(&mut self) {
-        self.src = PathBuf::new();
-        self.strategy = Strategy::Delete;
-    }
-}
-
-#[derive(PartialEq, Debug)]
-pub(crate) enum Strategy {
-    Copy,
-    Ignore,
-    NotUpdate,
-    Delete,
 }
 
 pub(crate) fn get_item(job: Job) -> Result<Item> {
@@ -76,12 +77,12 @@ pub(crate) fn get_item(job: Job) -> Result<Item> {
     };
     let model = job.model.unwrap_or_default();
     match model {
-        BackupModel::Full => Ok(Item::new(src, dest, Strategy::Copy)),
+        BackupModel::Full => Ok(Item::new_copy(&src, &dest)),
         BackupModel::Mirror => {
             if needs_update(&src, &dest)? {
-                Ok(Item::new(src, dest, Strategy::Copy))
+                Ok(Item::new_copy(&src, &dest))
             } else {
-                Ok(Item::new(src, dest, Strategy::NotUpdate))
+                Ok(Item::new_notupdate(&src, &dest))
             }
         }
     }
@@ -102,35 +103,38 @@ pub(crate) fn get_items(job: Job) -> Result<Vec<Item>> {
 
     let model = job.model.unwrap_or_default();
     let prefix = src.parent().unwrap_or_else(|| Path::new(""));
-    let mut vec = vec![];
+    let mut items = vec![];
     let ignore_paths: Vec<_> = job
         .ignore
         .as_ref()
         .map(|dirs| dirs.iter().map(|s| src.join(s)).collect())
         .unwrap_or_default();
 
+    let mut dest_set = HashSet::new();
+
     for entry in WalkDir::new(&src) {
         let entry = entry?;
         let entry_path = entry.path();
         let rel = entry_path.strip_prefix(prefix)?;
         let dest = target.join(rel);
+
         if ignore_paths.iter().any(|p| entry_path.starts_with(p)) {
-            vec.push(Item::from_ignore_strategy(entry_path.to_path_buf(), dest));
+            items.push(Item::new_ignore(entry_path, &dest));
+            dest_set.insert(dest);
             continue;
         }
         match model {
             BackupModel::Full => {
-                vec.push(Item::from_copy_strategy(entry_path.to_path_buf(), dest));
+                items.push(Item::new_copy(entry_path, &dest));
+                dest_set.insert(dest);
             }
             BackupModel::Mirror => {
                 if needs_update(entry_path, &dest)? {
-                    vec.push(Item::from_copy_strategy(entry_path.to_path_buf(), dest));
+                    items.push(Item::new_copy(entry_path, &dest));
                 } else {
-                    vec.push(Item::from_notupdate_strategy(
-                        entry_path.to_path_buf(),
-                        dest,
-                    ));
+                    items.push(Item::new_notupdate(entry_path, &dest));
                 }
+                dest_set.insert(dest);
             }
         }
     }
@@ -142,34 +146,29 @@ pub(crate) fn get_items(job: Job) -> Result<Vec<Item>> {
         if entry_path == target {
             continue;
         }
-        if let Some(i) = vec.iter().position(|v| v.dest.eq(entry_path)) {
-            if vec[i].strategy == Strategy::Ignore {
-                vec[i].change_delete_strategy();
-            }
-        } else {
-            vec.push(Item::from_delete_strategy(entry_path.to_path_buf()));
+        if !dest_set.contains(entry_path) {
+            items.push(Item::new_delete(entry_path));
         }
     }
-    Ok(vec)
+    for item in items.iter_mut() {
+        if let Item::Ignore { .. } = item {
+            item.change_to_delete();
+        }
+    }
+    Ok(items)
 }
 
 pub(crate) fn execute_item(item: Item) -> Result<()> {
-    let Item {
-        src,
-        dest,
-        strategy,
-    } = item;
-
-    match strategy {
-        Strategy::Copy => {
+    match item {
+        Item::Copy { src, dest } => {
             file_util::copy(&src, &dest)?;
         }
-        Strategy::Delete => {
+        Item::Delete(dest) => {
             if dest.exists() {
                 if dest.is_file() {
                     fs::remove_file(&dest)?;
                 } else if dest.is_dir() {
-                    fs::remove_dir(&dest)?;
+                    fs::remove_dir_all(&dest)?;
                 }
             }
         }
@@ -179,22 +178,16 @@ pub(crate) fn execute_item(item: Item) -> Result<()> {
 }
 
 pub(crate) async fn execute_item_async(item: Item) -> Result<()> {
-    let Item {
-        src,
-        dest,
-        strategy,
-    } = item;
-
-    match strategy {
-        Strategy::Copy => {
+    match item {
+        Item::Copy { src, dest } => {
             file_util::copy_async(src, dest).await?;
         }
-        Strategy::Delete => {
+        Item::Delete(dest) => {
             if dest.exists() {
                 if dest.is_file() {
                     tokio::fs::remove_file(&dest).await?;
                 } else if dest.is_dir() {
-                    tokio::fs::remove_dir(&dest).await?;
+                    tokio::fs::remove_dir_all(&dest).await?;
                 }
             }
         }
@@ -225,7 +218,7 @@ mod tests {
         let temp_dir = TempDir::new()?;
         let src = create_test_file(temp_dir.path(), filename, content);
         let dest = temp_dir.path().join("output").join(filename);
-        let item = Item::from_copy_strategy(src.clone(), dest.clone());
+        let item = Item::new_copy(&src, &dest);
         dbg!(&item);
         execute_item(item)?;
         assert!(dest.exists());
@@ -236,7 +229,7 @@ mod tests {
         let temp_dir = TempDir::new()?;
         let src = create_test_file(temp_dir.path(), filename, content);
         let dest = temp_dir.path().join("output").join(filename);
-        let item = Item::from_notupdate_strategy(src.clone(), dest.clone());
+        let item = Item::new_notupdate(&src, &dest);
         dbg!(&item);
         execute_item(item)?;
         assert!(!dest.exists());
@@ -244,14 +237,14 @@ mod tests {
         let temp_dir = TempDir::new()?;
         let src = create_test_file(temp_dir.path(), filename, content);
         let dest = temp_dir.path().join("output").join(filename);
-        let item = Item::from_ignore_strategy(src.clone(), dest.clone());
+        let item = Item::new_ignore(&src, &dest);
         dbg!(&item);
         execute_item(item)?;
         assert!(!dest.exists());
 
         let temp_dir = TempDir::new()?;
         let dest = create_test_file(temp_dir.path(), filename, content);
-        let item = Item::from_delete_strategy(dest.clone());
+        let item = Item::new_delete(&dest);
         dbg!(&item);
         assert!(dest.exists());
         execute_item(item)?;
@@ -271,7 +264,7 @@ mod tests {
         let temp_dir = TempDir::new()?;
         let src = create_test_file(temp_dir.path(), filename, content);
         let dest = temp_dir.path().join("output").join(filename);
-        let item = Item::from_copy_strategy(src.clone(), dest.clone());
+        let item = Item::new_copy(&src, &dest);
         dbg!(&item);
         rt.block_on(async {
             let res = execute_item_async(item).await;
@@ -285,7 +278,7 @@ mod tests {
         let temp_dir = TempDir::new()?;
         let src = create_test_file(temp_dir.path(), filename, content);
         let dest = temp_dir.path().join("output").join(filename);
-        let item = Item::from_notupdate_strategy(src.clone(), dest.clone());
+        let item = Item::new_notupdate(&src, &dest);
         dbg!(&item);
         rt.block_on(async {
             let res = execute_item_async(item).await;
@@ -296,7 +289,7 @@ mod tests {
         let temp_dir = TempDir::new()?;
         let src = create_test_file(temp_dir.path(), filename, content);
         let dest = temp_dir.path().join("output").join(filename);
-        let item = Item::from_ignore_strategy(src.clone(), dest.clone());
+        let item = Item::new_ignore(&src, &dest);
         dbg!(&item);
         rt.block_on(async {
             let res = execute_item_async(item).await;
@@ -306,7 +299,7 @@ mod tests {
 
         let temp_dir = TempDir::new()?;
         let dest = create_test_file(temp_dir.path(), filename, content);
-        let item = Item::from_delete_strategy(dest.clone());
+        let item = Item::new_delete(&dest);
         dbg!(&item);
         assert!(dest.exists());
         rt.block_on(async {
