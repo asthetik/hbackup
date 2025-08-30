@@ -159,8 +159,7 @@ pub(crate) fn run_job(job: &Job) -> Result<()> {
             }
             Ok::<(), anyhow::Error>(())
         })?;
-    } else {
-        let item = get_item(job.clone())?;
+    } else if let Some(item) = get_item(job.clone())? {
         execute_item(item)?;
     }
     Ok(())
@@ -217,8 +216,7 @@ async fn run_job_async(job: &Job) -> Result<()> {
         while let Some(res) = tasks.next().await {
             res?;
         }
-    } else {
-        let item = get_item(job.clone())?;
+    } else if let Some(item) = get_item(job.clone())? {
         execute_item_async(item).await?;
     }
     Ok(())
