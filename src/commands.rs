@@ -645,15 +645,17 @@ fn get_jobs(
 /// Returns an error if the copy fails.
 fn copy_file(source: &Path, target: &Path) -> Result<()> {
     if !source.exists() {
-        return Err(anyhow!("The path '{source:?}' does not exist"));
-    } else if source.is_dir() && !target.is_dir() {
-        return Err(anyhow!(
-            "Cannot copy directory '{source:?}' to file '{target:?}'"
-        ));
+        return Err(anyhow!("The path {source:?} does not exist"));
     } else if source.is_dir() {
-        // Handle directory copy
-        fs::create_dir_all(target)?;
-        return Ok(());
+        return if target.is_file() {
+            Err(anyhow!(
+                "Cannot copy directory {source:?} to file {target:?}"
+            ))
+        } else {
+            // Handle directory copy
+            fs::create_dir_all(target)?;
+            Ok(())
+        };
     }
 
     let target_file = if target.exists() && target.is_dir() {
@@ -676,15 +678,17 @@ fn copy_file(source: &Path, target: &Path) -> Result<()> {
 /// Asynchronously copy file from source to target, creating parent directories if needed.
 async fn copy_file_async(source: PathBuf, target: PathBuf) -> Result<()> {
     if !source.exists() {
-        return Err(anyhow!("The path '{source:?}' does not exist"));
-    } else if source.is_dir() && !target.is_dir() {
-        return Err(anyhow!(
-            "Cannot copy directory '{source:?}' to file '{target:?}'"
-        ));
+        return Err(anyhow!("The path {source:?} does not exist"));
     } else if source.is_dir() {
-        // Handle directory copy
-        fs::create_dir_all(target)?;
-        return Ok(());
+        return if target.is_file() {
+            Err(anyhow!(
+                "Cannot copy directory {source:?} to file {target:?}"
+            ))
+        } else {
+            // Handle directory copy
+            fs::create_dir_all(target)?;
+            Ok(())
+        };
     }
 
     let target_file = if target.exists() && target.is_dir() {
