@@ -71,12 +71,11 @@ pub(crate) fn get_items(job: Job) -> Result<Vec<Item>> {
         process::exit(1);
     }
 
-    let target = job.target;
-    fs::create_dir_all(&target)?;
-
     let model = job.model.unwrap_or_default();
+    let src_name = src.file_name().with_context(|| "Invalid file name")?;
+    let dest = job.target.join(src_name);
+
     // keep previous behavior of including the src dir name in relative path by using parent
-    let prefix = src.parent().unwrap_or_else(|| Path::new(""));
     let mut items = vec![];
     let ignore_paths: Vec<_> = job
         .ignore
@@ -89,9 +88,8 @@ pub(crate) fn get_items(job: Job) -> Result<Vec<Item>> {
     for entry in WalkDir::new(&src) {
         let entry = entry?;
         let entry_path = entry.path();
-        let rel = entry_path.strip_prefix(prefix)?;
-        let dest = target.join(rel);
-
+        let rel = entry_path.strip_prefix(&src)?;
+        let dest = dest.join(rel);
         if ignore_paths.iter().any(|p| entry_path.starts_with(p)) {
             continue;
         }
@@ -111,11 +109,11 @@ pub(crate) fn get_items(job: Job) -> Result<Vec<Item>> {
     if let BackupModel::Mirror = model {
         // Collect all paths that need to be deleted
         let mut delete_paths = vec![];
-        for entry in WalkDir::new(&target) {
+        for entry in WalkDir::new(&dest) {
             let entry = entry?;
             let entry_path = entry.path();
-            // Filter entries that match the root target path
-            if entry_path == target {
+            // Filter entries that match the root dest path
+            if entry_path == dest {
                 continue;
             }
             if !dest_set.contains(entry_path) {
