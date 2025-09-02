@@ -1,11 +1,9 @@
+use crate::job::{BackupModel, Job};
 use crate::{file_util, fs};
-use crate::{
-    file_util::needs_update,
-    job::{BackupModel, Job},
-};
 use anyhow::Context;
 use anyhow::Result;
 use std::collections::HashSet;
+use std::time::{Duration, SystemTime};
 use std::{
     path::{Path, PathBuf},
     process,
@@ -189,6 +187,32 @@ pub(crate) async fn execute_item_async(item: Item) -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn needs_update(src: &Path, dest: &Path) -> Result<bool> {
+    if !dest.exists() {
+        return Ok(true);
+    }
+
+    let sm = fs::metadata(src).context(format!(
+        "Failed to get metadata for source file: {}",
+        src.display()
+    ))?;
+    let dm = fs::metadata(dest).context(format!(
+        "Failed to get metadata for destination file: {}",
+        dest.display()
+    ))?;
+    if sm.len() != dm.len() {
+        return Ok(true);
+    }
+
+    let s_mod = sm.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+    let d_mod = dm.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+    const TOLERANCE: Duration = Duration::from_secs(1);
+    if s_mod > d_mod + TOLERANCE {
+        return Ok(true);
+    }
+    Ok(false)
 }
 
 #[cfg(test)]
