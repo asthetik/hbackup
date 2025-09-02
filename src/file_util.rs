@@ -15,8 +15,6 @@ use sevenz_rust2::ArchiveWriter;
 use sevenz_rust2::encoder_options::LZMA2Options;
 use std::io::{BufReader, Read, Write};
 use std::path::PathBuf;
-use std::time::Duration;
-use std::time::SystemTime;
 use std::{fs, io};
 use std::{fs::File, path::Path};
 use tar::Builder;
@@ -24,8 +22,6 @@ use walkdir::WalkDir;
 use xz2::write::XzEncoder;
 use zip::{ZipWriter, write::FileOptions};
 use zstd::stream::write::Encoder as ZstdEncoder;
-
-const TOLERANCE: Duration = Duration::from_secs(1);
 
 /// copy files and directories from src to dest
 pub(crate) fn copy(src: &Path, dest: &Path) -> Result<()> {
@@ -82,31 +78,6 @@ pub(crate) async fn copy_async(src: PathBuf, dest: PathBuf) -> Result<()> {
     }
     tokio::fs::copy(&src, &dest).await?;
     Ok(())
-}
-
-pub(crate) fn needs_update(src: &Path, dest: &Path) -> Result<bool> {
-    if !dest.exists() {
-        return Ok(true);
-    }
-
-    let sm = fs::metadata(src).context(format!(
-        "Failed to get metadata for source file: {}",
-        src.display()
-    ))?;
-    let dm = fs::metadata(dest).context(format!(
-        "Failed to get metadata for destination file: {}",
-        dest.display()
-    ))?;
-    if sm.len() != dm.len() {
-        return Ok(true);
-    }
-
-    let s_mod = sm.modified().unwrap_or(SystemTime::UNIX_EPOCH);
-    let d_mod = dm.modified().unwrap_or(SystemTime::UNIX_EPOCH);
-    if s_mod > d_mod + TOLERANCE {
-        return Ok(true);
-    }
-    Ok(false)
 }
 
 /// Compresses a file or directory at `src` into the `dest` directory using the specified `format` and `level`.
