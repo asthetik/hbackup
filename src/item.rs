@@ -107,6 +107,9 @@ pub(crate) fn get_items(job: Job) -> Result<Vec<Item>> {
     }
 
     if let BackupModel::Mirror = model {
+        if !dest.exists() {
+            return Ok(items);
+        }
         // Collect all paths that need to be deleted
         let mut delete_paths = vec![];
         for entry in WalkDir::new(&dest) {
