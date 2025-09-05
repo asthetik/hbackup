@@ -25,17 +25,7 @@ use zstd::stream::write::Encoder as ZstdEncoder;
 
 /// copy files and directories from src to dest
 pub(crate) fn copy(src: &Path, dest: &Path) -> Result<()> {
-    if !src.exists() {
-        return Err(anyhow!("The path {src:?} does not exist"));
-    } else if src.is_dir() {
-        return if dest.is_file() {
-            Err(anyhow!("Cannot copy directory {src:?} to file {dest:?}"))
-        } else {
-            // Handle directory copy
-            fs::create_dir_all(dest)?;
-            Ok(())
-        };
-    }
+    create_dir(src, dest)?;
 
     let dest = if dest.is_dir() {
         let file_name = src.file_name().with_context(|| "Invalid file name")?;
@@ -54,17 +44,7 @@ pub(crate) fn copy(src: &Path, dest: &Path) -> Result<()> {
 
 /// Asynchronously copy files and directories from src to dest.
 pub(crate) async fn copy_async(src: PathBuf, dest: PathBuf) -> Result<()> {
-    if !src.exists() {
-        return Err(anyhow!("The path {src:?} does not exist"));
-    } else if src.is_dir() {
-        return if dest.is_file() {
-            Err(anyhow!("Cannot copy directory {src:?} to file {dest:?}"))
-        } else {
-            // Handle directory copy
-            fs::create_dir_all(dest)?;
-            Ok(())
-        };
-    }
+    create_dir(&src, &dest)?;
 
     let dest = if dest.is_dir() {
         let file_name = src.file_name().with_context(|| "Invalid file name")?;
@@ -77,6 +57,19 @@ pub(crate) async fn copy_async(src: PathBuf, dest: PathBuf) -> Result<()> {
         fs::create_dir_all(parent)?;
     }
     tokio::fs::copy(&src, &dest).await?;
+    Ok(())
+}
+
+fn create_dir(src: &Path, dest: &Path) -> Result<()> {
+    if !src.exists() {
+        return Err(anyhow!("The path {src:?} does not exist"));
+    } else if src.is_dir() {
+        if dest.is_file() {
+            return Err(anyhow!("Cannot copy directory {src:?} to file {dest:?}"));
+        } else {
+            fs::create_dir_all(dest)?;
+        };
+    }
     Ok(())
 }
 
