@@ -53,6 +53,10 @@ fn main() -> Result<()> {
                 (_, Some(source), Some(target)) => {
                     let source = canonicalize(source);
                     let target = canonicalize(target);
+                    if compression.is_some() && model == Some(BackupModel::Mirror) {
+                        eprintln!("Compression cannot be set for mirror backup model.");
+                        process::exit(1);
+                    }
 
                     // The temporary job id is set to 0
                     let job = Job::temp_job(source, target, compression, level, ignore, model);
@@ -268,6 +272,10 @@ fn add(
 ) -> Result<()> {
     let source = canonicalize(source);
     let target = canonicalize(target);
+    if comp.is_some() && model == Some(BackupModel::Mirror) {
+        eprintln!("Compression cannot be set for mirror backup model.");
+        process::exit(1);
+    }
 
     let mut app = Application::load_config();
     app.add_job(source, target, comp, level, ignore, model);
@@ -376,6 +384,10 @@ fn edit(params: EditParams) -> Result<()> {
     } = params;
     let source = source.map(canonicalize);
     let target = target.map(canonicalize);
+    if compression.is_some() && model == Some(BackupModel::Mirror) {
+        eprintln!("Compression cannot be set for mirror backup model.");
+        process::exit(1);
+    }
 
     let mut app = Application::load_config();
     if app.jobs.is_empty() {
@@ -427,6 +439,11 @@ fn edit(params: EditParams) -> Result<()> {
         }
         if let Some(model) = model {
             job.model = Some(model)
+        }
+
+        if job.compression.is_some() && job.model == Some(BackupModel::Mirror) {
+            eprintln!("Compression cannot be set for mirror backup model.");
+            process::exit(1);
         }
 
         app.write()?;
