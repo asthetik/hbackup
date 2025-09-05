@@ -52,7 +52,7 @@ pub(crate) enum Level {
     Best,
 }
 
-#[derive(ValueEnum, Serialize, Deserialize, Clone, Debug, Default)]
+#[derive(ValueEnum, Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 pub(crate) enum BackupModel {
     #[default]
     Full,
