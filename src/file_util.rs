@@ -25,7 +25,9 @@ use zstd::stream::write::Encoder as ZstdEncoder;
 
 /// copy files and directories from src to dest
 pub(crate) fn copy(src: &Path, dest: &Path) -> Result<()> {
-    create_dir(src, dest)?;
+    if create_dir(src, dest)? {
+        return Ok(());
+    }
 
     let dest = if dest.is_dir() {
         let file_name = src.file_name().with_context(|| "Invalid file name")?;
@@ -44,7 +46,9 @@ pub(crate) fn copy(src: &Path, dest: &Path) -> Result<()> {
 
 /// Asynchronously copy files and directories from src to dest.
 pub(crate) async fn copy_async(src: PathBuf, dest: PathBuf) -> Result<()> {
-    create_dir(&src, &dest)?;
+    if create_dir(&src, &dest)? {
+        return Ok(());
+    }
 
     let dest = if dest.is_dir() {
         let file_name = src.file_name().with_context(|| "Invalid file name")?;
@@ -60,17 +64,18 @@ pub(crate) async fn copy_async(src: PathBuf, dest: PathBuf) -> Result<()> {
     Ok(())
 }
 
-fn create_dir(src: &Path, dest: &Path) -> Result<()> {
+fn create_dir(src: &Path, dest: &Path) -> Result<bool> {
     if !src.exists() {
         return Err(anyhow!("The path {src:?} does not exist"));
     } else if src.is_dir() {
-        if dest.is_file() {
-            return Err(anyhow!("Cannot copy directory {src:?} to file {dest:?}"));
+        return if dest.is_file() {
+            Err(anyhow!("Cannot copy directory {src:?} to file {dest:?}"))
         } else {
             fs::create_dir_all(dest)?;
+            Ok(true)
         };
     }
-    Ok(())
+    Ok(false)
 }
 
 /// Compresses a file or directory at `src` into the `dest` directory using the specified `format` and `level`.
