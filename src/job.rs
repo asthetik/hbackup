@@ -226,11 +226,6 @@ async fn run_job_async(job: &Job) -> Result<()> {
 mod tests {
     use super::*;
     use std::path::PathBuf;
-    use tempfile::TempDir;
-
-    fn create_test_dir(name: &str) -> PathBuf {
-        TempDir::new().unwrap().path().join(name)
-    }
 
     #[test]
     fn test_job_list_display() {
@@ -286,12 +281,10 @@ mod tests {
         ];
 
         for (i, format) in formats.iter().enumerate() {
-            let source = create_test_dir("input");
-            let target = TempDir::new().unwrap().path().join("output");
             let job = Job {
                 id: (i + 1) as u32,
-                source,
-                target,
+                source: PathBuf::from("/test/source"),
+                target: PathBuf::from("/test/target"),
                 compression: Some(format.clone()),
                 level: Some(Level::Default),
                 ignore: None,
@@ -314,12 +307,10 @@ mod tests {
         ];
 
         for (i, level) in levels.iter().enumerate() {
-            let source = create_test_dir("input");
-            let target = TempDir::new().unwrap().path().join("output");
             let job = Job {
                 id: (i + 1) as u32,
-                source,
-                target,
+                source: PathBuf::from("/test/source"),
+                target: PathBuf::from("/test/target"),
                 compression: Some(CompressFormat::Gzip),
                 level: Some(level.clone()),
                 ignore: None,
@@ -333,15 +324,13 @@ mod tests {
 
     #[test]
     fn test_job_display_with_backup_models() {
-        let models = [BackupModel::Full, BackupModel::Mirror];
+        let models = vec![BackupModel::Full, BackupModel::Mirror];
 
         for (i, model) in models.iter().enumerate() {
-            let source = create_test_dir("input");
-            let target = TempDir::new().unwrap().path().join("output");
             let job = Job {
                 id: (i + 1) as u32,
-                source,
-                target,
+                source: PathBuf::from("/test/source"),
+                target: PathBuf::from("/test/target"),
                 compression: None,
                 level: None,
                 ignore: None,
@@ -354,14 +343,11 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(windows))]
     fn test_job_display_without_optional_fields() {
-        let source = create_test_dir("input");
-        let target = TempDir::new().unwrap().path().join("output");
         let job = Job {
             id: 1,
-            source: source.clone(),
-            target: target.clone(),
+            source: PathBuf::from("/test/source"),
+            target: PathBuf::from("/test/target"),
             compression: None,
             level: None,
             ignore: None,
@@ -372,8 +358,8 @@ mod tests {
 
         // Should contain required fields
         assert!(display_str.contains("id: 1"));
-        assert!(display_str.contains(&format!("source: {:?}", source)));
-        assert!(display_str.contains(&format!("target: {:?}", target)));
+        assert!(display_str.contains("source: \"/test/source\""));
+        assert!(display_str.contains("target: \"/test/target\""));
 
         // Should not contain optional fields when they're None
         assert!(!display_str.contains("compression:"));
@@ -384,12 +370,10 @@ mod tests {
 
     #[test]
     fn test_job_display_with_ignore_patterns() {
-        let source = create_test_dir("input");
-        let target = TempDir::new().unwrap().path().join("output");
         let job = Job {
             id: 1,
-            source,
-            target,
+            source: PathBuf::from("/test/source"),
+            target: PathBuf::from("/test/target"),
             compression: None,
             level: None,
             ignore: Some(vec![
@@ -410,8 +394,8 @@ mod tests {
 
     #[test]
     fn test_temp_job_creation() {
-        let source = create_test_dir("input");
-        let target = TempDir::new().unwrap().path().join("output");
+        let source = PathBuf::from("/test/source");
+        let target = PathBuf::from("/test/target");
         let compression = Some(CompressFormat::Gzip);
         let level = Some(Level::Best);
         let ignore = Some(vec!["*.log".to_string()]);
@@ -443,12 +427,10 @@ mod tests {
 
     #[test]
     fn test_job_serialization() {
-        let source = create_test_dir("input");
-        let target = TempDir::new().unwrap().path().join("output");
         let job = Job {
             id: 42,
-            source,
-            target,
+            source: PathBuf::from("/home/user/documents"),
+            target: PathBuf::from("/backup/documents"),
             compression: Some(CompressFormat::Zstd),
             level: Some(Level::Better),
             ignore: Some(vec!["*.tmp".to_string(), ".DS_Store".to_string()]),
@@ -479,8 +461,8 @@ mod tests {
         let jobs = vec![
             Job {
                 id: 1,
-                source: create_test_dir("/path1"),
-                target: create_test_dir("/target1"),
+                source: PathBuf::from("/path1"),
+                target: PathBuf::from("/target1"),
                 compression: Some(CompressFormat::Gzip),
                 level: Some(Level::Fastest),
                 ignore: None,
@@ -488,8 +470,8 @@ mod tests {
             },
             Job {
                 id: 2,
-                source: create_test_dir("/path2"),
-                target: create_test_dir("/target2"),
+                source: PathBuf::from("/path2"),
+                target: PathBuf::from("/target2"),
                 compression: None,
                 level: None,
                 ignore: Some(vec!["*.log".to_string()]),
