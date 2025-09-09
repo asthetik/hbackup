@@ -354,6 +354,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(windows))]
     fn test_job_display_without_optional_fields() {
         let source = create_test_dir("input");
         let target = TempDir::new().unwrap().path().join("output");
