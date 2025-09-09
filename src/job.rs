@@ -478,8 +478,8 @@ mod tests {
         let jobs = vec![
             Job {
                 id: 1,
-                source: PathBuf::from("/path1"),
-                target: PathBuf::from("/target1"),
+                source: create_test_dir("/path1"),
+                target: create_test_dir("/target1"),
                 compression: Some(CompressFormat::Gzip),
                 level: Some(Level::Fastest),
                 ignore: None,
@@ -487,8 +487,8 @@ mod tests {
             },
             Job {
                 id: 2,
-                source: PathBuf::from("/path2"),
-                target: PathBuf::from("/target2"),
+                source: create_test_dir("/path2"),
+                target: create_test_dir("/target2"),
                 compression: None,
                 level: None,
                 ignore: Some(vec!["*.log".to_string()]),
