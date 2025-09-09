@@ -1,10 +1,11 @@
+use crate::file_util;
 use crate::job::{BackupModel, Job};
-use crate::{file_util, fs};
 use anyhow::Context;
 use anyhow::Result;
 use std::collections::HashSet;
 use std::time::{Duration, SystemTime};
 use std::{
+    fs,
     path::{Path, PathBuf},
     process,
 };

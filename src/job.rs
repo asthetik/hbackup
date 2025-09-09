@@ -1,7 +1,5 @@
-use crate::{
-    file_util,
-    item::{execute_item, execute_item_async, get_item, get_items},
-};
+use crate::file_util;
+use crate::item::{execute_item, execute_item_async, get_item, get_items};
 use anyhow::Result;
 use anyhow::anyhow;
 use clap::ValueEnum;
@@ -12,7 +10,7 @@ use tokio::runtime::Builder as runtimeBuilder;
 
 /// Represents a single backup job with a unique id, source, target, and optional compression.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub(crate) struct Job {
+pub struct Job {
     /// Unique job id.
     pub id: u32,
     /// Source file or directory path.
@@ -31,7 +29,7 @@ pub(crate) struct Job {
 
 /// Supported compression formats for backup jobs.
 #[derive(ValueEnum, Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub(crate) enum CompressFormat {
+pub enum CompressFormat {
     Gzip,
     Zip,
     Sevenz,
@@ -44,7 +42,7 @@ pub(crate) enum CompressFormat {
 
 /// Supported compression level for backup jobs
 #[derive(ValueEnum, Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub(crate) enum Level {
+pub enum Level {
     Fastest,
     Faster,
     Default,
@@ -53,14 +51,14 @@ pub(crate) enum Level {
 }
 
 #[derive(ValueEnum, Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
-pub(crate) enum BackupModel {
+pub enum BackupModel {
     #[default]
     Full,
     Mirror,
 }
 
 impl Job {
-    pub(crate) fn temp_job(
+    pub fn temp_job(
         source: PathBuf,
         target: PathBuf,
         compression: Option<CompressFormat>,
@@ -80,7 +78,7 @@ impl Job {
     }
 }
 
-pub(crate) fn display_jobs(jobs: Vec<Job>) -> String {
+pub fn display_jobs(jobs: Vec<Job>) -> String {
     if jobs.is_empty() {
         return String::new();
     }
@@ -135,7 +133,7 @@ pub(crate) fn display_jobs(jobs: Vec<Job>) -> String {
 }
 
 /// Runs a backup job (single file or directory copy, with optional compression).
-pub(crate) fn run_job(job: &Job) -> Result<()> {
+pub fn run_job(job: &Job) -> Result<()> {
     if let Some(ref format) = job.compression {
         let level = job.level.as_ref().unwrap_or(&Level::Default);
         file_util::compression(&job.source, &job.target, format, level, &job.ignore)?;
@@ -166,7 +164,7 @@ pub(crate) fn run_job(job: &Job) -> Result<()> {
 }
 
 /// Runs multiple backup jobs concurrently.
-pub(crate) fn run_jobs(jobs: Vec<Job>) -> Result<()> {
+pub fn run_jobs(jobs: Vec<Job>) -> Result<()> {
     let rt = runtimeBuilder::new_multi_thread().enable_all().build()?;
 
     rt.block_on(async move {
