@@ -30,7 +30,7 @@ pub(crate) struct Job {
 }
 
 /// Supported compression formats for backup jobs.
-#[derive(ValueEnum, Serialize, Deserialize, Clone, Debug)]
+#[derive(ValueEnum, Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub(crate) enum CompressFormat {
     Gzip,
     Zip,
@@ -43,7 +43,7 @@ pub(crate) enum CompressFormat {
 }
 
 /// Supported compression level for backup jobs
-#[derive(ValueEnum, Serialize, Deserialize, Clone, Debug)]
+#[derive(ValueEnum, Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub(crate) enum Level {
     Fastest,
     Faster,
@@ -226,6 +226,11 @@ async fn run_job_async(job: &Job) -> Result<()> {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+    use tempfile::TempDir;
+
+    fn create_test_dir(name: &str) -> PathBuf {
+        TempDir::new().unwrap().path().join(name)
+    }
 
     #[test]
     fn test_job_list_display() {
@@ -258,5 +263,254 @@ mod tests {
         assert!(display_str.contains("id: 2"));
         assert!(display_str.contains("Zip"));
         assert!(display_str.contains("Zstd"));
+    }
+
+    #[test]
+    fn test_empty_job_list_display() {
+        let jobs = vec![];
+        let display_str = display_jobs(jobs);
+        assert_eq!(display_str, "");
+    }
+
+    #[test]
+    fn test_job_display_with_all_compression_formats() {
+        let formats = [
+            CompressFormat::Gzip,
+            CompressFormat::Zip,
+            CompressFormat::Sevenz,
+            CompressFormat::Zstd,
+            CompressFormat::Bzip2,
+            CompressFormat::Xz,
+            CompressFormat::Lz4,
+            CompressFormat::Tar,
+        ];
+
+        for (i, format) in formats.iter().enumerate() {
+            let source = create_test_dir("input");
+            let target = TempDir::new().unwrap().path().join("output");
+            let job = Job {
+                id: (i + 1) as u32,
+                source,
+                target,
+                compression: Some(format.clone()),
+                level: Some(Level::Default),
+                ignore: None,
+                model: None,
+            };
+
+            let display_str = display_jobs(vec![job]);
+            assert!(display_str.contains(&format!("{:?}", format)));
+        }
+    }
+
+    #[test]
+    fn test_job_display_with_all_compression_levels() {
+        let levels = [
+            Level::Fastest,
+            Level::Faster,
+            Level::Default,
+            Level::Better,
+            Level::Best,
+        ];
+
+        for (i, level) in levels.iter().enumerate() {
+            let source = create_test_dir("input");
+            let target = TempDir::new().unwrap().path().join("output");
+            let job = Job {
+                id: (i + 1) as u32,
+                source,
+                target,
+                compression: Some(CompressFormat::Gzip),
+                level: Some(level.clone()),
+                ignore: None,
+                model: None,
+            };
+
+            let display_str = display_jobs(vec![job]);
+            assert!(display_str.contains(&format!("{:?}", level)));
+        }
+    }
+
+    #[test]
+    fn test_job_display_with_backup_models() {
+        let models = [BackupModel::Full, BackupModel::Mirror];
+
+        for (i, model) in models.iter().enumerate() {
+            let source = create_test_dir("input");
+            let target = TempDir::new().unwrap().path().join("output");
+            let job = Job {
+                id: (i + 1) as u32,
+                source,
+                target,
+                compression: None,
+                level: None,
+                ignore: None,
+                model: Some(model.clone()),
+            };
+
+            let display_str = display_jobs(vec![job]);
+            assert!(display_str.contains(&format!("{:?}", model)));
+        }
+    }
+
+    #[test]
+    #[cfg(not(windows))]
+    fn test_job_display_without_optional_fields() {
+        let source = create_test_dir("input");
+        let target = TempDir::new().unwrap().path().join("output");
+        let job = Job {
+            id: 1,
+            source: source.clone(),
+            target: target.clone(),
+            compression: None,
+            level: None,
+            ignore: None,
+            model: None,
+        };
+
+        let display_str = display_jobs(vec![job]);
+
+        // Should contain required fields
+        assert!(display_str.contains("id: 1"));
+        assert!(display_str.contains(&format!("source: {:?}", source)));
+        assert!(display_str.contains(&format!("target: {:?}", target)));
+
+        // Should not contain optional fields when they're None
+        assert!(!display_str.contains("compression:"));
+        assert!(!display_str.contains("level:"));
+        assert!(!display_str.contains("ignore:"));
+        assert!(!display_str.contains("model:"));
+    }
+
+    #[test]
+    fn test_job_display_with_ignore_patterns() {
+        let source = create_test_dir("input");
+        let target = TempDir::new().unwrap().path().join("output");
+        let job = Job {
+            id: 1,
+            source,
+            target,
+            compression: None,
+            level: None,
+            ignore: Some(vec![
+                "*.log".to_string(),
+                "*.tmp".to_string(),
+                "cache/".to_string(),
+            ]),
+            model: None,
+        };
+
+        let display_str = display_jobs(vec![job]);
+
+        assert!(display_str.contains("ignore:"));
+        assert!(display_str.contains("*.log"));
+        assert!(display_str.contains("*.tmp"));
+        assert!(display_str.contains("cache/"));
+    }
+
+    #[test]
+    fn test_temp_job_creation() {
+        let source = create_test_dir("input");
+        let target = TempDir::new().unwrap().path().join("output");
+        let compression = Some(CompressFormat::Gzip);
+        let level = Some(Level::Best);
+        let ignore = Some(vec!["*.log".to_string()]);
+        let model = Some(BackupModel::Mirror);
+
+        let job = Job::temp_job(
+            source.clone(),
+            target.clone(),
+            compression.clone(),
+            level.clone(),
+            ignore.clone(),
+            model.clone(),
+        );
+
+        assert_eq!(job.id, 0);
+        assert_eq!(job.source, source);
+        assert_eq!(job.target, target);
+        assert_eq!(job.compression, compression);
+        assert_eq!(job.level, level);
+        assert_eq!(job.ignore, ignore);
+        assert_eq!(job.model, model);
+    }
+
+    #[test]
+    fn test_backup_model_default() {
+        let model = BackupModel::default();
+        assert_eq!(model, BackupModel::Full);
+    }
+
+    #[test]
+    fn test_job_serialization() {
+        let source = create_test_dir("input");
+        let target = TempDir::new().unwrap().path().join("output");
+        let job = Job {
+            id: 42,
+            source,
+            target,
+            compression: Some(CompressFormat::Zstd),
+            level: Some(Level::Better),
+            ignore: Some(vec!["*.tmp".to_string(), ".DS_Store".to_string()]),
+            model: Some(BackupModel::Mirror),
+        };
+
+        // Test serialization to TOML
+        let toml_str = toml::to_string(&job).expect("Failed to serialize job to TOML");
+        assert!(toml_str.contains("id = 42"));
+        assert!(toml_str.contains("Zstd"));
+        assert!(toml_str.contains("Better"));
+        assert!(toml_str.contains("Mirror"));
+
+        // Test deserialization from TOML
+        let deserialized: Job =
+            toml::from_str(&toml_str).expect("Failed to deserialize job from TOML");
+        assert_eq!(deserialized.id, job.id);
+        assert_eq!(deserialized.source, job.source);
+        assert_eq!(deserialized.target, job.target);
+        assert_eq!(deserialized.compression, job.compression);
+        assert_eq!(deserialized.level, job.level);
+        assert_eq!(deserialized.ignore, job.ignore);
+        assert_eq!(deserialized.model, job.model);
+    }
+
+    #[test]
+    fn test_multiple_jobs_display_formatting() {
+        let jobs = vec![
+            Job {
+                id: 1,
+                source: create_test_dir("/path1"),
+                target: create_test_dir("/target1"),
+                compression: Some(CompressFormat::Gzip),
+                level: Some(Level::Fastest),
+                ignore: None,
+                model: Some(BackupModel::Full),
+            },
+            Job {
+                id: 2,
+                source: create_test_dir("/path2"),
+                target: create_test_dir("/target2"),
+                compression: None,
+                level: None,
+                ignore: Some(vec!["*.log".to_string()]),
+                model: Some(BackupModel::Mirror),
+            },
+        ];
+
+        let display_str = display_jobs(jobs);
+
+        // Should start with [ and end with ]
+        assert!(display_str.starts_with('['));
+        assert!(display_str.ends_with(']'));
+
+        // Should contain both jobs
+        assert!(display_str.contains("id: 1"));
+        assert!(display_str.contains("id: 2"));
+
+        // Should have proper structure with braces
+        let open_braces = display_str.matches('{').count();
+        let close_braces = display_str.matches('}').count();
+        assert_eq!(open_braces, close_braces);
+        assert_eq!(open_braces, 2); // One for each job
     }
 }
