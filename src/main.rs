@@ -1,20 +1,17 @@
 mod application;
 mod constants;
-mod file_util;
-mod item;
-mod job;
 mod sysexits;
 
 use crate::application::{
     Application, backup_config_file, config_file, init_config, reset_config_file,
     rollback_config_file,
 };
-use crate::job::{BackupModel, CompressFormat, Job, Level, display_jobs, run_job, run_jobs};
 use anyhow::{Result, anyhow};
 use clap::{Parser, Subcommand, ValueEnum};
-use std::io::{ErrorKind, Write};
+use hbackup::job::{BackupModel, CompressFormat, Job, Level, display_jobs, run_job, run_jobs};
+use std::io::{self, ErrorKind, Write};
 use std::path::PathBuf;
-use std::{fs, io, process};
+use std::process;
 
 /// Entry point for the hbackup CLI application.
 /// Parses command-line arguments and dispatches to the appropriate command handler.

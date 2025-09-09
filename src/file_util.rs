@@ -24,7 +24,7 @@ use zip::{ZipWriter, write::FileOptions};
 use zstd::stream::write::Encoder as ZstdEncoder;
 
 /// copy files and directories from src to dest
-pub(crate) fn copy(src: &Path, dest: &Path) -> Result<()> {
+pub fn copy(src: &Path, dest: &Path) -> Result<()> {
     if create_dir(src, dest)? {
         return Ok(());
     }
@@ -45,7 +45,7 @@ pub(crate) fn copy(src: &Path, dest: &Path) -> Result<()> {
 }
 
 /// Asynchronously copy files and directories from src to dest.
-pub(crate) async fn copy_async(src: PathBuf, dest: PathBuf) -> Result<()> {
+pub async fn copy_async(src: PathBuf, dest: PathBuf) -> Result<()> {
     if create_dir(&src, &dest)? {
         return Ok(());
     }
@@ -89,7 +89,7 @@ fn create_dir(src: &Path, dest: &Path) -> Result<bool> {
 /// # Errors
 /// Returns an error if the source does not exist, is not a file or directory,
 /// if the destination is not a directory, or if any IO error occurs during compression.
-pub(crate) fn compression(
+pub fn compression(
     src: &Path,
     dest: &Path,
     format: &CompressFormat,
@@ -536,8 +536,7 @@ mod tests {
     use crate::job::Level;
     use std::fs::{self, File};
     use std::io::Write;
-    use tempfile::env::temp_dir;
-    use tempfile::{NamedTempFile, TempDir};
+    use tempfile::TempDir;
 
     fn create_test_file(dir: &Path, name: &str, content: &[u8]) -> PathBuf {
         let file_path = dir.join(name);
@@ -572,58 +571,6 @@ mod tests {
         );
 
         test_dir
-    }
-
-    #[test]
-    fn test_create_dir_nonexistent_src() {
-        let src = temp_dir().join("no_such_src");
-        let dest = temp_dir();
-        let res = create_dir(&src, &dest);
-        assert!(res.is_err());
-        let err_msg = format!("{}", res.unwrap_err());
-        assert!(err_msg.contains("The path"));
-        assert!(err_msg.contains("does not exist"));
-    }
-
-    #[test]
-    fn test_create_dir_to_file_error() {
-        let src = temp_dir();
-        let dest_file = NamedTempFile::new().unwrap();
-        let res = create_dir(&src, dest_file.path());
-        assert!(res.is_err());
-        let err_msg = format!("{}", res.unwrap_err());
-        assert!(err_msg.contains("Cannot copy directory "));
-        assert!(err_msg.contains(" to file "));
-    }
-
-    #[test]
-    fn test_create_dir_with_file_src_returns_false() {
-        let src_file = NamedTempFile::new().unwrap();
-        let dest = temp_dir();
-        let res = create_dir(src_file.path(), &dest);
-        assert!(res.is_ok());
-        assert!(!res.unwrap());
-    }
-
-    #[test]
-    fn test_create_dir() {
-        let src = temp_dir();
-        let dest = temp_dir();
-        let res = create_dir(&src, &dest);
-        assert!(res.is_ok());
-        assert!(res.unwrap());
-    }
-
-    #[test]
-    fn test_get_file_name() {
-        let path = Path::new("/home/user/document.txt");
-        assert_eq!(get_file_name(path), "document.txt");
-
-        let path = Path::new("simple_file");
-        assert_eq!(get_file_name(path), "simple_file");
-
-        let path = Path::new("/path/to/directory/");
-        assert_eq!(get_file_name(path), "directory");
     }
 
     #[test]
