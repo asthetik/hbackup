@@ -536,7 +536,8 @@ mod tests {
     use crate::job::Level;
     use std::fs::{self, File};
     use std::io::Write;
-    use tempfile::TempDir;
+    use tempfile::env::temp_dir;
+    use tempfile::{NamedTempFile, TempDir};
 
     fn create_test_file(dir: &Path, name: &str, content: &[u8]) -> PathBuf {
         let file_path = dir.join(name);
@@ -571,6 +572,46 @@ mod tests {
         );
 
         test_dir
+    }
+
+    #[test]
+    fn test_create_dir_nonexistent_src() {
+        let src = temp_dir().join("no_such_src");
+        let dest = temp_dir();
+        let res = create_dir(&src, &dest);
+        assert!(res.is_err());
+        let err_msg = format!("{}", res.unwrap_err());
+        assert!(err_msg.contains("The path"));
+        assert!(err_msg.contains("does not exist"));
+    }
+
+    #[test]
+    fn test_create_dir_to_file_error() {
+        let src = temp_dir();
+        let dest_file = NamedTempFile::new().unwrap();
+        let res = create_dir(&src, dest_file.path());
+        assert!(res.is_err());
+        let err_msg = format!("{}", res.unwrap_err());
+        assert!(err_msg.contains("Cannot copy directory "));
+        assert!(err_msg.contains(" to file "));
+    }
+
+    #[test]
+    fn test_create_dir_with_file_src_returns_false() {
+        let src_file = NamedTempFile::new().unwrap();
+        let dest = temp_dir();
+        let res = create_dir(src_file.path(), &dest);
+        assert!(res.is_ok());
+        assert!(!res.unwrap());
+    }
+
+    #[test]
+    fn test_create_dir() {
+        let src = temp_dir();
+        let dest = temp_dir();
+        let res = create_dir(&src, &dest);
+        assert!(res.is_ok());
+        assert!(res.unwrap());
     }
 
     #[test]
