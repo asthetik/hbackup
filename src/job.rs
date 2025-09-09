@@ -224,9 +224,9 @@ async fn run_job_async(job: &Job) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use tempfile::TempDir;
     use super::*;
     use std::path::PathBuf;
+    use tempfile::TempDir;
 
     fn create_test_dir(name: &str) -> PathBuf {
         TempDir::new().unwrap().path().join(name)
