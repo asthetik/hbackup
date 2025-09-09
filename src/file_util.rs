@@ -1,8 +1,10 @@
-//! File compression utilities for hbackup.
+//! File compression and utility functions for hbackup.
 //!
-//! This module provides functions to compress files and directories
-//! using gzip, zip, 7z, zstd, bzip2, and xz formats. It supports both single files and entire directories,
-//! and automatically selects the correct compression strategy based on the input type and format.
+//! This module provides functions to:
+//! - Copy files and directories synchronously and asynchronously
+//! - Compress files and directories using various formats (gzip, zip, 7z, zstd, bzip2, xz, lz4, tar)
+//! - Handle different compression levels for each format
+//! - Support ignore lists to exclude specific files/directories from compression 
 use crate::job::CompressFormat;
 use crate::job::Level;
 use anyhow::anyhow;
