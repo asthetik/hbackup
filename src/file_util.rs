@@ -4,7 +4,7 @@
 //! - Copy files and directories synchronously and asynchronously
 //! - Compress files and directories using various formats (gzip, zip, 7z, zstd, bzip2, xz, lz4, tar)
 //! - Handle different compression levels for each format
-//! - Support ignore lists to exclude specific files/directories from compression 
+//! - Support ignore lists to exclude specific files/directories from compression
 use crate::job::CompressFormat;
 use crate::job::Level;
 use anyhow::anyhow;
