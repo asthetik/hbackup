@@ -37,9 +37,11 @@ cargo install hbackup
 
 ```sh
 bk add ~/my_path1/my_file1.txt ~/back
-# Add a job with compression
-bk add ~/my_path3/my_dir ~/back -c gzip
-bk add ~/my_path4/my_dir ~/back -c zip -l best
+# add a job with compression
+bk add ~/my_path2/my_dir ~/back -c gzip
+bk add ~/my_path3/my_dir ~/back -c zip -l best
+# add a job with mirroring (delete files in target that are not in source)
+bk add ~/my_path4/my_dir ~/back -m mirror
 ```
 
 ### 3. List all jobs
