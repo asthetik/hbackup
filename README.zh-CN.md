@@ -38,8 +38,10 @@ cargo install hbackup
 ```sh
 bk add ~/my_path1/my_file1.txt ~/back
 # 添加带压缩的任务
-bk add ~/my_path3/my_dir ~/back -c gzip
-bk add ~/my_path4/my_dir ~/back -c zip -l best
+bk add ~/my_path2/my_dir ~/back -c gzip
+bk add ~/my_path3/my_dir ~/back -c zip -l best
+# 添加带镜像（删除目标中源不存在的文件）的任务
+bk add ~/my_path4/my_dir ~/back -m mirror
 ```
 
 ### 3. 查看所有任务
