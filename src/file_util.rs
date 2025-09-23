@@ -14,7 +14,7 @@ use bzip2::write::BzEncoder;
 use flate2::{Compression, write::GzEncoder};
 use lz4::EncoderBuilder as Lz4EncoderBuilder;
 use sevenz_rust2::ArchiveWriter;
-use sevenz_rust2::encoder_options::LZMA2Options;
+use sevenz_rust2::encoder_options::Lzma2Options;
 use std::io::{BufReader, Read, Write};
 use std::path::PathBuf;
 use std::{fs, io};
@@ -264,7 +264,7 @@ fn compress_sevenz(
         Level::Better => 8,
         Level::Best => 9,
     };
-    let lzma2 = LZMA2Options::from_level(level).into();
+    let lzma2 = Lzma2Options::from_level(level).into();
     writer.set_content_methods(vec![lzma2]);
     writer.push_source_path(src, make_filter(src, ignore))?;
     writer.finish()?;
