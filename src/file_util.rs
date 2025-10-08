@@ -41,7 +41,15 @@ pub fn copy(src: &Path, dest: &Path) -> Result<()> {
     if let Some(parent) = dest.parent() {
         fs::create_dir_all(parent)?;
     }
-    fs::copy(src, &dest)?;
+    if let Err(e) = fs::copy(src, &dest) {
+        if e.kind() == io::ErrorKind::PermissionDenied {
+            eprintln!(
+                "permission denied: try `chmod u+w '{}'` or remove the destination file before copying",
+                dest.display()
+            );
+        }
+        return Err(anyhow!(e));
+    }
 
     Ok(())
 }
@@ -62,7 +70,15 @@ pub async fn copy_async(src: PathBuf, dest: PathBuf) -> Result<()> {
     if let Some(parent) = dest.parent() {
         fs::create_dir_all(parent)?;
     }
-    tokio::fs::copy(&src, &dest).await?;
+    if let Err(e) = tokio::fs::copy(&src, &dest).await {
+        if e.kind() == io::ErrorKind::PermissionDenied {
+            eprintln!(
+                "permission denied: try `chmod u+w '{}'` or remove the destination file before copying",
+                dest.display()
+            );
+        }
+        return Err(anyhow!(e));
+    }
     Ok(())
 }
 
