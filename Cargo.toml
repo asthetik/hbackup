@@ -32,7 +32,7 @@ walkdir = "2.5.0"
 zip = { version = "6.0.0", default-features = false, features = ["deflate"] }
 sevenz-rust2 = { version = "0.19.1", features = ["compress"] }
 zstd = "0.13.3"
-bzip2 = "0.6.0"
+bzip2 = "0.6.1"
 xz2 = { version = "0.1.7", features = ["static"] }
 lz4 = "1.28.1"
 tokio = { version = "1.47.1", features = ["rt-multi-thread", "fs"] }
