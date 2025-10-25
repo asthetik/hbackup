@@ -126,8 +126,9 @@ pub fn display_jobs(jobs: Vec<Job>) -> String {
         if !model.is_empty() {
             s.push_str(&format!(",\n    model: \"{model}\""));
         }
-        s.push_str("\n}");
+        s.push_str("\n},");
     }
+    s.pop();
     s.push(']');
     s
 }
