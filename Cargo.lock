@@ -835,9 +835,9 @@ dependencies = [
 
 [[package]]
 name = "lzma-rust2"
-version = "0.14.3"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5999f9ccfee85f09b54a2205c5851f884c83e4e7ef056843ff68d7f2006cd82"
+checksum = "2bd57dc1513725e598b9609a9505d6fe28ee280861e5b4d792b3db9d00b1a315"
 
 [[package]]
 name = "lzma-sys"
@@ -1206,9 +1206,9 @@ dependencies = [
 
 [[package]]
 name = "sevenz-rust2"
-version = "0.19.1"
+version = "0.19.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7048af9cb3f23ee3315bccaeeef1da33c1b2cad63b8a26ac5b5498b6ef472902"
+checksum = "724c58ef9fa6b24f223be04638e2073411dd5da79e7b76c21bd93de8dbd753e0"
 dependencies = [
  "aes",
  "bzip2",
