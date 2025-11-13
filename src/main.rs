@@ -220,7 +220,7 @@ enum Command {
         /// Clear specified fields (comma-separated: compression,level,ignore)
         #[arg(long, value_delimiter = ',', required_unless_present_any = ["source", "target", "compression", "level", "ignore", "model", "swap"])]
         clear: Option<Vec<ClearField>>,
-        /// Swap source and target paths
+        /// Swap source and target paths(only supports file-to-file swap)
         #[arg(long, conflicts_with_all = ["source", "target"], required_unless_present_any = ["source", "target", "compression", "level", "ignore", "model", "clear"])]
         swap: bool,
     },
@@ -457,9 +457,10 @@ fn edit(params: EditParams) -> Result<()> {
                     job.target
                 );
                 process::exit(1);
-            } else if job.target.is_dir() && job.source.is_file() {
+            } else if !(job.target.is_file() && job.source.is_file()) {
+                // only support: file-to-file swap for now
                 eprintln!(
-                    "Cannot swap source and target paths for job id {id} because source is a file and target is a directory.\nsource path: {:?}\ntarget path: {:?}",
+                    "Cannot swap source and target paths for job id {id} because both source and target paths must be files.\nsource path: {:?}\ntarget path: {:?}",
                     job.source, job.target
                 );
                 process::exit(1);
