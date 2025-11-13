@@ -86,6 +86,7 @@ fn main() -> Result<()> {
             ignore,
             clear,
             model,
+            swap,
         } => {
             let edit_params = EditParams {
                 id,
@@ -96,6 +97,7 @@ fn main() -> Result<()> {
                 ignore,
                 clear,
                 model,
+                swap,
             };
             edit(edit_params)?;
         }
@@ -198,26 +200,29 @@ enum Command {
         /// Edit job by id.
         id: u32,
         /// New source file or directory path
-        #[arg(short, long, required_unless_present_any = ["target", "compression", "level", "ignore", "model", "clear"])]
+        #[arg(short, long, required_unless_present_any = ["target", "compression", "level", "ignore", "model", "clear", "swap"])]
         source: Option<PathBuf>,
         /// New target file or directory path
-        #[arg(short, long, required_unless_present_any = ["source", "compression", "level", "ignore", "model", "clear"])]
+        #[arg(short, long, required_unless_present_any = ["source", "compression", "level", "ignore", "model", "clear", "swap"])]
         target: Option<PathBuf>,
         /// Compression format
-        #[arg(short, long, required_unless_present_any = ["source", "target", "level", "ignore", "model", "clear"])]
+        #[arg(short, long, required_unless_present_any = ["source", "target", "level", "ignore", "model", "clear", "swap"])]
         compression: Option<CompressFormat>,
         /// Compression level
-        #[arg(short, long, required_unless_present_any = ["source", "target", "compression", "ignore", "model", "clear"])]
+        #[arg(short, long, required_unless_present_any = ["source", "target", "compression", "ignore", "model", "clear", "swap"])]
         level: Option<Level>,
         /// Ignore a specific list of files or directories
-        #[arg(short = 'g', long, value_delimiter = ',', required_unless_present_any = ["source", "target", "compression", "level", "model", "clear"])]
+        #[arg(short = 'g', long, value_delimiter = ',', required_unless_present_any = ["source", "target", "compression", "level", "model", "clear", "swap"])]
         ignore: Option<Vec<String>>,
         /// Backup model
-        #[arg(short, long, required_unless_present_any = ["source", "target", "compression", "level", "ignore", "clear"])]
+        #[arg(short, long, required_unless_present_any = ["source", "target", "compression", "level", "ignore", "clear", "swap"])]
         model: Option<BackupModel>,
         /// Clear specified fields (comma-separated: compression,level,ignore)
-        #[arg(long, value_delimiter = ',', required_unless_present_any = ["source", "target", "compression", "level", "ignore", "model"])]
+        #[arg(long, value_delimiter = ',', required_unless_present_any = ["source", "target", "compression", "level", "ignore", "model", "swap"])]
         clear: Option<Vec<ClearField>>,
+        /// Swap source and target paths
+        #[arg(long, conflicts_with_all = ["source", "target"], required_unless_present_any = ["source", "target", "compression", "level", "ignore", "model", "clear"])]
+        swap: bool,
     },
     /// Display the absolute path of the configuration file and manage config backup/reset/rollback.
     Config {
@@ -256,6 +261,7 @@ struct EditParams {
     pub ignore: Option<Vec<String>>,
     pub clear: Option<Vec<ClearField>>,
     pub model: Option<BackupModel>,
+    pub swap: bool,
 }
 
 /// Adds a new backup job to the configuration file.
@@ -378,6 +384,7 @@ fn edit(params: EditParams) -> Result<()> {
         ignore,
         model,
         clear,
+        swap,
     } = params;
     let source = source.map(canonicalize);
     let target = target.map(canonicalize);
@@ -441,6 +448,23 @@ fn edit(params: EditParams) -> Result<()> {
         if job.compression.is_some() && job.model == Some(BackupModel::Mirror) {
             eprintln!("Compression cannot be set for mirror backup model.");
             process::exit(1);
+        }
+
+        if swap {
+            if !job.target.exists() {
+                eprintln!(
+                    "Cannot swap source and target paths for job id {id} because target path does not exist.\ntarget path: {:?}",
+                    job.target
+                );
+                process::exit(1);
+            } else if job.target.is_dir() && job.source.is_file() {
+                eprintln!(
+                    "Cannot swap source and target paths for job id {id} because source is a file and target is a directory.\nsource path: {:?}\ntarget path: {:?}",
+                    job.source, job.target
+                );
+                process::exit(1);
+            }
+            std::mem::swap(&mut job.source, &mut job.target);
         }
 
         app.write()?;
