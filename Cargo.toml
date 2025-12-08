@@ -30,7 +30,7 @@ flate2 = "1.1.5"
 tar = "0.4.44"
 walkdir = "2.5.0"
 zip = { version = "6.0.0", default-features = false, features = ["deflate"] }
-sevenz-rust2 = { version = "0.19.4", features = ["compress"] }
+sevenz-rust2 = { version = "0.20.0", features = ["compress"] }
 zstd = "0.13.3"
 bzip2 = "0.6.1"
 xz2 = { version = "0.1.7", features = ["static"] }
