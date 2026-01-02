@@ -74,8 +74,8 @@ fn main() -> Result<()> {
             };
             println!("{}", display_jobs(jobs));
         }
-        Command::Delete { id, all } => {
-            delete(id, all)?;
+        Command::Delete { id, all, yes } => {
+            delete(id, all, yes)?;
         }
         Command::Edit {
             id,
@@ -194,6 +194,9 @@ enum Command {
         /// Delete all jobs. Cannot be used with --id.
         #[arg(short, long, conflicts_with = "id")]
         all: bool,
+        /// Skip interactive confirmation when deleting all jobs
+        #[arg(short = 'y', long, conflicts_with = "id")]
+        yes: bool,
     },
     /// Edit a backup job by id. At least one of source/target/compression/level/ignore/clear must be provided.
     Edit {
@@ -332,11 +335,17 @@ fn run_by_id(ids: Vec<u32>) {
 }
 
 /// Deletes a job by id or deletes all jobs.
-fn delete(id: Option<Vec<u32>>, all: bool) -> Result<()> {
+fn delete(id: Option<Vec<u32>>, all: bool, yes: bool) -> Result<()> {
     if all {
         let mut app = Application::load_config();
         if app.jobs.is_empty() {
             println!("No jobs to delete");
+            return Ok(());
+        }
+        if yes {
+            app.reset_jobs();
+            app.write()?;
+            println!("All jobs deleted successfully.");
             return Ok(());
         }
         loop {
