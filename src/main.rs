@@ -54,8 +54,7 @@ async fn main() -> Result<()> {
                     let source = canonicalize(source)?;
                     let target = canonicalize(target)?;
                     if compression.is_some() && model == Some(BackupModel::Mirror) {
-                        eprintln!("Compression cannot be set for mirror backup model.");
-                        process::exit(1);
+                        bail!(HbackupError::InvalidCompressionForMirror);
                     }
 
                     // The temporary job id is set to 0
