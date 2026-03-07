@@ -1,5 +1,6 @@
 mod application;
 mod constants;
+mod error;
 mod sysexits;
 
 use crate::application::{
@@ -8,14 +9,16 @@ use crate::application::{
 };
 use anyhow::{Result, anyhow};
 use clap::{Parser, Subcommand, ValueEnum};
+use error::HbackupError;
 use hbackup::job::{BackupModel, CompressFormat, Job, Level, display_jobs, run_job, run_jobs};
 use std::io::{self, ErrorKind, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process;
 
 /// Entry point for the hbackup CLI application.
 /// Parses command-line arguments and dispatches to the appropriate command handler.
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let subcommand = Opt::parse().subcommand.unwrap_or_else(|| {
         eprintln!("bk requires at least one command to execute. See 'bk --help' for usage.");
         process::exit(sysexits::EX_KEYWORD);
@@ -48,8 +51,8 @@ fn main() -> Result<()> {
                     run_by_id(ids);
                 }
                 (_, Some(source), Some(target)) => {
-                    let source = canonicalize(source);
-                    let target = canonicalize(target);
+                    let source = canonicalize(source)?;
+                    let target = canonicalize(target)?;
                     if compression.is_some() && model == Some(BackupModel::Mirror) {
                         eprintln!("Compression cannot be set for mirror backup model.");
                         process::exit(1);
@@ -276,15 +279,14 @@ fn add(
     ignore: Option<Vec<String>>,
     model: Option<BackupModel>,
 ) -> Result<()> {
-    let source = canonicalize(source);
-    let target = canonicalize(target);
+    let source = canonicalize(source)?;
+    let target = canonicalize(target)?;
     if comp.is_some() && model == Some(BackupModel::Mirror) {
-        eprintln!("Compression cannot be set for mirror backup model.");
-        process::exit(1);
+        return Err(HbackupError::InvalidCompressionForMirror.into());
     }
 
     let mut app = Application::load_config();
-    app.add_job(source, target, comp, level, ignore, model);
+    app.add_job(source, target, comp, level, ignore, model)?;
     app.write()?;
 
     Ok(())
@@ -409,10 +411,10 @@ fn edit(params: EditParams) -> Result<()> {
     }
     if let Some(job) = app.jobs.iter_mut().find(|j| j.id == id) {
         if let Some(path) = source {
-            job.source = path;
+            job.source = path?;
         }
         if let Some(path) = target {
-            job.target = path;
+            job.target = path?;
         }
         // Handle clear operations first
         if let Some(clear_fields) = &clear {
@@ -487,22 +489,16 @@ fn edit(params: EditParams) -> Result<()> {
 
 /// Returns the canonical, absolute form of the path with all intermediate
 /// components normalized and symbolic links resolved.
-fn canonicalize(path: PathBuf) -> PathBuf {
+fn canonicalize(path: impl AsRef<Path>) -> Result<PathBuf> {
+    let path = path.as_ref();
     match path.canonicalize() {
-        Ok(path) => path,
-        Err(e) => {
-            match e.kind() {
-                ErrorKind::NotFound => {
-                    eprintln!("The path {path:?} does not exist");
-                }
-                ErrorKind::PermissionDenied => {
-                    eprintln!("Permission denied for path {path:?}");
-                }
-                _ => {
-                    eprintln!("An error occurred while canonicalizing path {path:?}: {e}");
-                }
+        Ok(p) => Ok(p),
+        Err(e) => match e.kind() {
+            ErrorKind::NotFound => Err(HbackupError::PathNotFound(path.to_path_buf()).into()),
+            ErrorKind::PermissionDenied => {
+                Err(HbackupError::PermissionDenied(path.to_path_buf()).into())
             }
-            process::exit(1);
-        }
+            _ => Err(e.into()),
+        },
     }
 }

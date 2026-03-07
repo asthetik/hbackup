@@ -734,6 +734,7 @@ dependencies = [
  "sevenz-rust2",
  "tar",
  "tempfile",
+ "thiserror",
  "tokio",
  "toml",
  "walkdir",
