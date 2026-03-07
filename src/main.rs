@@ -468,7 +468,8 @@ fn edit(params: EditParams) -> Result<()> {
                 // only support: file-to-file swap for now
                 bail!(
                     "Cannot swap source and target paths for job id {id} because both source and target paths must be files.\nsource path: {:?}\ntarget path: {:?}",
-                    job.source, job.target
+                    job.source,
+                    job.target
                 );
             }
             std::mem::swap(&mut job.source, &mut job.target);
