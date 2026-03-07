@@ -150,15 +150,15 @@ pub(crate) fn execute_item(item: Item) -> Result<()> {
         Item::Delete(dest) => {
             if dest.exists() {
                 if dest.is_dir() {
-                    if let Err(e) = fs::remove_dir_all(&dest) {
-                        if e.kind() != std::io::ErrorKind::NotFound {
-                            eprintln!("Failed to delete directory {dest:?}: {e}");
-                        }
+                    if let Err(e) = fs::remove_dir_all(&dest)
+                        && e.kind() != std::io::ErrorKind::NotFound
+                    {
+                        eprintln!("Failed to delete directory {dest:?}: {e}");
                     }
-                } else if let Err(e) = fs::remove_file(&dest) {
-                    if e.kind() != std::io::ErrorKind::NotFound {
-                        eprintln!("Failed to delete file {dest:?}: {e}");
-                    }
+                } else if let Err(e) = fs::remove_file(&dest)
+                    && e.kind() != std::io::ErrorKind::NotFound
+                {
+                    eprintln!("Failed to delete file {dest:?}: {e}");
                 }
             }
         }
@@ -174,15 +174,15 @@ pub(crate) async fn execute_item_async(item: Item) -> Result<()> {
         Item::Delete(dest) => {
             if dest.exists() {
                 if dest.is_dir() {
-                    if let Err(e) = tokio::fs::remove_dir_all(&dest).await {
-                        if e.kind() != std::io::ErrorKind::NotFound {
-                            eprintln!("Failed to delete directory {dest:?}: {e}");
-                        }
+                    if let Err(e) = tokio::fs::remove_dir_all(&dest).await
+                        && e.kind() != std::io::ErrorKind::NotFound
+                    {
+                        eprintln!("Failed to delete directory {dest:?}: {e}");
                     }
-                } else if let Err(e) = tokio::fs::remove_file(&dest).await {
-                    if e.kind() != std::io::ErrorKind::NotFound {
-                        eprintln!("Failed to delete file {dest:?}: {e}");
-                    }
+                } else if let Err(e) = tokio::fs::remove_file(&dest).await
+                    && e.kind() != std::io::ErrorKind::NotFound
+                {
+                    eprintln!("Failed to delete file {dest:?}: {e}");
                 }
             }
         }

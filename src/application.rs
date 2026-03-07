@@ -259,12 +259,13 @@ pub(crate) fn reset_config_file() {
     let config_file = config_file();
     let backed_config_file = backed_config_file();
     // Backup the config file if it exists
-    if config_file.exists() {
-        if let Err(e) = fs::copy(config_file, backed_config_file) {
-            eprintln!("Failed to backup configuration file: {e}");
-            process::exit(1);
-        }
+    if config_file.exists()
+        && let Err(e) = fs::copy(config_file, backed_config_file)
+    {
+        eprintln!("Failed to backup configuration file: {e}");
+        process::exit(1);
     }
+
     // Initialize or reset the config file
     match Application::new().write() {
         Ok(_) => println!("Configuration file reset successfully!"),
