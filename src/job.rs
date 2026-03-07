@@ -1,7 +1,6 @@
 use crate::file_util;
 use crate::item::{execute_item, execute_item_async, get_item, get_items};
-use anyhow::Result;
-use anyhow::anyhow;
+use anyhow::{Result, bail};
 use clap::ValueEnum;
 use futures::{StreamExt, stream::FuturesUnordered};
 use serde::{Deserialize, Serialize};
@@ -137,13 +136,19 @@ pub fn display_jobs(jobs: Vec<Job>) -> String {
 pub fn run_job(job: &Job) -> Result<()> {
     if let Some(ref format) = job.compression {
         let level = job.level.as_ref().unwrap_or(&Level::Default);
-        file_util::compression(&job.source, &job.target, format, level, &job.ignore)?;
+        file_util::compression(
+            &job.source,
+            &job.target,
+            format,
+            level,
+            job.ignore.as_deref(),
+        )?;
     } else if job.source.is_dir() {
         let target = &job.target;
         if target.exists() && target.is_file() {
-            return Err(anyhow!(
+            bail!(
                 "The file {target:?} already exists and a directory with the same name cannot be created."
-            ));
+            );
         }
 
         let items = get_items(job.clone())?;
@@ -197,15 +202,15 @@ async fn run_job_async(job: &Job) -> Result<()> {
         let lvl = level.clone();
         let ignore = job.ignore.clone();
         tokio::task::spawn_blocking(move || {
-            file_util::compression(&src, &tgt, &fmt, &lvl, &ignore)
+            file_util::compression(&src, &tgt, &fmt, &lvl, ignore.as_deref())
         })
         .await??;
     } else if job.source.is_dir() {
         let target = &job.target;
         if target.exists() && target.is_file() {
-            return Err(anyhow!(
+            bail!(
                 "The file {target:?} already exists and a directory with the same name cannot be created."
-            ));
+            );
         }
         let items = get_items(job.clone())?;
         let mut tasks = FuturesUnordered::new();

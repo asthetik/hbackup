@@ -5,10 +5,10 @@
 //! and config file management. It provides serialization/deserialization for TOML and JSON,
 //! and utilities for reading, writing, and migrating configuration files.
 
+use crate::error::HbackupError;
 use crate::{Result, constants::CONFIG_BACKUP_NAME, constants::CONFIG_NAME, sysexits};
 use hbackup::job::{BackupModel, CompressFormat, Job, Level};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::{fs, io, process};
@@ -63,21 +63,15 @@ impl Application {
         level: Option<Level>,
         ignore: Option<Vec<String>>,
         model: Option<BackupModel>,
-    ) {
-        let id = if self.jobs.is_empty() {
-            1
-        } else {
-            let job_ids: HashSet<u32> = self.jobs.iter().map(|j| j.id).collect();
-            (1..u32::MAX)
-                .find(|id| !job_ids.contains(id))
-                .unwrap_or_else(|| {
-                    eprintln!(
-                        "The maximum number of jobs created is {}. No more jobs can be added.",
-                        u32::MAX
-                    );
-                    process::exit(sysexits::EX_SOFTWARE);
-                })
-        };
+    ) -> Result<()> {
+        let id = self
+            .jobs
+            .iter()
+            .map(|job| job.id)
+            .max()
+            .unwrap_or(0)
+            .checked_add(1)
+            .ok_or(HbackupError::TooManyJobs(u32::MAX))?;
         self.jobs.push(Job {
             id,
             source,
@@ -87,6 +81,8 @@ impl Application {
             ignore,
             model,
         });
+
+        Ok(())
     }
 
     /// Removes all jobs from the configuration.
@@ -321,7 +317,7 @@ mod tests {
     }
 
     #[test]
-    fn test_application_add_job() {
+    fn test_application_add_job() -> Result<()> {
         let mut app = Application::new();
         let source = PathBuf::from("/test/source");
         let target = PathBuf::from("/test/target");
@@ -333,7 +329,7 @@ mod tests {
             Some(Level::Default),
             None,
             None,
-        );
+        )?;
 
         assert_eq!(app.jobs.len(), 1);
         assert_eq!(app.jobs[0].id, 1);
@@ -344,10 +340,11 @@ mod tests {
             Some(CompressFormat::Gzip)
         ));
         assert!(matches!(app.jobs[0].level, Some(Level::Default)));
+        Ok(())
     }
 
     #[test]
-    fn test_application_add_multiple_jobs() {
+    fn test_application_add_multiple_jobs() -> Result<()> {
         let mut app = Application::new();
 
         // Add first job
@@ -358,7 +355,7 @@ mod tests {
             Some(Level::Fastest),
             None,
             None,
-        );
+        )?;
 
         // Add second job
         app.add_job(
@@ -368,16 +365,18 @@ mod tests {
             Some(Level::Best),
             Some(vec!["*.log".to_string()]),
             None,
-        );
+        )?;
 
         assert_eq!(app.jobs.len(), 2);
         assert_eq!(app.jobs[0].id, 1);
         assert_eq!(app.jobs[1].id, 2);
         assert_ne!(app.jobs[0].id, app.jobs[1].id);
+
+        Ok(())
     }
 
     #[test]
-    fn test_application_remove_job() {
+    fn test_application_remove_job() -> Result<()> {
         let mut app = Application::new();
 
         // Add jobs
@@ -388,7 +387,7 @@ mod tests {
             None,
             None,
             None,
-        );
+        )?;
         app.add_job(
             PathBuf::from("/test/source2"),
             PathBuf::from("/test/target2"),
@@ -396,7 +395,7 @@ mod tests {
             None,
             None,
             None,
-        );
+        )?;
 
         assert_eq!(app.jobs.len(), 2);
 
@@ -410,10 +409,12 @@ mod tests {
         let result = app.remove_job(999);
         assert!(result.is_none());
         assert_eq!(app.jobs.len(), 1);
+
+        Ok(())
     }
 
     #[test]
-    fn test_application_reset_jobs() {
+    fn test_application_reset_jobs() -> Result<()> {
         let mut app = Application::new();
 
         // Add some jobs
@@ -424,7 +425,7 @@ mod tests {
             None,
             None,
             None,
-        );
+        )?;
         app.add_job(
             PathBuf::from("/test/source2"),
             PathBuf::from("/test/target2"),
@@ -432,16 +433,18 @@ mod tests {
             None,
             None,
             None,
-        );
+        )?;
 
         assert_eq!(app.jobs.len(), 2);
 
         app.reset_jobs();
         assert!(app.jobs.is_empty());
+
+        Ok(())
     }
 
     #[test]
-    fn test_application_serialization() {
+    fn test_application_serialization() -> Result<()> {
         let mut app = Application::new();
         app.add_job(
             PathBuf::from("/test/source"),
@@ -450,7 +453,7 @@ mod tests {
             Some(Level::Default),
             Some(vec!["*.log".to_string()]),
             None,
-        );
+        )?;
 
         // Test TOML serialization
         let toml_str = toml::to_string(&app).expect("Failed to serialize to TOML");
@@ -466,6 +469,8 @@ mod tests {
         assert_eq!(deserialized.jobs[0].id, app.jobs[0].id);
         assert_eq!(deserialized.jobs[0].source, app.jobs[0].source);
         assert_eq!(deserialized.jobs[0].target, app.jobs[0].target);
+
+        Ok(())
     }
 
     #[test]

@@ -5,9 +5,10 @@
 //! - Compress files and directories using various formats (gzip, zip, 7z, zstd, bzip2, xz, lz4, tar)
 //! - Handle different compression levels for each format
 //! - Support ignore lists to exclude specific files/directories from compression
+use crate::error::HbackupError;
 use crate::job::CompressFormat;
 use crate::job::Level;
-use anyhow::anyhow;
+use anyhow::bail;
 use anyhow::{Context, Result};
 use bzip2::Compression as BzCompression;
 use bzip2::write::BzEncoder;
@@ -48,7 +49,7 @@ pub fn copy(src: &Path, dest: &Path) -> Result<()> {
                 dest.display()
             );
         }
-        return Err(anyhow!(e));
+        bail!(e);
     }
 
     Ok(())
@@ -77,17 +78,17 @@ pub async fn copy_async(src: PathBuf, dest: PathBuf) -> Result<()> {
                 dest.display()
             );
         }
-        return Err(anyhow!(e));
+        bail!(e);
     }
     Ok(())
 }
 
 fn create_dir(src: &Path, dest: &Path) -> Result<bool> {
     if !src.exists() {
-        return Err(anyhow!("The path {src:?} does not exist"));
+        bail!("The path {src:?} does not exist");
     } else if src.is_dir() {
         return if dest.is_file() {
-            Err(anyhow!("Cannot copy directory {src:?} to file {dest:?}"))
+            bail!("Cannot copy directory {src:?} to file {dest:?}");
         } else {
             fs::create_dir_all(dest)?;
             Ok(true)
@@ -112,18 +113,16 @@ pub fn compression(
     dest: &Path,
     format: &CompressFormat,
     level: &Level,
-    ignore: &Option<Vec<String>>,
+    ignore: Option<&[String]>,
 ) -> Result<()> {
     if !src.exists() {
-        return Err(anyhow!("Source path does not exist: {}", src.display()));
+        bail!(HbackupError::PathNotFound(src.to_path_buf()));
     }
-    if !src.is_dir() && !src.is_file() {
-        return Err(anyhow!(
-            "Does not support compression except for files and directories"
-        ));
+    if !(src.is_file() || src.is_dir()) {
+        bail!("compression only supports files and directories");
     }
     if dest.exists() && !dest.is_dir() {
-        return Err(anyhow!("Invalid file type"));
+        bail!("destination must be a directory");
     }
     fs::create_dir_all(dest)?;
 
@@ -148,12 +147,7 @@ pub fn compression(
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
-fn compress_gzip(
-    src: &Path,
-    dest: &Path,
-    level: &Level,
-    ignore: &Option<Vec<String>>,
-) -> Result<()> {
+fn compress_gzip(src: &Path, dest: &Path, level: &Level, ignore: Option<&[String]>) -> Result<()> {
     let file_name = get_file_name(src);
     let level = match level {
         Level::Fastest => Compression::fast(),
@@ -193,12 +187,7 @@ fn compress_gzip(
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
-fn compress_zip(
-    src: &Path,
-    dest: &Path,
-    level: &Level,
-    ignore: &Option<Vec<String>>,
-) -> Result<()> {
+fn compress_zip(src: &Path, dest: &Path, level: &Level, ignore: Option<&[String]>) -> Result<()> {
     let file_name = get_file_name(src);
     let dest = dest.join(format!("{file_name}.zip"));
     let dest_file = File::create(dest)?;
@@ -267,7 +256,7 @@ fn compress_sevenz(
     src: &Path,
     dest: &Path,
     level: &Level,
-    ignore: &Option<Vec<String>>,
+    ignore: Option<&[String]>,
 ) -> Result<()> {
     let file_name = get_file_name(src);
     let dest = dest.join(format!("{file_name}.7z"));
@@ -297,12 +286,7 @@ fn compress_sevenz(
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
-fn compress_zstd(
-    src: &Path,
-    dest: &Path,
-    level: &Level,
-    ignore: &Option<Vec<String>>,
-) -> Result<()> {
+fn compress_zstd(src: &Path, dest: &Path, level: &Level, ignore: Option<&[String]>) -> Result<()> {
     let file_name = get_file_name(src);
     let level = match level {
         Level::Fastest => 1,
@@ -339,12 +323,7 @@ fn compress_zstd(
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
-fn compress_bzip2(
-    src: &Path,
-    dest: &Path,
-    level: &Level,
-    ignore: &Option<Vec<String>>,
-) -> Result<()> {
+fn compress_bzip2(src: &Path, dest: &Path, level: &Level, ignore: Option<&[String]>) -> Result<()> {
     let file_name = get_file_name(src);
     let level = match level {
         Level::Fastest => BzCompression::fast(),
@@ -383,7 +362,7 @@ fn compress_bzip2(
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
-fn compress_xz(src: &Path, dest: &Path, level: &Level, ignore: &Option<Vec<String>>) -> Result<()> {
+fn compress_xz(src: &Path, dest: &Path, level: &Level, ignore: Option<&[String]>) -> Result<()> {
     let file_name = get_file_name(src);
     let level = match level {
         Level::Fastest => 1,
@@ -422,12 +401,7 @@ fn compress_xz(src: &Path, dest: &Path, level: &Level, ignore: &Option<Vec<Strin
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
-fn compress_lz4(
-    src: &Path,
-    dest: &Path,
-    level: &Level,
-    ignore: &Option<Vec<String>>,
-) -> Result<()> {
+fn compress_lz4(src: &Path, dest: &Path, level: &Level, ignore: Option<&[String]>) -> Result<()> {
     let file_name = get_file_name(src);
     let level = match level {
         Level::Fastest => 1,
@@ -483,11 +457,10 @@ fn get_file_name(file: &Path) -> String {
 fn append_regular_only<W: Write>(
     tar: &mut Builder<W>,
     src: &Path,
-    ignore: &Option<Vec<String>>,
+    ignore: Option<&[String]>,
 ) -> Result<()> {
     let prefix = src.parent().unwrap_or(Path::new(""));
     let ignore_paths: Vec<PathBuf> = ignore
-        .as_ref()
         .map(|dirs| dirs.iter().map(|s| src.join(s)).collect())
         .unwrap_or_default();
 
@@ -510,9 +483,8 @@ fn append_regular_only<W: Write>(
 }
 
 /// Creates a filter function that determines whether a given path should be ignored based on the provided ignore list.
-fn make_filter(base: &Path, ignore: &Option<Vec<String>>) -> impl Fn(&Path) -> bool {
+fn make_filter(base: &Path, ignore: Option<&[String]>) -> impl Fn(&Path) -> bool {
     let ignore_paths: Vec<PathBuf> = ignore
-        .as_ref()
         .map(|dirs| dirs.iter().map(|s| base.join(s)).collect())
         .unwrap_or_default();
     move |path| !ignore_paths.iter().any(|p| path.starts_with(p))
@@ -527,7 +499,7 @@ fn make_filter(base: &Path, ignore: &Option<Vec<String>>) -> impl Fn(&Path) -> b
 ///
 /// # Errors
 /// Returns an error if any IO error occurs.
-fn compress_tar(src: &Path, dest: &Path, ignore: &Option<Vec<String>>) -> Result<()> {
+fn compress_tar(src: &Path, dest: &Path, ignore: Option<&[String]>) -> Result<()> {
     let file_name = get_file_name(src);
 
     if src.is_dir() {
