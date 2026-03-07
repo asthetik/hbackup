@@ -7,7 +7,7 @@ use crate::application::{
     Application, backup_config_file, config_file, init_config, reset_config_file,
     rollback_config_file,
 };
-use anyhow::{Result, anyhow};
+use anyhow::{Result, bail};
 use clap::{Parser, Subcommand, ValueEnum};
 use error::HbackupError;
 use hbackup::job::{BackupModel, CompressFormat, Job, Level, display_jobs, run_job, run_jobs};
@@ -379,7 +379,7 @@ fn delete(id: Option<Vec<u32>>, all: bool, yes: bool) -> Result<()> {
         msg.remove(msg.len() - 1);
         println!("{}", msg);
     } else {
-        return Err(anyhow!("Either --all or --id must be specified."));
+        bail!("Either --all or --id must be specified.");
     }
     Ok(())
 }
@@ -400,8 +400,7 @@ fn edit(params: EditParams) -> Result<()> {
     let source = source.map(canonicalize);
     let target = target.map(canonicalize);
     if compression.is_some() && model == Some(BackupModel::Mirror) {
-        eprintln!("Compression cannot be set for mirror backup model.");
-        process::exit(1);
+        bail!(HbackupError::InvalidCompressionForMirror);
     }
 
     let mut app = Application::load_config();
@@ -442,10 +441,9 @@ fn edit(params: EditParams) -> Result<()> {
         }
         if let Some(lvl) = level {
             if job.compression.is_none() {
-                eprintln!(
+                bail!(
                     "The compression format is not set, and the compression level cannot be updated."
                 );
-                process::exit(1);
             }
             job.level = Some(lvl);
         }
@@ -457,24 +455,21 @@ fn edit(params: EditParams) -> Result<()> {
         }
 
         if job.compression.is_some() && job.model == Some(BackupModel::Mirror) {
-            eprintln!("Compression cannot be set for mirror backup model.");
-            process::exit(1);
+            bail!(HbackupError::InvalidCompressionForMirror);
         }
 
         if swap {
             if !job.target.exists() {
-                eprintln!(
+                bail!(
                     "Cannot swap source and target paths for job id {id} because target path does not exist.\ntarget path: {:?}",
                     job.target
                 );
-                process::exit(1);
             } else if !(job.target.is_file() && job.source.is_file()) {
                 // only support: file-to-file swap for now
-                eprintln!(
+                bail!(
                     "Cannot swap source and target paths for job id {id} because both source and target paths must be files.\nsource path: {:?}\ntarget path: {:?}",
                     job.source, job.target
                 );
-                process::exit(1);
             }
             std::mem::swap(&mut job.source, &mut job.target);
         }
