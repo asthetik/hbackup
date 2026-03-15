@@ -22,8 +22,6 @@ impl Default for Config {
 }
 
 impl Config {
-    pub const CURRENT_VERSION: &'static str = "1.1";
-
     /// Adds a new backup job to the configuration.
     pub fn add_job(&mut self, mut new_job: Job) -> Result<Job> {
         new_job.source = fs::canonicalize(&new_job.source)?;
@@ -170,7 +168,7 @@ mod tests {
     #[test]
     fn config_default_has_empty_jobs_and_version() {
         let cfg = Config::default();
-        assert_eq!(cfg.version, Config::CURRENT_VERSION);
+        assert_eq!(cfg.version, CURRENT_VERSION);
         assert!(cfg.jobs.is_empty());
     }
 
@@ -266,7 +264,7 @@ mod tests {
         manager.save(&cfg).unwrap();
 
         let loaded = manager.load().unwrap();
-        assert_eq!(loaded.version, Config::CURRENT_VERSION);
+        assert_eq!(loaded.version, CURRENT_VERSION);
 
         // set old version to force backup during load
         let mut old_cfg = cfg;
@@ -274,7 +272,7 @@ mod tests {
         manager.save(&old_cfg).unwrap();
 
         let upgraded = manager.load().unwrap();
-        assert_eq!(upgraded.version, Config::CURRENT_VERSION);
+        assert_eq!(upgraded.version, CURRENT_VERSION);
         assert!(manager.config_path.with_extension("toml.bak").exists());
     }
 
@@ -286,7 +284,7 @@ mod tests {
             let manager = ConfigManager::new("hbackup_test", "config.toml").unwrap();
             std::fs::write(&manager.config_path, "NOT TOML").unwrap();
             let loaded = manager.load().unwrap();
-            assert_eq!(loaded.version, Config::CURRENT_VERSION);
+            assert_eq!(loaded.version, CURRENT_VERSION);
             manager.config_path.with_extension("toml.corrupted")
         });
 

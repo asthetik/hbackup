@@ -118,7 +118,7 @@ mod tests {
             source: source_dir,
             target: target_dir,
             mode: CliStrategy::Mirror,
-            format: ArchiveFormat::Tar, // Default value for non-archive modes
+            format: ArchiveFormat::Tar,
             level: Level::Default,
         };
 
@@ -132,7 +132,6 @@ mod tests {
                 .join(PKG_NAME)
                 .join("config.toml")
         } else {
-            // macOS/Linux 默认路径
             fake_home_path
                 .join(".config")
                 .join(PKG_NAME)
