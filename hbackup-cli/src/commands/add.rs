@@ -1,11 +1,10 @@
+use crate::Result;
 use crate::commands::ProcessCommand;
 use crate::constants::{CONFIG_NAME, PKG_NAME};
-use crate::Result;
 use clap::Args;
 use hbackup_core::model::config::ConfigManager;
 use hbackup_core::model::job::{ArchiveFormat, Job, Level, Strategy};
 use std::path::PathBuf;
-
 
 #[derive(Args, Debug)]
 pub struct AddArgs {

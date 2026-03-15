@@ -90,7 +90,10 @@ mod tests {
             target: path,
             strategy: Strategy::Copy,
         };
-        assert!(matches!(job.validate(), Err(crate::error::HbackupError::RuntimeError(_))));
+        assert!(matches!(
+            job.validate(),
+            Err(crate::error::HbackupError::RuntimeError(_))
+        ));
     }
 
     #[test]
@@ -133,6 +136,9 @@ mod tests {
             target: path,
             strategy: Strategy::Copy,
         };
-        assert!(matches!(job.validate(), Err(crate::error::HbackupError::RuntimeError(_))));
+        assert!(matches!(
+            job.validate(),
+            Err(crate::error::HbackupError::RuntimeError(_))
+        ));
     }
 }

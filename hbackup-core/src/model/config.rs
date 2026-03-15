@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-const CURRENT_VERSION: &'static str = "1.1";
+const CURRENT_VERSION: &str = "1.1";
 
 #[derive(Serialize, Deserialize)]
 pub struct Config {
@@ -54,7 +54,7 @@ impl ConfigManager {
     pub fn new(app_name: &str, config_name: &str) -> Result<Self> {
         let base_dir = get_base_config_dir()?;
         let app_dir = base_dir.join(app_name);
-        
+
         if !app_dir.exists() {
             fs::create_dir_all(&app_dir)?;
         }
@@ -67,10 +67,10 @@ impl ConfigManager {
     /// This method ensures the parent directory exists before writing.
     pub fn save(&self, config: &Config) -> Result<()> {
         // Ensure the parent directory exists
-        if let Some(parent) = self.config_path.parent() {
-            if !parent.exists() {
-                fs::create_dir_all(parent)?;
-            }
+        if let Some(parent) = self.config_path.parent()
+            && !parent.exists()
+        {
+            fs::create_dir_all(parent)?;
         }
 
         let toml_str = toml::to_string_pretty(config)?;
@@ -221,23 +221,35 @@ mod tests {
         let original_xdg = std::env::var_os("XDG_CONFIG_HOME");
 
         if cfg!(target_os = "macos") {
-            unsafe { std::env::set_var("HOME", temp.path()); }
+            unsafe {
+                std::env::set_var("HOME", temp.path());
+            }
         } else {
-            unsafe { std::env::set_var("XDG_CONFIG_HOME", temp.path()); }
+            unsafe {
+                std::env::set_var("XDG_CONFIG_HOME", temp.path());
+            }
         }
 
         let result = f();
 
         if let Some(value) = original_home {
-            unsafe { std::env::set_var("HOME", value); }
+            unsafe {
+                std::env::set_var("HOME", value);
+            }
         } else {
-            unsafe { std::env::remove_var("HOME"); }
+            unsafe {
+                std::env::remove_var("HOME");
+            }
         }
 
         if let Some(value) = original_xdg {
-            unsafe { std::env::set_var("XDG_CONFIG_HOME", value); }
+            unsafe {
+                std::env::set_var("XDG_CONFIG_HOME", value);
+            }
         } else {
-            unsafe { std::env::remove_var("XDG_CONFIG_HOME"); }
+            unsafe {
+                std::env::remove_var("XDG_CONFIG_HOME");
+            }
         }
 
         result
@@ -246,7 +258,9 @@ mod tests {
     #[test]
     fn config_manager_save_load_and_backup() {
         let temp = tempdir().unwrap();
-        let manager = with_temp_config(&temp, || ConfigManager::new("hbackup_test", "config.toml").unwrap());
+        let manager = with_temp_config(&temp, || {
+            ConfigManager::new("hbackup_test", "config.toml").unwrap()
+        });
 
         let cfg = Config::default();
         manager.save(&cfg).unwrap();
@@ -290,4 +304,3 @@ mod tests {
         });
     }
 }
-
