@@ -82,80 +82,32 @@ mod tests {
     use std::fs;
     use tempfile::tempdir;
 
-    #[tokio::test]
-    #[serial]
-    async fn test_add_command_isolated() -> Result<()> {
-        // 1. Create a fully isolated temporary directory to act as a "fake home"
-        let tmp = tempdir()?;
-        let fake_home_path = fs::canonicalize(tmp.path())?;
-
-        // 2. Redirect the HOME/USERPROFILE/XDG_CONFIG_HOME environment variables
-        // This trick ensures ConfigManager looks for config files inside the temp dir
-        // instead of your actual system home directory.
+    async fn with_temp_config<F, Fut>(temp: &tempfile::TempDir, f: F) -> Result<()>
+    where
+        F: FnOnce() -> Fut,
+        Fut: std::future::Future<Output = Result<()>>,
+    {
         let original_home = std::env::var_os("HOME");
         let original_xdg = std::env::var_os("XDG_CONFIG_HOME");
         let original_userprofile = std::env::var_os("USERPROFILE");
+        let original_appdata = std::env::var_os("APPDATA");
+        let original_localappdata = std::env::var_os("LOCALAPPDATA");
+
+        let fake_home = temp.path().to_path_buf();
 
         unsafe {
             if cfg!(windows) {
-                std::env::set_var("USERPROFILE", &fake_home_path);
+                std::env::set_var("USERPROFILE", &fake_home);
+                std::env::set_var("APPDATA", fake_home.join("AppData").join("Roaming"));
+                std::env::set_var("LOCALAPPDATA", fake_home.join("AppData").join("Local"));
             } else {
-                std::env::set_var("HOME", &fake_home_path);
-                std::env::set_var("XDG_CONFIG_HOME", fake_home_path.join(".config"));
+                std::env::set_var("HOME", &fake_home);
+                std::env::set_var("XDG_CONFIG_HOME", fake_home.join(".config"));
             }
         }
 
-        // 3. Prepare dummy source and target directories for the test
-        let source_dir = fake_home_path.join("data_to_back_up");
-        let target_dir = fake_home_path.join("backup_vault");
-        println!("--- Test Path Debug ---");
-        println!("Source Directory: {:?}", source_dir);
-        println!("Target Directory: {:?}", target_dir);
-        println!("-----------------------");
-        fs::create_dir(&source_dir)?;
-        fs::create_dir(&target_dir)?;
+        let result = f().await;
 
-        // 4. Construct AddArgs instance manually
-        let args = AddArgs {
-            source: source_dir,
-            target: target_dir,
-            mode: CliStrategy::Mirror,
-            format: ArchiveFormat::Tar,
-            level: Level::Default,
-        };
-
-        // 5. Execute the command logic
-        args.run().await?;
-
-        let config_path = if cfg!(windows) {
-            fake_home_path
-                .join("AppData")
-                .join("Roaming")
-                .join(PKG_NAME)
-                .join("config.toml")
-        } else {
-            fake_home_path
-                .join(".config")
-                .join(PKG_NAME)
-                .join("config.toml")
-        };
-        println!("config_path {:?}", config_path);
-        // Assert that the config file exists
-        assert!(
-            config_path.exists(),
-            "Config file should exist at {:?}",
-            config_path
-        );
-
-        // Assert that the content contains the "jobs" key
-        let content = fs::read_to_string(config_path)?;
-        println!("content: {content}");
-        assert!(
-            content.contains("jobs"),
-            "Config file should contain 'jobs'"
-        );
-
-        // restore environment
         if let Some(value) = original_home {
             unsafe {
                 std::env::set_var("HOME", value);
@@ -174,6 +126,7 @@ mod tests {
                 std::env::remove_var("XDG_CONFIG_HOME");
             }
         }
+
         if let Some(value) = original_userprofile {
             unsafe {
                 std::env::set_var("USERPROFILE", value);
@@ -183,6 +136,91 @@ mod tests {
                 std::env::remove_var("USERPROFILE");
             }
         }
+
+        if let Some(value) = original_appdata {
+            unsafe {
+                std::env::set_var("APPDATA", value);
+            }
+        } else {
+            unsafe {
+                std::env::remove_var("APPDATA");
+            }
+        }
+
+        if let Some(value) = original_localappdata {
+            unsafe {
+                std::env::set_var("LOCALAPPDATA", value);
+            }
+        } else {
+            unsafe {
+                std::env::remove_var("LOCALAPPDATA");
+            }
+        }
+
+        result
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_add_command_isolated() -> Result<()> {
+        let tmp = tempdir()?;
+
+        let _ = with_temp_config(&tmp, || async {
+            let fake_home_path = fs::canonicalize(tmp.path())?;
+
+            // 3. Prepare dummy source and target directories for the test
+            let source_dir = fake_home_path.join("data_to_back_up");
+            let target_dir = fake_home_path.join("backup_vault");
+            println!("--- Test Path Debug ---");
+            println!("Source Directory: {:?}", source_dir);
+            println!("Target Directory: {:?}", target_dir);
+            println!("-----------------------");
+            fs::create_dir(&source_dir)?;
+            fs::create_dir(&target_dir)?;
+
+            // 4. Construct AddArgs instance manually
+            let args = AddArgs {
+                source: source_dir,
+                target: target_dir,
+                mode: CliStrategy::Mirror,
+                format: ArchiveFormat::Tar,
+                level: Level::Default,
+            };
+
+            // 5. Execute the command logic
+            args.run().await?;
+
+            let config_path = if cfg!(windows) {
+                fake_home_path
+                    .join("AppData")
+                    .join("Roaming")
+                    .join(PKG_NAME)
+                    .join("config.toml")
+            } else {
+                fake_home_path
+                    .join(".config")
+                    .join(PKG_NAME)
+                    .join("config.toml")
+            };
+            println!("config_path {:?}", config_path);
+            // Assert that the config file exists
+            assert!(
+                config_path.exists(),
+                "Config file should exist at {:?}",
+                config_path
+            );
+
+            // Assert that the content contains the "jobs" key
+            let content = fs::read_to_string(config_path)?;
+            println!("content: {content}");
+            assert!(
+                content.contains("jobs"),
+                "Config file should contain 'jobs'"
+            );
+
+            Ok(())
+        })
+        .await;
 
         Ok(())
     }

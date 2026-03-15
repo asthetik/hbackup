@@ -79,12 +79,16 @@ mod tests {
         let original_home = std::env::var_os("HOME");
         let original_xdg = std::env::var_os("XDG_CONFIG_HOME");
         let original_userprofile = std::env::var_os("USERPROFILE");
+        let original_appdata = std::env::var_os("APPDATA");
+        let original_localappdata = std::env::var_os("LOCALAPPDATA");
 
         let fake_home = temp.path().to_path_buf();
 
         unsafe {
             if cfg!(windows) {
                 std::env::set_var("USERPROFILE", &fake_home);
+                std::env::set_var("APPDATA", fake_home.join("AppData").join("Roaming"));
+                std::env::set_var("LOCALAPPDATA", fake_home.join("AppData").join("Local"));
             } else {
                 std::env::set_var("HOME", &fake_home);
                 std::env::set_var("XDG_CONFIG_HOME", fake_home.join(".config"));
@@ -121,6 +125,26 @@ mod tests {
             }
         }
 
+        if let Some(value) = original_appdata {
+            unsafe {
+                std::env::set_var("APPDATA", value);
+            }
+        } else {
+            unsafe {
+                std::env::remove_var("APPDATA");
+            }
+        }
+
+        if let Some(value) = original_localappdata {
+            unsafe {
+                std::env::set_var("LOCALAPPDATA", value);
+            }
+        } else {
+            unsafe {
+                std::env::remove_var("LOCALAPPDATA");
+            }
+        }
+
         result
     }
 
@@ -153,7 +177,15 @@ mod tests {
             };
             cmd.run().await?;
 
-            let config_path = temp.path().join(".config").join(PKG_NAME).join(CONFIG_NAME);
+            let config_path = if cfg!(windows) {
+                temp.path()
+                    .join("AppData")
+                    .join("Roaming")
+                    .join(PKG_NAME)
+                    .join(CONFIG_NAME)
+            } else {
+                temp.path().join(".config").join(PKG_NAME).join(CONFIG_NAME)
+            };
             let content = fs::read_to_string(&config_path).unwrap();
             assert!(content.contains("version = \"1.1\""));
             assert!(!content.contains("[[jobs]]"));
@@ -193,7 +225,15 @@ mod tests {
             };
             cmd.run().await?;
 
-            let config_path = temp.path().join(".config").join(PKG_NAME).join(CONFIG_NAME);
+            let config_path = if cfg!(windows) {
+                temp.path()
+                    .join("AppData")
+                    .join("Roaming")
+                    .join(PKG_NAME)
+                    .join(CONFIG_NAME)
+            } else {
+                temp.path().join(".config").join(PKG_NAME).join(CONFIG_NAME)
+            };
             let content = fs::read_to_string(&config_path).unwrap();
             assert!(content.contains("version = \"1.1\""));
             assert!(!content.contains("[[jobs]]"));
