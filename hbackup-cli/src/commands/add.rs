@@ -97,12 +97,16 @@ mod tests {
 
         unsafe {
             if cfg!(windows) {
+                std::env::set_var("HOME", &fake_home);
                 std::env::set_var("USERPROFILE", &fake_home);
                 std::env::set_var("APPDATA", fake_home.join("AppData").join("Roaming"));
                 std::env::set_var("LOCALAPPDATA", fake_home.join("AppData").join("Local"));
+                std::fs::create_dir_all(fake_home.join("AppData").join("Roaming")).unwrap();
+                std::fs::create_dir_all(fake_home.join("AppData").join("Local")).unwrap();
             } else {
                 std::env::set_var("HOME", &fake_home);
                 std::env::set_var("XDG_CONFIG_HOME", fake_home.join(".config"));
+                std::fs::create_dir_all(fake_home.join(".config")).unwrap();
             }
         }
 
