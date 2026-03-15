@@ -1,4 +1,4 @@
-use crate::commands::{ProcessCommand, add::AddArgs};
+use crate::commands::{ProcessCommand, add::AddArgs, delete::DeleteArgs};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -8,15 +8,20 @@ pub struct Cli {
     pub command: Commands,
 }
 
+/// Supported hbackup commands.
 #[derive(Subcommand, Debug)]
 pub enum Commands {
+    /// Add a new backup job to the configuration.
     Add(AddArgs),
+    /// Delete backup jobs by id or delete all jobs.
+    Delete(DeleteArgs),
 }
 
 impl Commands {
     pub async fn execute(self) -> anyhow::Result<()> {
         match self {
             Commands::Add(args) => args.run().await,
+            Commands::Delete(args) => args.run().await,
         }
     }
 }

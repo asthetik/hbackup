@@ -1,8 +1,9 @@
 use crate::error::{HbackupError, Result};
 use crate::model::job::Job;
 use serde::{Deserialize, Serialize};
-use std::fs;
+use std::collections::HashSet;
 use std::path::PathBuf;
+use std::{fs, vec};
 
 const CURRENT_VERSION: &str = "1.1";
 
@@ -40,6 +41,31 @@ impl Config {
         self.jobs.push(new_job);
 
         Ok(self.jobs.last().unwrap().clone())
+    }
+
+    pub fn delete(&mut self, ids: Vec<u32>) -> Result<Vec<Job>> {
+        let ids_set: HashSet<u32> = ids.into_iter().collect();
+        for id in ids_set.iter() {
+            if !self.jobs.iter().any(|j| j.id == *id) {
+                return Err(HbackupError::JobNotFound(*id));
+            }
+        }
+
+        let mut removed_jobs = Vec::new();
+        self.jobs.retain(|job| {
+            if ids_set.contains(&job.id) {
+                removed_jobs.push(job.clone());
+                false
+            } else {
+                true
+            }
+        });
+
+        Ok(removed_jobs)
+    }
+
+    pub fn reset_jobs(&mut self) {
+        self.jobs = vec![];
     }
 }
 
@@ -189,6 +215,46 @@ mod tests {
         let saved = cfg.add_job(job).unwrap();
         assert_eq!(saved.id, 1);
         assert_eq!(cfg.jobs.len(), 1);
+    }
+
+    #[test]
+    fn delete_by_ids_removes_jobs() {
+        let mut cfg = Config::default();
+        let temp = tempdir().unwrap();
+        let source = temp.path().join("src1");
+        let target = temp.path().join("dst1");
+        std::fs::create_dir(&source).unwrap();
+        std::fs::create_dir(&target).unwrap();
+
+        let job1 = Job {
+            id: 0,
+            source: source.clone(),
+            target: target.clone(),
+            strategy: Strategy::Copy,
+        };
+        let job2 = Job {
+            id: 0,
+            source: temp.path().join("src2"),
+            target: temp.path().join("dst2"),
+            strategy: Strategy::Mirror,
+        };
+        std::fs::create_dir(temp.path().join("src2")).unwrap();
+        std::fs::create_dir(temp.path().join("dst2")).unwrap();
+
+        let saved1 = cfg.add_job(job1).unwrap();
+        let saved2 = cfg.add_job(job2).unwrap();
+
+        let removed = cfg.delete(vec![saved1.id, saved2.id]).unwrap();
+
+        assert_eq!(removed.len(), 2);
+        assert!(cfg.jobs.is_empty());
+    }
+
+    #[test]
+    fn delete_by_ids_not_found_fails() {
+        let mut cfg = Config::default();
+        let result = cfg.delete(vec![123]);
+        assert!(matches!(result, Err(HbackupError::JobNotFound(123))));
     }
 
     #[test]

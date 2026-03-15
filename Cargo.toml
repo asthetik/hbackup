@@ -9,8 +9,9 @@ anyhow = "1.0.102"
 serde = { version = "1.0.228", features = ["derive"] }
 dirs = "6.0.0"
 thiserror = "2.0.18"
-toml = "=1.0.6"
+toml = "1.0.6"
 tempfile = "3.26.0"
+serial_test = "3.4.0"
 
 [profile.release]
 debug = 1
