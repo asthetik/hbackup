@@ -9,46 +9,65 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  code-quality:
+  setup:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v6
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: stable
-        components: clippy,rustfmt
-    - uses: Swatinem/rust-cache@v2
-    - name: Check formatting
-      run: cargo fmt --all --check
-    - name: Cargo clippy
-      run: cargo clippy -- -D warnings
-    - name: Cargo tests
-      run: cargo test --verbose -- --show-output
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: clippy,rustfmt
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
 
-  tests:
-    needs: code-quality
+  lint:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: clippy,rustfmt
+      - name: Check formatting
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  test:
+    needs: lint
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
       matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         version: [stable, nightly, 1.88.0]
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v6
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: ${{ matrix.version }}
-    - name: Show version
-      run: |
-        rustup show
-        cargo --version
-        rustc --version
-    - uses: Swatinem/rust-cache@v2
-    - name: Basic build
-      run: cargo build --verbose
-    - name: Automated Tests
-      run: cargo test --verbose -- --show-output
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.version }}
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+      - name: Run tests
+        run: cargo test --workspace --all-targets -- --show-output
+
+  coverage:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Run tarpaulin
+        run: cargo tarpaulin --out Xml
