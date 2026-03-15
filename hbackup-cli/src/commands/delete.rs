@@ -69,6 +69,7 @@ mod tests {
     use hbackup_core::model::job::{Job, Strategy};
     use serial_test::serial;
     use std::fs;
+    use std::path::PathBuf;
     use tempfile::tempdir;
 
     async fn with_temp_config<F, Fut>(temp: &tempfile::TempDir, f: F) -> Result<()>
@@ -182,13 +183,16 @@ mod tests {
             cmd.run().await?;
 
             let config_path = if cfg!(windows) {
-                temp.path()
-                    .join("AppData")
-                    .join("Roaming")
+                std::env::var_os("APPDATA")
+                    .map(PathBuf::from)
+                    .expect("APPDATA should be set in with_temp_config")
                     .join(PKG_NAME)
                     .join(CONFIG_NAME)
             } else {
-                temp.path().join(".config").join(PKG_NAME).join(CONFIG_NAME)
+                let base = std::env::var_os("XDG_CONFIG_HOME")
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|| std::env::var_os("HOME").unwrap().into());
+                base.join(PKG_NAME).join(CONFIG_NAME)
             };
             let content = fs::read_to_string(&config_path).unwrap();
             assert!(content.contains("version = \"1.1\""));
@@ -230,13 +234,16 @@ mod tests {
             cmd.run().await?;
 
             let config_path = if cfg!(windows) {
-                temp.path()
-                    .join("AppData")
-                    .join("Roaming")
+                std::env::var_os("APPDATA")
+                    .map(PathBuf::from)
+                    .expect("APPDATA should be set in with_temp_config")
                     .join(PKG_NAME)
                     .join(CONFIG_NAME)
             } else {
-                temp.path().join(".config").join(PKG_NAME).join(CONFIG_NAME)
+                let base = std::env::var_os("XDG_CONFIG_HOME")
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|| std::env::var_os("HOME").unwrap().into());
+                base.join(PKG_NAME).join(CONFIG_NAME)
             };
             let content = fs::read_to_string(&config_path).unwrap();
             assert!(content.contains("version = \"1.1\""));

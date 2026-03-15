@@ -80,6 +80,7 @@ mod tests {
     use super::*;
     use serial_test::serial;
     use std::fs;
+    use std::path::PathBuf;
     use tempfile::tempdir;
 
     async fn with_temp_config<F, Fut>(temp: &tempfile::TempDir, f: F) -> Result<()>
@@ -170,7 +171,7 @@ mod tests {
         let tmp = tempdir()?;
 
         let _ = with_temp_config(&tmp, || async {
-            let fake_home_path = fs::canonicalize(tmp.path())?;
+            let fake_home_path = tmp.path().to_path_buf();
 
             // 3. Prepare dummy source and target directories for the test
             let source_dir = fake_home_path.join("data_to_back_up");
@@ -195,16 +196,16 @@ mod tests {
             args.run().await?;
 
             let config_path = if cfg!(windows) {
-                fake_home_path
-                    .join("AppData")
-                    .join("Roaming")
+                std::env::var_os("APPDATA")
+                    .map(PathBuf::from)
+                    .expect("APPDATA should be set in with_temp_config")
                     .join(PKG_NAME)
                     .join("config.toml")
             } else {
-                fake_home_path
-                    .join(".config")
-                    .join(PKG_NAME)
-                    .join("config.toml")
+                let base = std::env::var_os("XDG_CONFIG_HOME")
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|| std::env::var_os("HOME").unwrap().into());
+                base.join(PKG_NAME).join("config.toml")
             };
             println!("config_path {:?}", config_path);
             // Assert that the config file exists
