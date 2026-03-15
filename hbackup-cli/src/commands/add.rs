@@ -87,14 +87,19 @@ mod tests {
         let tmp = tempdir()?;
         let fake_home_path = fs::canonicalize(tmp.path())?;
 
-        // 2. Redirect the HOME/USERPROFILE environment variables
+        // 2. Redirect the HOME/USERPROFILE/XDG_CONFIG_HOME environment variables
         // This trick ensures ConfigManager looks for config files inside the temp dir
         // instead of your actual system home directory.
+        let original_home = std::env::var_os("HOME");
+        let original_xdg = std::env::var_os("XDG_CONFIG_HOME");
+        let original_userprofile = std::env::var_os("USERPROFILE");
+
         unsafe {
             if cfg!(windows) {
                 std::env::set_var("USERPROFILE", &fake_home_path);
             } else {
                 std::env::set_var("HOME", &fake_home_path);
+                std::env::set_var("XDG_CONFIG_HOME", fake_home_path.join(".config"));
             }
         }
 
@@ -148,6 +153,35 @@ mod tests {
             content.contains("jobs"),
             "Config file should contain 'jobs'"
         );
+
+        // restore environment
+        if let Some(value) = original_home {
+            unsafe {
+                std::env::set_var("HOME", value);
+            }
+        } else {
+            unsafe {
+                std::env::remove_var("HOME");
+            }
+        }
+        if let Some(value) = original_xdg {
+            unsafe {
+                std::env::set_var("XDG_CONFIG_HOME", value);
+            }
+        } else {
+            unsafe {
+                std::env::remove_var("XDG_CONFIG_HOME");
+            }
+        }
+        if let Some(value) = original_userprofile {
+            unsafe {
+                std::env::set_var("USERPROFILE", value);
+            }
+        } else {
+            unsafe {
+                std::env::remove_var("USERPROFILE");
+            }
+        }
 
         Ok(())
     }
