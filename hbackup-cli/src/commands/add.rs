@@ -78,10 +78,12 @@ impl ProcessCommand for AddArgs {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
     use std::fs;
     use tempfile::tempdir;
 
     #[tokio::test]
+    #[serial]
     async fn test_add_command_isolated() -> Result<()> {
         // 1. Create a fully isolated temporary directory to act as a "fake home"
         let tmp = tempdir()?;
