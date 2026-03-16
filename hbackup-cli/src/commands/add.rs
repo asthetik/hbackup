@@ -80,8 +80,21 @@ mod tests {
     use super::*;
     use serial_test::serial;
     use std::fs;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
     use tempfile::tempdir;
+
+    fn clean_windows_path(original: &Path) -> PathBuf {
+        if cfg!(windows) {
+            let s = original.display().to_string();
+            if let Some(stripped) = s.strip_prefix(r"\\?\\") {
+                PathBuf::from(stripped)
+            } else {
+                original.to_path_buf()
+            }
+        } else {
+            original.to_path_buf()
+        }
+    }
 
     async fn with_temp_config<F, Fut>(temp: &tempfile::TempDir, f: F) -> Result<()>
     where
@@ -94,7 +107,7 @@ mod tests {
         let original_appdata = std::env::var_os("APPDATA");
         let original_localappdata = std::env::var_os("LOCALAPPDATA");
 
-        let fake_home = temp.path().to_path_buf();
+        let fake_home = clean_windows_path(temp.path());
 
         unsafe {
             if cfg!(windows) {
@@ -171,7 +184,7 @@ mod tests {
         let tmp = tempdir()?;
 
         let _ = with_temp_config(&tmp, || async {
-            let fake_home_path = tmp.path().to_path_buf();
+            let fake_home_path = clean_windows_path(tmp.path());
 
             // 3. Prepare dummy source and target directories for the test
             let source_dir = fake_home_path.join("data_to_back_up");

@@ -69,8 +69,21 @@ mod tests {
     use hbackup_core::model::job::{Job, Strategy};
     use serial_test::serial;
     use std::fs;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
     use tempfile::tempdir;
+
+    fn clean_windows_path(original: &Path) -> PathBuf {
+        if cfg!(windows) {
+            let s = original.display().to_string();
+            if let Some(stripped) = s.strip_prefix(r"\\?\\") {
+                PathBuf::from(stripped)
+            } else {
+                original.to_path_buf()
+            }
+        } else {
+            original.to_path_buf()
+        }
+    }
 
     async fn with_temp_config<F, Fut>(temp: &tempfile::TempDir, f: F) -> Result<()>
     where
@@ -83,7 +96,7 @@ mod tests {
         let original_appdata = std::env::var_os("APPDATA");
         let original_localappdata = std::env::var_os("LOCALAPPDATA");
 
-        let fake_home = temp.path().to_path_buf();
+        let fake_home = clean_windows_path(temp.path());
 
         unsafe {
             if cfg!(windows) {
