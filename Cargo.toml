@@ -40,7 +40,7 @@ futures = "0.3.32"
 thiserror = "2.0.18"
 
 [dev-dependencies]
-tempfile = "3.26.0"
+tempfile = "3.27.0"
 criterion = { version = "0.8.2", features = ["html_reports"] }
 rand = "0.10.0"
 assert_fs = "1.1.3"
