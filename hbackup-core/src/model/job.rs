@@ -30,27 +30,6 @@ impl Job {
     }
 }
 
-pub fn display_jobs(jobs: Vec<Job>) -> String {
-    if jobs.is_empty() {
-        return String::new();
-    }
-    let mut s = String::from('[');
-    for job in jobs {
-        let strategy = job.strategy;
-        s.push_str(&format!(
-            "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\",\n    strategy: {:?}",
-            job.id,
-            job.source.display(),
-            job.target.display(),
-            strategy
-        ));
-        s.push_str("\n},");
-    }
-    s.pop();
-    s.push(']');
-    s
-}
-
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum Strategy {

@@ -23,7 +23,7 @@ impl ProcessCommand for DeleteArgs {
         let manager = load_config_manager()?;
         let mut config = manager.load()?;
 
-        if config.jobs.is_empty() {
+        if config.jobs().is_empty() {
             println!("No jobs to delete");
             return Ok(());
         }

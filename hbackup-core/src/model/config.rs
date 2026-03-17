@@ -5,21 +5,10 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::{fs, vec};
 
-const CURRENT_VERSION: &str = "1.1";
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
-    pub version: String,
-    pub jobs: Vec<Job>,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            version: CURRENT_VERSION.to_string(),
-            jobs: vec![],
-        }
-    }
+    version: String,
+    jobs: Vec<Job>,
 }
 
 impl Config {
@@ -68,37 +57,48 @@ impl Config {
         self.jobs = vec![];
     }
 
-    pub fn list_by_ids(self, ids: &[u32]) -> Vec<Job> {
+    pub fn jobs(&self) -> &[Job] {
+        &self.jobs
+    }
+
+    pub fn list_by_ids(&self, ids: &[u32]) -> Vec<&Job> {
         self.jobs
-            .into_iter()
+            .iter()
             .filter(|job| ids.contains(&job.id))
             .collect()
     }
 
     /// Lists backup jobs by their IDs.
-    pub fn list_by_gte(self, id: u32) -> Vec<Job> {
-        self.jobs.into_iter().filter(|job| job.id >= id).collect()
+    pub fn list_by_gte(&self, id: u32) -> Vec<&Job> {
+        self.jobs.iter().filter(|job| job.id >= id).collect()
     }
 
-    pub fn list_by_lte(self, id: u32) -> Vec<Job> {
-        self.jobs.into_iter().filter(|job| job.id <= id).collect()
+    pub fn list_by_lte(&self, id: u32) -> Vec<&Job> {
+        self.jobs.iter().filter(|job| job.id <= id).collect()
     }
 }
 
 pub struct ConfigManager {
     config_path: PathBuf,
+    version: String,
 }
 
 impl ConfigManager {
     /// Initialize ConfigManager using the platform-specific base directory.
-    pub fn new(app_name: &str, config_name: &str) -> Result<Self> {
+    pub fn new(app_name: &str, config_name: &str, version: String) -> Result<Self> {
         let base_dir = get_base_config_dir()?;
         let config_path = base_dir.join(app_name).join(config_name);
-        Ok(Self { config_path })
+        Ok(Self {
+            config_path,
+            version,
+        })
     }
 
-    pub fn from_path(config_path: PathBuf) -> Self {
-        Self { config_path }
+    pub fn from_path_and_version(config_path: PathBuf, version: String) -> Self {
+        Self {
+            config_path,
+            version,
+        }
     }
 
     pub fn config_path(&self) -> &Path {
@@ -130,7 +130,7 @@ impl ConfigManager {
     /// Loads the configuration from disk with automatic schema migration.
     pub fn load(&self) -> Result<Config> {
         if !self.config_path.exists() {
-            let default_config = Config::default();
+            let default_config = self.default_config();
             self.save(&default_config)?;
             return Ok(default_config);
         }
@@ -153,20 +153,27 @@ impl ConfigManager {
                     );
                 }
 
-                let default_config = Config::default();
+                let default_config = self.default_config();
                 self.save(&default_config)?;
                 println!("   Notice: A new default configuration has been initialized.\n");
                 return Ok(default_config);
             }
         };
 
-        if config.version != CURRENT_VERSION {
+        if config.version != self.version {
             self.backup()?;
-            config.version = CURRENT_VERSION.to_string();
+            config.version = self.version.clone();
             self.save(&config)?;
         }
 
         Ok(config)
+    }
+
+    fn default_config(&self) -> Config {
+        Config {
+            version: self.version.clone(),
+            jobs: vec![],
+        }
     }
 
     /// Backs up the current configuration file to 'config.toml.bak'.

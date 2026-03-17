@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Args;
-use hbackup_core::model::job;
+use hbackup_core::model::job::Job;
 
 use crate::commands::{ProcessCommand, load_config_manager};
 
@@ -28,14 +28,34 @@ impl ProcessCommand for ListArgs {
         } else if let Some(id) = self.lte {
             config.list_by_lte(id)
         } else {
-            config.jobs
+            config.jobs().iter().collect()
         };
 
         if !jobs.is_empty() {
-            let display = job::display_jobs(jobs);
+            let display = display_jobs(jobs);
             println!("{display}");
         }
 
         Ok(())
     }
+}
+
+fn display_jobs(jobs: Vec<&Job>) -> String {
+    if jobs.is_empty() {
+        return String::new();
+    }
+    let mut s = String::from('[');
+    for job in jobs {
+        s.push_str(&format!(
+            "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\",\n    strategy: {:?}",
+            job.id,
+            job.source.display(),
+            job.target.display(),
+            job.strategy
+        ));
+        s.push_str("\n},");
+    }
+    s.pop();
+    s.push(']');
+    s
 }
