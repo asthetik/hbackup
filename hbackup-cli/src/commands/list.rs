@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Args;
-use hbackup_core::model::job::Job;
+use hbackup_core::model::job::{Job, Strategy};
 
 use crate::commands::{ProcessCommand, load_config_manager};
 
@@ -47,12 +47,19 @@ fn display_jobs(jobs: Vec<&Job>) -> String {
     let mut s = String::from('[');
     for job in jobs {
         s.push_str(&format!(
-            "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\",\n    strategy: {:?}",
+            "{{\n    \"id\": {},\n    \"source\": \"{}\",\n    \"target\": \"{}\"",
             job.id,
             job.source.display(),
             job.target.display(),
-            job.strategy
         ));
+        s.push_str(",\n    \"strategy\": ");
+        match &job.strategy {
+            Strategy::Archive { .. } => {
+                s.push_str(&format!("{:?}", &job.strategy));
+            }
+            _ => s.push_str(&format!("\"{:?}\"", &job.strategy)),
+        };
+
         s.push_str("\n},");
     }
     s.pop();

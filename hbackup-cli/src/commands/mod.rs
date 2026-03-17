@@ -4,6 +4,7 @@ use hbackup_core::model::config::ConfigManager;
 pub mod add;
 pub mod config;
 pub mod delete;
+pub mod edit;
 pub mod list;
 
 pub trait ProcessCommand {

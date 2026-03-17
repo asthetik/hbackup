@@ -1,4 +1,6 @@
-use crate::commands::{ProcessCommand, add::AddArgs, config, delete::DeleteArgs, list::ListArgs};
+use crate::commands::{
+    ProcessCommand, add::AddArgs, config, delete::DeleteArgs, edit::EditArgs, list::ListArgs,
+};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -15,6 +17,8 @@ pub enum Commands {
     Add(AddArgs),
     /// Delete backup jobs by id or delete all jobs.
     Delete(DeleteArgs),
+    /// Edit an existing backup job. You can update the source, target, and mode.
+    Edit(EditArgs),
     /// List all backup jobs.
     List(ListArgs),
     /// Display the current configuration Path.
@@ -27,17 +31,11 @@ impl Commands {
             Commands::Add(args) => args.run().await,
             Commands::Delete(args) => args.run().await,
             Commands::List(args) => args.run().await,
+            Commands::Edit(args) => args.run().await,
             Commands::Config => {
                 config::run()?;
                 Ok(())
             }
         }
     }
-}
-
-#[derive(clap::ValueEnum, Clone, Debug)]
-pub enum CliStrategy {
-    Mirror,
-    SimpleCopy,
-    Archive,
 }

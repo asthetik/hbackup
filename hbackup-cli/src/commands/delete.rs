@@ -10,7 +10,7 @@ pub struct DeleteArgs {
     /// Delete multiple jobs by ids. Cannot be used with --all.
     #[arg(value_delimiter = ',', conflicts_with = "all")]
     pub id: Option<Vec<u32>>,
-    /// Delete all jobs. Cannot be used with --id.
+    /// Delete all jobs. Cannot be used with positional [ID]...
     #[arg(short, long, conflicts_with = "id")]
     pub all: bool,
     /// Skip interactive confirmation when deleting all jobs
