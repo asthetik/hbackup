@@ -2,6 +2,7 @@ use crate::Result;
 use crate::constants::{CONFIG_NAME, CONFIG_VERSION, PKG_NAME};
 use hbackup_core::model::config::ConfigManager;
 pub mod add;
+pub mod config;
 pub mod delete;
 pub mod list;
 

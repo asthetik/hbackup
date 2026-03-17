@@ -1,4 +1,4 @@
-use crate::commands::{ProcessCommand, add::AddArgs, delete::DeleteArgs, list::ListArgs};
+use crate::commands::{ProcessCommand, add::AddArgs, config, delete::DeleteArgs, list::ListArgs};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -17,6 +17,8 @@ pub enum Commands {
     Delete(DeleteArgs),
     /// List all backup jobs.
     List(ListArgs),
+    /// Display the current configuration Path.
+    Config,
 }
 
 impl Commands {
@@ -25,6 +27,10 @@ impl Commands {
             Commands::Add(args) => args.run().await,
             Commands::Delete(args) => args.run().await,
             Commands::List(args) => args.run().await,
+            Commands::Config => {
+                config::run()?;
+                Ok(())
+            }
         }
     }
 }
