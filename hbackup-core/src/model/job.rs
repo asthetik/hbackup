@@ -8,6 +8,8 @@ pub struct Job {
     pub source: PathBuf,
     pub target: PathBuf,
     pub strategy: Strategy,
+    #[serde(default)]
+    pub ignore: Vec<String>,
 }
 
 impl Job {
@@ -118,6 +120,7 @@ mod tests {
             source: PathBuf::from("/does/not/exist"),
             target: PathBuf::from("/tmp/target"),
             strategy: Strategy::Copy,
+            ignore: vec![],
         };
 
         let err = job.validate().unwrap_err();
@@ -134,6 +137,7 @@ mod tests {
             source: path.clone(),
             target: path,
             strategy: Strategy::Copy,
+            ignore: vec![],
         };
         assert!(matches!(
             job.validate(),
@@ -154,6 +158,7 @@ mod tests {
             source,
             target,
             strategy: Strategy::Copy,
+            ignore: vec![],
         };
 
         assert!(job.validate().is_ok());
@@ -166,6 +171,7 @@ mod tests {
             source: PathBuf::from("/does/not/exist"),
             target: PathBuf::from("/tmp/target"),
             strategy: Strategy::Copy,
+            ignore: vec![],
         };
         assert!(job.validate().is_err());
     }
@@ -180,6 +186,7 @@ mod tests {
             source: path.clone(),
             target: path,
             strategy: Strategy::Copy,
+            ignore: vec![],
         };
         assert!(matches!(
             job.validate(),

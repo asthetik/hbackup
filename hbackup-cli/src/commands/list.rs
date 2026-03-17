@@ -59,7 +59,7 @@ fn display_jobs(jobs: Vec<&Job>) -> String {
             }
             _ => s.push_str(&format!("\"{:?}\"", &job.strategy)),
         };
-
+        s.push_str(&format!(",\n    \"ignore\": {:?}", &job.ignore));
         s.push_str("\n},");
     }
     s.pop();

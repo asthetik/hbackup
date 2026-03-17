@@ -30,6 +30,10 @@ pub struct EditArgs {
     /// New compression level (optional, required only if mode is archive)
     #[arg(short, long, value_enum, requires_if("mode", "archive"))]
     pub level: Option<Level>,
+
+    /// Ignore a specific list of files or directories
+    #[arg(short = 'g', long, value_delimiter = ',')]
+    ignore: Option<Vec<String>>,
 }
 
 impl ProcessCommand for EditArgs {
@@ -52,6 +56,9 @@ impl ProcessCommand for EditArgs {
         }
         if let Some(target) = target_opt {
             job.target = fs::canonicalize(target)?;
+        }
+        if let Some(ignore) = self.ignore {
+            job.ignore = ignore;
         }
 
         let update_existing_archive =

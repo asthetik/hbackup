@@ -35,6 +35,10 @@ pub struct AddArgs {
         default_value_t = Level::Default
     )]
     pub level: Level,
+
+    /// Ignore a specific list of files or directories
+    #[arg(short = 'g', long, value_delimiter = ',')]
+    ignore: Option<Vec<String>>,
 }
 
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -62,6 +66,7 @@ impl ProcessCommand for AddArgs {
             source: self.source,
             target: self.target,
             strategy,
+            ignore: self.ignore.unwrap_or_default(),
         };
         new_job.validate()?;
 
