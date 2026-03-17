@@ -1,6 +1,6 @@
 use crate::error::{HbackupError, Result};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::{fmt::Debug, path::PathBuf};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Job {
@@ -30,15 +30,51 @@ impl Job {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-#[serde(rename_all = "PascalCase")]
+pub fn display_jobs(jobs: Vec<Job>) -> String {
+    if jobs.is_empty() {
+        return String::new();
+    }
+    let mut s = String::from('[');
+    for job in jobs {
+        let strategy = job.strategy;
+        s.push_str(&format!(
+            "{{\n    id: {},\n    source: \"{}\",\n    target: \"{}\",\n    strategy: {:?}",
+            job.id,
+            job.source.display(),
+            job.target.display(),
+            strategy
+        ));
+        s.push_str("\n},");
+    }
+    s.pop();
+    s.push(']');
+    s
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "lowercase")]
 pub enum Strategy {
     Mirror,
     Archive { format: ArchiveFormat, level: Level },
     Copy,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+impl Debug for Strategy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Strategy::Mirror => "mirror".to_string(),
+            Strategy::Copy => "copy".to_string(),
+            Strategy::Archive { format, level } => format!(
+                "{{ \"format\": \"{:?}\", \"level\": \"{:?}\" }}",
+                format, level
+            ),
+        };
+        write!(f, "{}", s)
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "lowercase")]
 #[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 pub enum ArchiveFormat {
     Gzip,
@@ -51,7 +87,24 @@ pub enum ArchiveFormat {
     Tar,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+impl Debug for ArchiveFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            ArchiveFormat::Gzip => "gzip",
+            ArchiveFormat::Zip => "zip",
+            ArchiveFormat::Sevenz => "7z",
+            ArchiveFormat::Zstd => "zstd",
+            ArchiveFormat::Bzip2 => "bzip2",
+            ArchiveFormat::Xz => "xz",
+            ArchiveFormat::Lz4 => "lz4",
+            ArchiveFormat::Tar => "tar",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "lowercase")]
 #[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 pub enum Level {
     Fastest,
@@ -59,6 +112,19 @@ pub enum Level {
     Default,
     Better,
     Best,
+}
+
+impl Debug for Level {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Level::Fastest => "fastest",
+            Level::Faster => "faster",
+            Level::Default => "default",
+            Level::Better => "better",
+            Level::Best => "best",
+        };
+        write!(f, "{}", s)
+    }
 }
 
 #[cfg(test)]

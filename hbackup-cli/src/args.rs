@@ -1,4 +1,4 @@
-use crate::commands::{ProcessCommand, add::AddArgs, delete::DeleteArgs};
+use crate::commands::{ProcessCommand, add::AddArgs, delete::DeleteArgs, list::ListArgs};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -15,6 +15,8 @@ pub enum Commands {
     Add(AddArgs),
     /// Delete backup jobs by id or delete all jobs.
     Delete(DeleteArgs),
+    /// List all backup jobs.
+    List(ListArgs),
 }
 
 impl Commands {
@@ -22,6 +24,7 @@ impl Commands {
         match self {
             Commands::Add(args) => args.run().await,
             Commands::Delete(args) => args.run().await,
+            Commands::List(args) => args.run().await,
         }
     }
 }

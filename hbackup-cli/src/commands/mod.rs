@@ -3,6 +3,7 @@ use crate::constants::{CONFIG_NAME, PKG_NAME};
 use hbackup_core::model::config::ConfigManager;
 pub mod add;
 pub mod delete;
+pub mod list;
 
 pub trait ProcessCommand {
     async fn run(self) -> Result<()>;

@@ -67,6 +67,22 @@ impl Config {
     pub fn reset_jobs(&mut self) {
         self.jobs = vec![];
     }
+
+    pub fn list_by_ids(self, ids: &[u32]) -> Vec<Job> {
+        self.jobs
+            .into_iter()
+            .filter(|job| ids.contains(&job.id))
+            .collect()
+    }
+
+    /// Lists backup jobs by their IDs.
+    pub fn list_by_gte(self, id: u32) -> Vec<Job> {
+        self.jobs.into_iter().filter(|job| job.id >= id).collect()
+    }
+
+    pub fn list_by_lte(self, id: u32) -> Vec<Job> {
+        self.jobs.into_iter().filter(|job| job.id <= id).collect()
+    }
 }
 
 pub struct ConfigManager {
