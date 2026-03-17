@@ -22,10 +22,10 @@ rust-version = "1.88.0"
 
 [dependencies]
 hbackup-core = {path = "../hbackup-core", features = ["clap"] }
-clap.workspace = true
-tokio.workspace = true
+clap = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "fs", "macros"] }
 anyhow.workspace = true
-serde.workspace = true
+serde = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 tempfile.workspace = true

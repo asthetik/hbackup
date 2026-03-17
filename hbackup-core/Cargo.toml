@@ -5,9 +5,8 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
-tokio.workspace = true
-clap = { workspace = true, optional = true }
-serde.workspace = true
+clap = { workspace = true, optional = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
 anyhow.workspace = true
 dirs.workspace = true
 thiserror.workspace = true
