@@ -22,7 +22,7 @@ pub struct AddArgs {
         long,
         value_enum,
         requires_if("mode", "archive"),
-        default_value_t = ArchiveFormat::Tar
+        default_value_t = ArchiveFormat::default()
     )]
     pub format: ArchiveFormat,
 
@@ -32,7 +32,7 @@ pub struct AddArgs {
         long,
         value_enum,
         requires_if("mode", "archive"),
-        default_value_t = Level::Default
+        default_value_t = Level::default()
     )]
     pub level: Level,
 
