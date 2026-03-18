@@ -16,7 +16,7 @@ impl Config {
     pub fn add_job(&mut self, mut new_job: Job) -> Result<Job> {
         new_job.source = fs::canonicalize(&new_job.source)?;
         new_job.target = fs::canonicalize(&new_job.target)?;
-        
+
         if new_job.id == 0 {
             let max_id = self.jobs.iter().map(|j| j.id).max().unwrap_or(0);
             new_job.id = max_id + 1;

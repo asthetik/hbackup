@@ -54,7 +54,7 @@ impl Debug for Strategy {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Default, Copy)]
 #[serde(rename_all = "lowercase")]
 #[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 pub enum ArchiveFormat {
@@ -65,6 +65,7 @@ pub enum ArchiveFormat {
     Bzip2,
     Xz,
     Lz4,
+    #[default]
     Tar,
 }
 
@@ -84,12 +85,13 @@ impl Debug for ArchiveFormat {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Copy, Default)]
 #[serde(rename_all = "lowercase")]
 #[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 pub enum Level {
     Fastest,
     Faster,
+    #[default]
     Default,
     Better,
     Best,

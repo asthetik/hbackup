@@ -31,6 +31,9 @@ pub enum HbackupError {
     #[error("Permission denied: {0}")]
     PermissionDenied(String),
 
+    #[error("Ignore pattern error: {0}")]
+    Ignore(#[from] ignore::Error),
+
     /// General runtime errors
     #[error("Operation failed: {0}")]
     RuntimeError(String),

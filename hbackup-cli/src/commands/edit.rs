@@ -86,29 +86,23 @@ impl ProcessCommand for EditArgs {
                 job.strategy = Strategy::Mirror;
             }
             Some(CliStrategy::Archive) => {
-                if !update_existing_archive(
-                    format_opt.clone(),
-                    level_opt.clone(),
-                    &mut job.strategy,
-                ) && (format_opt.is_none() && level_opt.is_none())
+                if !update_existing_archive(format_opt, level_opt, &mut job.strategy)
+                    && (format_opt.is_none() && level_opt.is_none())
                 {
                     bail!("Both format and level must be provided when changing to archive mode");
                 }
                 job.strategy = Strategy::Archive {
-                    format: format_opt.unwrap_or(ArchiveFormat::Tar),
-                    level: level_opt.unwrap_or(Level::Default),
+                    format: format_opt.unwrap_or_default(),
+                    level: level_opt.unwrap_or_default(),
                 };
             }
             None => {
-                if !update_existing_archive(
-                    format_opt.clone(),
-                    level_opt.clone(),
-                    &mut job.strategy,
-                ) && (format_opt.is_some() || level_opt.is_some())
+                if !update_existing_archive(format_opt, level_opt, &mut job.strategy)
+                    && (format_opt.is_some() || level_opt.is_some())
                 {
                     job.strategy = Strategy::Archive {
-                        format: format_opt.unwrap_or(ArchiveFormat::Tar),
-                        level: level_opt.unwrap_or(Level::Default),
+                        format: format_opt.unwrap_or_default(),
+                        level: level_opt.unwrap_or_default(),
                     };
                 }
             }

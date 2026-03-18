@@ -6,6 +6,7 @@ pub mod config;
 pub mod delete;
 pub mod edit;
 pub mod list;
+pub mod run;
 
 pub trait ProcessCommand {
     async fn run(self) -> Result<()>;
