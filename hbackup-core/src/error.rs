@@ -34,6 +34,9 @@ pub enum HbackupError {
     #[error("Ignore pattern error: {0}")]
     Ignore(#[from] ignore::Error),
 
+    #[error("Archive error: {0}")]
+    Archive(String),
+
     /// General runtime errors
     #[error("Operation failed: {0}")]
     RuntimeError(String),

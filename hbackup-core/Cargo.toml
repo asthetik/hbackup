@@ -13,6 +13,14 @@ thiserror.workspace = true
 toml.workspace = true
 walkdir.workspace = true
 ignore.workspace = true
+tar.workspace = true
+flate2.workspace = true
+zip.workspace = true
+sevenz-rust2 = { workspace = true, features = ["compress"] }
+zstd.workspace = true
+bzip2.workspace = true
+xz2 = { workspace = true, features = ["static"] }
+lz4.workspace = true
 
 [features]
 clap = ["dep:clap"]

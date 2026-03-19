@@ -23,7 +23,7 @@ rust-version = "1.88.0"
 [dependencies]
 hbackup-core = {path = "../hbackup-core", features = ["clap"] }
 clap = { workspace = true, features = ["derive"] }
-tokio = { workspace = true, features = ["rt-multi-thread", "fs", "macros"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync"] }
 anyhow.workspace = true
 serde = { workspace = true, features = ["derive"] }
 

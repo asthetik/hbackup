@@ -2,7 +2,7 @@ use crate::error::{HbackupError, Result};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, path::PathBuf};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Job {
     pub id: u32,
     pub source: PathBuf,
@@ -82,6 +82,21 @@ impl Debug for ArchiveFormat {
             ArchiveFormat::Tar => "tar",
         };
         write!(f, "{}", s)
+    }
+}
+
+impl ArchiveFormat {
+    pub fn extension(&self) -> &'static str {
+        match self {
+            Self::Gzip => "tar.gz",
+            Self::Zip => "zip",
+            Self::Sevenz => "7z",
+            Self::Zstd => "tar.zst",
+            Self::Bzip2 => "tar.bz2",
+            Self::Xz => "tar.xz",
+            Self::Lz4 => "tar.lz4",
+            Self::Tar => "tar",
+        }
     }
 }
 

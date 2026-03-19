@@ -44,6 +44,7 @@ impl ProcessCommand for EditArgs {
         let job = config
             .get_job_mut(self.id)
             .ok_or_else(|| anyhow!("Job with ID {} not found", self.id))?;
+        let old_job = job.clone();
 
         let mode_opt = self.mode;
         let format_opt = self.format;
@@ -107,8 +108,44 @@ impl ProcessCommand for EditArgs {
                 }
             }
         }
+        let update_job = job.clone();
+        if old_job == update_job {
+            println!(
+                "ℹ️  No changes detected for Job {}. Configuration is already up to date.",
+                old_job.id
+            );
+            return Ok(());
+        }
         manager.save(&config)?;
-        println!("✅ Job with ID {} updated successfully!", self.id);
+
+        println!("✅ Job {} updated successfully!", self.id);
+        if old_job.source != update_job.source {
+            println!(
+                "   Source   : {} -> {}",
+                old_job.source.display(),
+                update_job.source.display()
+            );
+        }
+        if old_job.target != update_job.target {
+            println!(
+                "   Target   : {} -> {}",
+                old_job.target.display(),
+                update_job.target.display()
+            );
+        }
+        if old_job.strategy != update_job.strategy {
+            // 这里利用 Debug 打印策略的变化
+            println!(
+                "   Strategy : {:?} -> {:?}",
+                old_job.strategy, update_job.strategy
+            );
+        }
+        if old_job.ignore != update_job.ignore {
+            println!(
+                "   Ignore   : Rules updated (count: {})",
+                update_job.ignore.len()
+            );
+        }
 
         Ok(())
     }

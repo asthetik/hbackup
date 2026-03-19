@@ -5,6 +5,7 @@ use clap::Args;
 use hbackup_core::engine::executor;
 use hbackup_core::model::job::{ArchiveFormat, Job, Level, Strategy};
 use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Args, Debug)]
 pub struct RunArgs {
@@ -88,8 +89,55 @@ impl ProcessCommand for RunArgs {
             return Ok(());
         }
 
-        executor::execute_all(jobs)?;
+        let mut set = tokio::task::JoinSet::new();
 
+        let semaphore = Arc::new(tokio::sync::Semaphore::new(3));
+
+        for job in jobs {
+            let permit = semaphore.clone().acquire_owned().await?;
+            let result_job = job.clone();
+            set.spawn(async move {
+                let result = executor::execute_single(job);
+                drop(permit);
+                (result_job, result)
+            });
+        }
+
+        let mut total_success = 0;
+        let mut total_fail = 0;
+
+        while let Some(res) = set.join_next().await {
+            match res {
+                Ok((job, result)) => {
+                    // 修复 u32 没有 as_deref 的问题
+                    let identifier = job.id.to_string();
+                    let target = job.target.to_string_lossy();
+
+                    match result {
+                        Ok(_) => {
+                            total_success += 1;
+                            println!("✅ [SUCCESS] Job: {} -> {}", identifier, target);
+                        }
+                        Err(e) => {
+                            total_fail += 1;
+                            eprintln!("❌ [FAILED ] Job: {} | Error: {}", identifier, e);
+                        }
+                    }
+                }
+                Err(e) => {
+                    total_fail += 1;
+                    eprintln!("💥 [CRITICAL] A worker thread panicked: {}", e);
+                }
+            }
+        }
+        if total_success + total_fail > 1 {
+            println!(
+                "\n✅ Finished: {} | ❌ Failed: {} | 📦 Total: {}",
+                total_success,
+                total_fail,
+                total_success + total_fail
+            );
+        }
         Ok(())
     }
 }

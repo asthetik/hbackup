@@ -1,7 +1,7 @@
 use crate::{
     error::Result,
     model::job::{Job, Strategy},
-    pipeline::mirror::SyncExecutor,
+    pipeline::{archive::ArchiveExecutor, mirror::SyncExecutor},
 };
 
 pub fn execute_single(job: Job) -> Result<()> {
@@ -11,8 +11,9 @@ pub fn execute_single(job: Job) -> Result<()> {
             executor.run(job.strategy)?;
         }
 
-        Strategy::Archive { .. } => {
-            todo!()
+        Strategy::Archive { format, level } => {
+            let executor = ArchiveExecutor::new(job.source, job.target, job.ignore);
+            executor.run(format, level)?;
         }
     }
 

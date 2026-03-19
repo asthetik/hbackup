@@ -1,5 +1,4 @@
 use crate::Result;
-use anyhow::bail;
 use clap::Args;
 use std::io::{self, Write};
 
@@ -10,9 +9,11 @@ pub struct DeleteArgs {
     /// Delete multiple jobs by ids. Cannot be used with --all.
     #[arg(value_delimiter = ',', conflicts_with = "all")]
     pub id: Option<Vec<u32>>,
+
     /// Delete all jobs. Cannot be used with positional [ID]...
     #[arg(short, long, conflicts_with = "id")]
     pub all: bool,
+
     /// Skip interactive confirmation when deleting all jobs
     #[arg(short = 'y')]
     pub yes: bool,
@@ -24,40 +25,49 @@ impl ProcessCommand for DeleteArgs {
         let mut config = manager.load()?;
 
         if config.jobs().is_empty() {
-            println!("No jobs to delete");
+            println!("Checked: No backup jobs defined. Nothing to delete.");
             return Ok(());
         }
 
         if self.all {
-            if !self.yes {
-                confirm_delete_all()?;
+            if !self.yes && !confirm_delete_all()? {
+                println!("Operation cancelled. No jobs were deleted.");
+                return Ok(());
             }
+
+            let count = config.jobs().len();
             config.reset_jobs();
             manager.save(&config)?;
-            println!("All jobs deleted successfully.");
+            println!("🗑️  Deleted all backup jobs (Total: {}).", count);
             return Ok(());
         }
 
         if let Some(ids) = self.id {
-            config.delete(ids)?;
+            config.delete(ids.clone())?;
             manager.save(&config)?;
+            println!("✅ Successfully removed jobs with ID(s): {:?}", ids);
             return Ok(());
         }
 
-        bail!("Either --all or --id must be specified.");
+        Ok(())
     }
 }
 
-fn confirm_delete_all() -> Result<()> {
+fn confirm_delete_all() -> Result<bool> {
     loop {
-        print!("Are you sure you want to delete all jobs? (y/n): ");
+        print!("⚠️  Are you sure you want to delete ALL backup jobs? (y/N): ");
         io::stdout().flush()?;
+
         let mut input = String::new();
         io::stdin().read_line(&mut input)?;
-        match input.trim().to_lowercase().as_str() {
-            "y" => return Ok(()),
-            "n" => return Ok(()),
-            _ => println!("Invalid input. Please enter 'y' or 'n'."),
+        let choice = input.trim().to_lowercase();
+
+        if choice.is_empty() || choice == "n" {
+            return Ok(false);
         }
+        if choice == "y" {
+            return Ok(true);
+        }
+        println!("Invalid input. Please enter 'y' for yes or 'n' for no.");
     }
 }

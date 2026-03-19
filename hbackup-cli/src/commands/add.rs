@@ -72,8 +72,27 @@ impl ProcessCommand for AddArgs {
 
         let saved_job = config.add_job(new_job)?;
         manager.save(&config)?;
-        println!("✅ Job added successfully!");
-        println!("ID: {}", saved_job.id);
+
+        println!("✅ New backup job created successfully!");
+        println!("  ID       : {}", saved_job.id);
+        println!("  Source   : {}", saved_job.source.display());
+        println!("  Target   : {}", saved_job.target.display());
+
+        match &saved_job.strategy {
+            Strategy::Archive { format, level } => {
+                println!(
+                    "  Strategy : Archive (Format: {:?}, Level: {:?})",
+                    format, level
+                );
+            }
+            Strategy::Mirror => println!("  Strategy : Mirror"),
+            Strategy::Copy => println!("  Strategy : Copy"),
+        }
+
+        if !saved_job.ignore.is_empty() {
+            println!("  Ignore   : {:?}", saved_job.ignore);
+        }
+
         Ok(())
     }
 }

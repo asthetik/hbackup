@@ -9,9 +9,11 @@ pub struct ListArgs {
     /// List jobs by ids.
     #[arg(short, long, required = false, value_delimiter = ',', conflicts_with_all = ["gte", "lte"])]
     id: Option<Vec<u32>>,
+
     /// List jobs by id greater than or equal to.
     #[arg(short = 'g', long, required = false, conflicts_with_all = ["id", "lte"])]
     gte: Option<u32>,
+
     /// List jobs by id less than or equal to.
     #[arg(short = 'l', long, required = false, conflicts_with_all = ["id", "gte"])]
     lte: Option<u32>,

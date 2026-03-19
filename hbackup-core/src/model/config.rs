@@ -77,6 +77,10 @@ impl Config {
         self.jobs.iter().filter(|job| job.id <= id).collect()
     }
 
+    pub fn get_job(&self, id: u32) -> Option<&Job> {
+        self.jobs.iter().find(|j| j.id == id)
+    }
+
     pub fn get_job_mut(&mut self, id: u32) -> Option<&mut Job> {
         self.jobs.iter_mut().find(|j| j.id == id)
     }
