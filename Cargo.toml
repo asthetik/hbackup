@@ -1,6 +1,6 @@
 [package]
 name = "hbackup"
-version = "0.5.5"
+version = "0.5.6"
 edition = "2024"
 authors = ["asthetik"]
 homepage = "https://github.com/asthetik/hbackup"
@@ -25,11 +25,11 @@ clap = { version = "4.6.0", features = ["derive"] }
 serde = { version = "1.0.228", features = ["derive"] }
 anyhow = "1.0.102"
 dirs = "6.0.0"
-toml = "1.0.6"
+toml = "1.0.7"
 flate2 = "1.1.9"
-tar = "0.4.44"
+tar = "0.4.45"
 walkdir = "2.5.0"
-zip = { version = "8.2.0", default-features = false, features = ["deflate"] }
+zip = { version = "8.3.0", default-features = false, features = ["deflate"] }
 sevenz-rust2 = { version = "0.20.2", features = ["compress"] }
 zstd = "0.13.3"
 bzip2 = "0.6.1"

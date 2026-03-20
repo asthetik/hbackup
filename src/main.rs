@@ -3,10 +3,7 @@ mod constants;
 mod error;
 mod sysexits;
 
-use crate::application::{
-    Application, backup_config_file, config_file, init_config, reset_config_file,
-    rollback_config_file,
-};
+use crate::application::{Application, config_file, init_config};
 use anyhow::{Result, bail};
 use clap::{Parser, Subcommand, ValueEnum};
 use error::HbackupError;
@@ -103,20 +100,8 @@ async fn main() -> Result<()> {
             };
             edit(edit_params)?;
         }
-        Command::Config {
-            copy,
-            reset,
-            rollback,
-        } => {
-            if copy {
-                backup_config_file();
-            } else if reset {
-                reset_config_file();
-            } else if rollback {
-                rollback_config_file();
-            } else {
-                println!("Configuration file path: {}", config_file().display());
-            }
+        Command::Config => {
+            println!("   {}", config_file().display());
         }
     }
     Ok(())
@@ -230,17 +215,7 @@ enum Command {
         swap: bool,
     },
     /// Display the absolute path of the configuration file and manage config backup/reset/rollback.
-    Config {
-        /// Backup the configuration file.
-        #[arg(short = 'c', long, required = false, conflicts_with_all = ["reset", "rollback"])]
-        copy: bool,
-        /// Reset the configuration file and back up the file before resetting.
-        #[arg(short = 'r', long, required = false, conflicts_with_all = ["copy", "rollback"])]
-        reset: bool,
-        /// Rollback the last backed up configuration file.
-        #[arg(short = 'R', long, required = false, conflicts_with_all = ["copy", "reset"])]
-        rollback: bool,
-    },
+    Config,
 }
 
 /// Fields that can be cleared in the edit command
