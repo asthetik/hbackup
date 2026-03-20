@@ -328,7 +328,7 @@ mod tests {
 
     #[test]
     fn test_job_display_with_backup_models() {
-        let models = vec![BackupModel::Full, BackupModel::Mirror];
+        let models = [BackupModel::Full, BackupModel::Mirror];
 
         for (i, model) in models.iter().enumerate() {
             let job = Job {

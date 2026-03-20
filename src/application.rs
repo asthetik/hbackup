@@ -6,7 +6,7 @@
 //! and utilities for reading, writing, and migrating configuration files.
 
 use crate::error::HbackupError;
-use crate::{Result, constants::CONFIG_BACKUP_NAME, constants::CONFIG_NAME, sysexits};
+use crate::{Result, constants::CONFIG_NAME, sysexits};
 use hbackup::job::{BackupModel, CompressFormat, Job, Level};
 use serde::{Deserialize, Serialize};
 use std::io::Write;
@@ -139,11 +139,6 @@ pub(crate) fn config_file() -> PathBuf {
     config_dir().join(CONFIG_NAME)
 }
 
-/// Returns the absolute path to the backup configuration file.
-fn backed_config_file() -> PathBuf {
-    config_dir().join(CONFIG_BACKUP_NAME)
-}
-
 /// Returns the configuration directory for the application, platform-specific.
 #[cfg(not(target_os = "macos"))]
 fn config_dir() -> PathBuf {
@@ -202,19 +197,6 @@ fn read_config_file() -> Application {
     })
 }
 
-/// Reads the backup configuration file in TOML format.
-pub(crate) fn read_backed_config_file() -> Application {
-    let file_path = backed_config_file();
-    let toml_str = fs::read_to_string(&file_path).unwrap_or_else(|e| {
-        eprintln!("Error reading backup config file: {e}");
-        process::exit(sysexits::EX_IOERR);
-    });
-    toml::from_str(&toml_str).unwrap_or_else(|e| {
-        eprintln!("Error parsing backup config file: {e}");
-        process::exit(sysexits::EX_IOERR);
-    })
-}
-
 /// Initializes the configuration file for the application if it does not exist.
 /// This ensures that the application always has a valid configuration file to work with.
 pub(crate) fn init_config() {
@@ -233,66 +215,6 @@ pub(crate) fn init_config() {
     }
 }
 
-/// Back up the configuration file to a backup location.
-pub(crate) fn backup_config_file() {
-    let config_file = config_file();
-    let backed_config_file = backed_config_file();
-    // If the configuration file does not exist, initialize it
-    if !config_file.exists() {
-        let app = Application::new();
-        if let Err(e) = app.write() {
-            eprintln!("Failed to initialize configuration file: {e}");
-            process::exit(1);
-        }
-    }
-    match fs::copy(config_file, backed_config_file) {
-        Ok(_) => println!("Backup successfully!"),
-        Err(e) => {
-            eprintln!("Failed to backup configuration file: {e}");
-            process::exit(1);
-        }
-    }
-}
-
-/// Reset the configuration file and back up the file before resetting.
-pub(crate) fn reset_config_file() {
-    let config_file = config_file();
-    let backed_config_file = backed_config_file();
-    // Backup the config file if it exists
-    if config_file.exists()
-        && let Err(e) = fs::copy(config_file, backed_config_file)
-    {
-        eprintln!("Failed to backup configuration file: {e}");
-        process::exit(1);
-    }
-
-    // Initialize or reset the config file
-    match Application::new().write() {
-        Ok(_) => println!("Configuration file reset successfully!"),
-        Err(e) => {
-            eprintln!("Failed to reset configuration file: {e}");
-            process::exit(1);
-        }
-    }
-}
-
-/// Rollback the last backed up configuration file.
-pub(crate) fn rollback_config_file() {
-    let backed_config_file = backed_config_file();
-    if !backed_config_file.exists() {
-        eprintln!("The backup configuration file does not exist.");
-        process::exit(1);
-    }
-    let app = read_backed_config_file();
-    match app.write() {
-        Ok(_) => println!("Configuration file rolled back successfully."),
-        Err(e) => {
-            eprintln!("Failed to rollback configuration file: {e}");
-            process::exit(1);
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -302,12 +224,6 @@ mod tests {
     fn test_config_file() {
         let file = config_dir().join("hbackup").join("config.toml");
         assert_eq!(config_file(), file);
-    }
-
-    #[test]
-    fn test_backed_config_file() {
-        let file = config_dir().join("hbackup").join("config_backup.toml");
-        assert_eq!(backed_config_file(), file);
     }
 
     #[test]
