@@ -27,10 +27,11 @@ impl Scanner {
             ignore_rules,
         }
     }
+
     pub fn scan(&self) -> Result<Vec<ScannedFile>> {
         let mut overrides = OverrideBuilder::new(&self.source);
         for rule in &self.ignore_rules {
-            let pattern = if rule.starts_with("!") {
+            let pattern = if rule.starts_with('!') {
                 rule.to_string()
             } else {
                 format!("!{}", rule)
@@ -39,27 +40,36 @@ impl Scanner {
         }
 
         let overrides = overrides.build()?;
-        let files = WalkBuilder::new(&self.source)
+
+        let walker = WalkBuilder::new(&self.source)
             .overrides(overrides)
             .standard_filters(false)
             .build();
 
-        let mut items = vec![];
-        for entry in files {
-            let file = entry?;
+        let items = walker
+            .filter_map(|entry| {
+                let entry = match entry {
+                    Ok(e) => e,
+                    Err(e) => return Some(Err(HbackupError::from(e))),
+                };
 
-            if !file.file_type().map(|ft| ft.is_file()).unwrap_or(false) {
-                continue;
-            }
+                if !entry.file_type().map(|ft| ft.is_file()).unwrap_or(false) {
+                    return None;
+                }
 
-            let absolute = file.into_path();
-            let relative = absolute
-                .strip_prefix(&self.source)
-                .map_err(|e| HbackupError::RuntimeError(format!("Path alignment error: {}", e)))?
-                .to_path_buf();
-
-            items.push(ScannedFile::new(absolute, relative));
-        }
+                let absolute = entry.into_path();
+                match absolute.strip_prefix(&self.source) {
+                    Ok(rel) => {
+                        let relative = rel.to_path_buf();
+                        Some(Ok(ScannedFile::new(absolute, relative)))
+                    }
+                    Err(e) => Some(Err(HbackupError::RuntimeError(format!(
+                        "Path alignment error: {}",
+                        e
+                    )))),
+                }
+            })
+            .collect::<Result<Vec<ScannedFile>>>()?;
 
         Ok(items)
     }
