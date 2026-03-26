@@ -297,7 +297,6 @@ impl CompressionBackend for XzBackend {
 pub struct Lz4Backend;
 
 impl CompressionBackend for Lz4Backend {
-    // 嵌套结构：LZ4 编码器 -> 缓冲区 -> 物理文件
     type Writer = lz4::Encoder<BufWriter<File>>;
 
     fn build_writer(&self, target: File, level: Level) -> Result<Self::Writer> {
