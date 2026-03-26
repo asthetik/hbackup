@@ -3,7 +3,9 @@ use crate::commands::load_config_manager;
 use crate::commands::{ProcessCommand, add::CliStrategy};
 use clap::Args;
 use hbackup_core::engine::executor;
+use hbackup_core::error::HbackupError;
 use hbackup_core::model::job::{ArchiveFormat, Job, Level, Strategy};
+use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -49,14 +51,25 @@ impl RunArgs {
         self.id.is_none() && self.source.is_none() && self.target.is_none()
     }
 
-    fn to_temporary_job(&self) -> Job {
-        Job {
+    fn to_temporary_job(&self) -> Result<Job> {
+        let source = fs::canonicalize(self.source.clone().expect("Source path missing"))?;
+        let target = self.target.clone().expect("Target path missing");
+
+        // Avoid `canonicalize(target)` since target might not exist yet (we want to create it).
+        // If it's a relative path, convert to absolute based on current dir.
+        let target = if target.is_absolute() {
+            target
+        } else {
+            std::env::current_dir()?.join(target)
+        };
+
+        Ok(Job {
             id: 0,
-            source: self.source.clone().expect("Source path missing"),
-            target: self.target.clone().expect("Target path missing"),
+            source,
+            target,
             strategy: self.determine_strategy(),
             ignore: self.ignore.clone().unwrap_or_default(),
-        }
+        })
     }
 
     fn determine_strategy(&self) -> Strategy {
@@ -81,7 +94,7 @@ impl ProcessCommand for RunArgs {
         } else if let Some(ref ids) = self.id {
             config.list_by_ids(ids).into_iter().cloned().collect()
         } else {
-            vec![self.to_temporary_job()]
+            vec![self.to_temporary_job()?]
         };
 
         if jobs.is_empty() {
@@ -97,7 +110,17 @@ impl ProcessCommand for RunArgs {
             let permit = semaphore.clone().acquire_owned().await?;
             let result_job = job.clone();
             set.spawn(async move {
-                let result = executor::execute_single(job);
+                // `execute_single` is largely synchronous/blocking (std::fs + compression),
+                // so run it in a blocking thread to avoid starving tokio worker threads.
+                let join_res =
+                    tokio::task::spawn_blocking(move || executor::execute_single(job)).await;
+
+                let result = match join_res {
+                    Ok(r) => r,
+                    Err(join_err) => Err(HbackupError::RuntimeError(format!(
+                        "spawn_blocking join error: {join_err}"
+                    ))),
+                };
                 drop(permit);
                 (result_job, result)
             });
@@ -109,7 +132,6 @@ impl ProcessCommand for RunArgs {
         while let Some(res) = set.join_next().await {
             match res {
                 Ok((job, result)) => {
-                    // 修复 u32 没有 as_deref 的问题
                     let identifier = job.id.to_string();
                     let target = job.target.to_string_lossy();
 
