@@ -16,7 +16,7 @@ fn delete_yes_end_to_end() -> anyhow::Result<()> {
     std::fs::create_dir_all(&tgt1)?;
 
     let mut add1 = Command::new(bin);
-    add1.env("XDG_CONFIG_HOME", temp.path())
+    add1.env("HBACKUP_CONFIG", temp.path())
         .arg("add")
         .arg(src1.as_os_str())
         .arg(tgt1.as_os_str());
@@ -28,7 +28,7 @@ fn delete_yes_end_to_end() -> anyhow::Result<()> {
     std::fs::create_dir_all(&tgt2)?;
 
     let mut add2 = Command::new(bin);
-    add2.env("XDG_CONFIG_HOME", temp.path())
+    add2.env("HBACKUP_CONFIG", temp.path())
         .arg("add")
         .arg(src2.as_os_str())
         .arg(tgt2.as_os_str());
@@ -36,14 +36,14 @@ fn delete_yes_end_to_end() -> anyhow::Result<()> {
 
     // Verify config contains jobs by running `bk list` and checking output
     let mut list = Command::new(bin);
-    list.env("XDG_CONFIG_HOME", temp.path()).arg("list");
+    list.env("HBACKUP_CONFIG", temp.path()).arg("list");
     list.assert()
         .success()
         .stdout(predicate::str::contains("id:"));
 
     // Run the bk binary with delete --all -y
     let mut cmd = Command::new(bin);
-    cmd.env("XDG_CONFIG_HOME", temp.path())
+    cmd.env("HBACKUP_CONFIG", temp.path())
         .arg("delete")
         .arg("--all")
         .arg("-y");
@@ -53,7 +53,7 @@ fn delete_yes_end_to_end() -> anyhow::Result<()> {
 
     // After running binary, `bk list` should show no jobs (empty output)
     let mut list2 = Command::new(bin);
-    list2.env("XDG_CONFIG_HOME", temp.path()).arg("list");
+    list2.env("HBACKUP_CONFIG", temp.path()).arg("list");
     list2
         .assert()
         .success()
