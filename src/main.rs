@@ -45,20 +45,20 @@ async fn main() -> Result<()> {
         } => {
             match (id, source, target) {
                 (Some(ids), _, _) => {
-                    run_by_id(ids);
+                    run_by_id(ids).await;
                 }
                 (_, Some(source), Some(target)) => {
                     let source = canonicalize(source)?;
-                    let target = canonicalize(target)?;
+                    let target = canonicalize_target(target)?;
                     if compression.is_some() && model == Some(BackupModel::Mirror) {
                         bail!(HbackupError::InvalidCompressionForMirror);
                     }
 
                     // The temporary job id is set to 0
                     let job = Job::temp_job(source, target, compression, level, ignore, model);
-                    run_job(&job)?;
+                    run_job(&job).await?;
                 }
-                _ => run()?,
+                _ => run().await?,
             }
         }
         Command::List { id, gte, lte } => {
@@ -254,7 +254,7 @@ fn add(
     model: Option<BackupModel>,
 ) -> Result<()> {
     let source = canonicalize(source)?;
-    let target = canonicalize(target)?;
+    let target = canonicalize_target(target)?;
     if comp.is_some() && model == Some(BackupModel::Mirror) {
         return Err(HbackupError::InvalidCompressionForMirror.into());
     }
@@ -267,20 +267,20 @@ fn add(
 }
 
 /// Runs all backup jobs defined in the configuration.
-fn run() -> Result<()> {
+async fn run() -> Result<()> {
     let jobs = Application::get_jobs();
     if jobs.is_empty() {
         println!("No jobs are backed up!");
     } else if jobs.len() == 1 {
-        run_job(&jobs[0])?;
+        run_job(&jobs[0]).await?;
     } else {
-        run_jobs(jobs)?;
+        run_jobs(jobs).await?;
     }
     Ok(())
 }
 
 /// Runs a backup job by its id.
-fn run_by_id(ids: Vec<u32>) {
+async fn run_by_id(ids: Vec<u32>) {
     let jobs = Application::get_jobs();
     if jobs.is_empty() {
         println!("No jobs are backed up!");
@@ -300,11 +300,11 @@ fn run_by_id(ids: Vec<u32>) {
     if vec.is_empty() {
         process::exit(1);
     } else if vec.len() == 1 {
-        if let Err(e) = run_job(&vec[0]) {
+        if let Err(e) = run_job(&vec[0]).await {
             eprintln!("Failed to run job with id {}: {e}\n", vec[0].id);
             process::exit(sysexits::EX_IOERR);
         }
-    } else if let Err(e) = run_jobs(vec) {
+    } else if let Err(e) = run_jobs(vec).await {
         eprintln!("Failed to run jobs: {e}\n");
         process::exit(sysexits::EX_IOERR);
     }
@@ -372,7 +372,7 @@ fn edit(params: EditParams) -> Result<()> {
         swap,
     } = params;
     let source = source.map(canonicalize);
-    let target = target.map(canonicalize);
+    let target = target.map(canonicalize_target);
     if compression.is_some() && model == Some(BackupModel::Mirror) {
         bail!(HbackupError::InvalidCompressionForMirror);
     }
@@ -470,5 +470,18 @@ fn canonicalize(path: impl AsRef<Path>) -> Result<PathBuf> {
             }
             _ => Err(e.into()),
         },
+    }
+}
+
+/// Like [`canonicalize`], but also accepts paths that do not exist yet:
+/// a backup target is an output, so it is allowed to be created by the run.
+/// Existing paths are canonicalized as usual; missing ones are made
+/// absolute (without resolving symlinks, which do not exist there anyway).
+fn canonicalize_target(path: impl AsRef<Path>) -> Result<PathBuf> {
+    let path = path.as_ref();
+    if path.exists() {
+        canonicalize(path)
+    } else {
+        Ok(std::path::absolute(path)?)
     }
 }

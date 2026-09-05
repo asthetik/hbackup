@@ -1,3 +1,7 @@
+// The bin target compiles this module as its own private copy where only a
+// subset of variants is ever constructed (the lib constructs the rest).
+#![allow(dead_code)]
+
 use std::{io, path::PathBuf};
 use thiserror::Error;
 
@@ -11,6 +15,12 @@ pub enum HbackupError {
 
     #[error("compression cannot be used with mirror backup model")]
     InvalidCompressionForMirror,
+
+    #[error("not a file: {0}")]
+    NotAFile(PathBuf),
+
+    #[error("not a directory: {0}")]
+    NotADirectory(PathBuf),
 
     #[error("io error: {0}")]
     IoError(#[from] io::Error),

@@ -1,11 +1,10 @@
 use crate::file_util;
-use crate::item::{execute_item, execute_item_async, get_item, get_items};
+use crate::item::{execute_item_async, get_item, get_items};
 use anyhow::{Result, bail};
 use clap::ValueEnum;
-use futures::{StreamExt, stream::FuturesUnordered};
+use futures::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use tokio::runtime::Builder as runtimeBuilder;
 
 /// Represents a single backup job with a unique id, source, target, and optional compression.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -132,68 +131,12 @@ pub fn display_jobs(jobs: Vec<Job>) -> String {
     s
 }
 
-/// Runs a backup job (single file or directory copy, with optional compression).
-pub fn run_job(job: &Job) -> Result<()> {
-    if let Some(ref format) = job.compression {
-        let level = job.level.as_ref().unwrap_or(&Level::Default);
-        file_util::compression(
-            &job.source,
-            &job.target,
-            format,
-            level,
-            job.ignore.as_deref(),
-        )?;
-    } else if job.source.is_dir() {
-        let target = &job.target;
-        if target.exists() && target.is_file() {
-            bail!(
-                "The file {target:?} already exists and a directory with the same name cannot be created."
-            );
-        }
-
-        let items = get_items(job.clone())?;
-        let rt = runtimeBuilder::new_multi_thread().enable_all().build()?;
-        rt.block_on(async {
-            let mut tasks = FuturesUnordered::new();
-            for item in items {
-                tasks.push(execute_item_async(item));
-            }
-            while let Some(res) = tasks.next().await {
-                res?;
-            }
-            Ok::<(), anyhow::Error>(())
-        })?;
-    } else if let Some(item) = get_item(job.clone())? {
-        execute_item(item)?;
-    }
-    Ok(())
-}
-
-/// Runs multiple backup jobs concurrently.
-pub fn run_jobs(jobs: Vec<Job>) -> Result<()> {
-    let rt = runtimeBuilder::new_multi_thread().enable_all().build()?;
-
-    rt.block_on(async move {
-        let mut set = tokio::task::JoinSet::new();
-        for job in jobs {
-            set.spawn(async move {
-                if let Err(e) = run_job_async(&job).await {
-                    eprintln!("Failed to run job with id {}: {}\n", job.id, e);
-                }
-            });
-        }
-        while let Some(res) = set.join_next().await {
-            if let Err(e) = res {
-                eprintln!("Failed to run job: {e}\n");
-            }
-        }
-    });
-
-    Ok(())
-}
+/// Upper bound on concurrently copied files within one directory job, so a
+/// huge tree cannot exhaust file descriptors on systems with low ulimits.
+const COPY_CONCURRENCY: usize = 64;
 
 /// Runs a backup job (single file or directory copy, with optional compression).
-async fn run_job_async(job: &Job) -> Result<()> {
+pub async fn run_job(job: &Job) -> Result<()> {
     if let Some(ref format) = job.compression {
         let level = job.level.as_ref().unwrap_or(&Level::Default);
         let src = job.source.clone();
@@ -212,11 +155,10 @@ async fn run_job_async(job: &Job) -> Result<()> {
                 "The file {target:?} already exists and a directory with the same name cannot be created."
             );
         }
-        let items = get_items(job.clone())?;
-        let mut tasks = FuturesUnordered::new();
-        for item in items {
-            tasks.push(execute_item_async(item));
-        }
+        let job = job.clone();
+        let items = tokio::task::spawn_blocking(move || get_items(job)).await??;
+        let mut tasks = stream::iter(items.into_iter().map(execute_item_async))
+            .buffer_unordered(COPY_CONCURRENCY);
         while let Some(res) = tasks.next().await {
             res?;
         }
@@ -224,6 +166,55 @@ async fn run_job_async(job: &Job) -> Result<()> {
         execute_item_async(item).await?;
     }
     Ok(())
+}
+
+/// Runs multiple backup jobs concurrently.
+///
+/// Each job runs in its own task; individual failures are reported to stderr
+/// and never stop the remaining jobs. Returns Err if any job failed so the
+/// process can exit non-zero.
+pub async fn run_jobs(jobs: Vec<Job>) -> Result<()> {
+    let mut failed_ids: Vec<u32> = vec![];
+    let mut aborted_tasks = 0usize;
+    {
+        let mut set = tokio::task::JoinSet::new();
+        for job in jobs {
+            set.spawn(async move {
+                let id = job.id;
+                match run_job(&job).await {
+                    Ok(()) => None,
+                    Err(e) => {
+                        eprintln!("Failed to run job with id {id}: {e}\n");
+                        Some(id)
+                    }
+                }
+            });
+        }
+        while let Some(res) = set.join_next().await {
+            match res {
+                Ok(Some(id)) => failed_ids.push(id),
+                Ok(None) => {}
+                Err(e) => {
+                    eprintln!("Failed to run job: {e}\n");
+                    aborted_tasks += 1;
+                }
+            }
+        }
+    }
+
+    if failed_ids.is_empty() && aborted_tasks == 0 {
+        return Ok(());
+    }
+    let total = failed_ids.len() + aborted_tasks;
+    if failed_ids.is_empty() {
+        bail!("{total} job task(s) failed to run");
+    }
+    let ids = failed_ids
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join(", ");
+    bail!("{total} job(s) failed to run (id: {ids})");
 }
 
 #[cfg(test)]

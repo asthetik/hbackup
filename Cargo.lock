@@ -718,6 +718,7 @@ dependencies = [
  "clap",
  "criterion",
  "dirs",
+ "filetime",
  "flate2",
  "futures",
  "lz4",
