@@ -1,9 +1,8 @@
 //! CLI integration tests for `bk run` exit codes and non-existent backup targets.
 //!
-//! Config isolation: `HOME` and `XDG_CONFIG_HOME` are both pointed at a temp
-//! dir. `HOME` covers the macOS branch of `config_dir` (`$HOME/.config`),
-//! `XDG_CONFIG_HOME` covers the Linux branch (`dirs::config_dir`). The
-//! Windows config path ignores these variables.
+//! Config isolation: `HBACKUP_CONFIG` overrides the config directory on every
+//! platform, so tests never touch the real user config (on Windows the
+//! default path ignores HOME/XDG env vars entirely).
 
 use assert_cmd::prelude::*;
 use assert_fs::TempDir;
@@ -13,8 +12,7 @@ use std::process::Command;
 /// Returns a `bk` command isolated from the real user config.
 fn bk(temp: &TempDir) -> Command {
     let mut cmd = Command::new(assert_cmd::cargo::cargo_bin!("bk"));
-    cmd.env("HOME", temp.path())
-        .env("XDG_CONFIG_HOME", temp.path());
+    cmd.env("HBACKUP_CONFIG", temp.path());
     cmd
 }
 
