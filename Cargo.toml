@@ -1,6 +1,6 @@
 [package]
 name = "hbackup"
-version = "0.5.6"
+version = "0.6.0"
 edition = "2024"
 authors = ["asthetik"]
 homepage = "https://github.com/asthetik/hbackup"
@@ -21,32 +21,33 @@ exclude = [
 rust-version = "1.88.0"
 
 [dependencies]
-clap = { version = "4.6.1", features = ["derive"] }
-serde = { version = "1.0.228", features = ["derive"] }
-anyhow = "1.0.102"
-dirs = "6.0.0"
-toml = "1.1.2"
-flate2 = "1.1.9"
-tar = "0.4.46"
-walkdir = "2.5.0"
-zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
-sevenz-rust2 = { version = "0.20.2", features = ["compress"] }
-zstd = "0.13.3"
-bzip2 = "0.6.1"
-xz2 = { version = "0.1.7", features = ["static"] }
-lz4 = "1.28.1"
-tokio = { version = "1.52.3", features = ["rt-multi-thread", "fs", "macros"] }
-futures = "0.3.32"
-thiserror = "2.0.18"
+clap = { version = "4.6", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+anyhow = "1.0"
+dirs = "6.0"
+toml = "1.1"
+flate2 = "1.1"
+tar = "0.4"
+walkdir = "2.5"
+zip = { version = "8.6", default-features = false, features = ["deflate"] }
+sevenz-rust2 = { version = "0.20", features = ["compress"] }
+zstd = "0.13"
+bzip2 = "0.6"
+xz2 = { version = "0.1", features = ["static"] }
+lz4 = "1.28"
+tokio = { version = "1.52", features = ["rt-multi-thread", "fs", "macros"] }
+futures = "0.3"
+thiserror = "2.0"
 
 [dev-dependencies]
-tempfile = "3.27.0"
-criterion = { version = "0.8.2", features = ["html_reports"] }
-rand = "0.10.1"
-assert_fs = "1.1.4"
-predicates = "3.1.4"
-tokio = { version = "1.52.3", features = ["rt", "macros", "test-util"] }
-assert_cmd = "2.2.2"
+tempfile = "3.27"
+filetime = "0.2"
+criterion = { version = "0.8", features = ["html_reports"] }
+rand = "0.10"
+assert_fs = "1.1"
+predicates = "3.1"
+tokio = { version = "1.52", features = ["rt", "macros", "test-util"] }
+assert_cmd = "2.2"
 
 [[bin]]
 name = "bk"

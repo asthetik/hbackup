@@ -1,3 +1,4 @@
+use crate::error::HbackupError;
 use crate::file_util;
 use crate::job::{BackupModel, Job};
 use anyhow::Context;
@@ -7,7 +8,6 @@ use std::time::{Duration, SystemTime};
 use std::{
     fs,
     path::{Path, PathBuf},
-    process,
 };
 use walkdir::WalkDir;
 
@@ -33,15 +33,16 @@ impl Item {
 pub(crate) fn get_item(job: Job) -> Result<Option<Item>> {
     let src = job.source;
     if !src.exists() {
-        eprintln!("The path {src:?} is not exists");
-        process::exit(1);
+        return Err(HbackupError::PathNotFound(src).into());
     } else if !src.is_file() {
-        eprintln!("The path {src:?} is not file");
-        process::exit(1);
+        return Err(HbackupError::NotAFile(src).into());
     }
 
     let dest = job.target;
-    let dest = if dest.exists() && dest.is_dir() {
+    // A target that does not exist yet is treated as a directory to create
+    // (the backup output keeps its file name inside it); an existing file
+    // target is used as the exact destination path.
+    let dest = if !dest.exists() || dest.is_dir() {
         let file_name = src.file_name().with_context(|| "Invalid file name")?;
         dest.join(file_name)
     } else {
@@ -63,11 +64,9 @@ pub(crate) fn get_item(job: Job) -> Result<Option<Item>> {
 pub(crate) fn get_items(job: Job) -> Result<Vec<Item>> {
     let src = job.source;
     if !src.exists() {
-        eprintln!("The path {src:?} is not exists");
-        process::exit(1);
+        return Err(HbackupError::PathNotFound(src).into());
     } else if !src.is_dir() {
-        eprintln!("The path {src:?} is not directory");
-        process::exit(1);
+        return Err(HbackupError::NotADirectory(src).into());
     }
 
     let model = job.model.unwrap_or_default();
@@ -142,30 +141,6 @@ pub(crate) fn get_items(job: Job) -> Result<Vec<Item>> {
     Ok(items)
 }
 
-pub(crate) fn execute_item(item: Item) -> Result<()> {
-    match item {
-        Item::Copy { src, dest } => {
-            file_util::copy(&src, &dest)?;
-        }
-        Item::Delete(dest) => {
-            if dest.exists() {
-                if dest.is_dir() {
-                    if let Err(e) = fs::remove_dir_all(&dest)
-                        && e.kind() != std::io::ErrorKind::NotFound
-                    {
-                        eprintln!("Failed to delete directory {dest:?}: {e}");
-                    }
-                } else if let Err(e) = fs::remove_file(&dest)
-                    && e.kind() != std::io::ErrorKind::NotFound
-                {
-                    eprintln!("Failed to delete file {dest:?}: {e}");
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
 pub(crate) async fn execute_item_async(item: Item) -> Result<()> {
     match item {
         Item::Copy { src, dest } => {
@@ -231,33 +206,6 @@ mod tests {
     }
 
     #[test]
-    fn test_execute_item() -> Result<()> {
-        let filename = "hello.txt";
-        let content = b"Hello, World!";
-
-        let temp_dir = TempDir::new()?;
-        let src = create_test_file(temp_dir.path(), filename, content);
-        let dest = temp_dir.path().join("output").join(filename);
-        let item = Item::new_copy(&src, &dest);
-        dbg!(&item);
-        execute_item(item)?;
-        assert!(dest.exists());
-        assert!(dest.is_file());
-        let output = fs::read_to_string(dest)?;
-        assert_eq!(output, "Hello, World!");
-
-        let temp_dir = TempDir::new()?;
-        let dest = create_test_file(temp_dir.path(), filename, content);
-        let item = Item::new_delete(&dest);
-        dbg!(&item);
-        assert!(dest.exists());
-        execute_item(item)?;
-        assert!(!dest.exists());
-
-        Ok(())
-    }
-
-    #[test]
     fn test_execute_item_async() -> Result<()> {
         let filename = "hello.txt";
         let content = b"Hello, World!";
@@ -290,6 +238,143 @@ mod tests {
         });
         assert!(!dest.exists());
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_item_nonexistent_target_treated_as_dir() -> Result<()> {
+        let temp = TempDir::new()?;
+        let src = create_test_file(temp.path(), "a.txt", b"data");
+        let target = temp.path().join("new_dir");
+        let job = Job::temp_job(src, target, None, None, None, None);
+        let item = get_item(job)?.expect("copy item for existing source");
+        match item {
+            Item::Copy { dest, .. } => {
+                assert_eq!(dest, temp.path().join("new_dir").join("a.txt"))
+            }
+            Item::Delete(_) => panic!("expected a copy item"),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_item_source_not_found_is_err() {
+        let temp = TempDir::new().unwrap();
+        let job = Job::temp_job(
+            temp.path().join("missing.txt"),
+            temp.path().join("out"),
+            None,
+            None,
+            None,
+            None,
+        );
+        let err = get_item(job).unwrap_err();
+        assert!(matches!(
+            err.downcast_ref::<HbackupError>(),
+            Some(HbackupError::PathNotFound(_))
+        ));
+    }
+
+    #[test]
+    fn test_get_item_source_is_dir_is_err() {
+        let temp = TempDir::new().unwrap();
+        let src = temp.path().join("dir");
+        fs::create_dir_all(&src).unwrap();
+        let job = Job::temp_job(src, temp.path().join("out"), None, None, None, None);
+        let err = get_item(job).unwrap_err();
+        assert!(matches!(
+            err.downcast_ref::<HbackupError>(),
+            Some(HbackupError::NotAFile(_))
+        ));
+    }
+
+    #[test]
+    fn test_get_items_source_not_found_is_err() {
+        let temp = TempDir::new().unwrap();
+        let job = Job::temp_job(
+            temp.path().join("missing_dir"),
+            temp.path().join("out"),
+            None,
+            None,
+            None,
+            None,
+        );
+        let err = get_items(job).unwrap_err();
+        assert!(matches!(
+            err.downcast_ref::<HbackupError>(),
+            Some(HbackupError::PathNotFound(_))
+        ));
+    }
+
+    #[test]
+    fn test_get_items_source_is_file_is_err() {
+        let temp = TempDir::new().unwrap();
+        let src = create_test_file(temp.path(), "file.txt", b"data");
+        let job = Job::temp_job(src, temp.path().join("out"), None, None, None, None);
+        let err = get_items(job).unwrap_err();
+        assert!(matches!(
+            err.downcast_ref::<HbackupError>(),
+            Some(HbackupError::NotADirectory(_))
+        ));
+    }
+
+    #[test]
+    fn test_needs_update_missing_dest_copies() -> Result<()> {
+        let temp = TempDir::new()?;
+        let src_dir = temp.path().join("src");
+        fs::create_dir_all(&src_dir)?;
+        let src = create_test_file(&src_dir, "a.txt", b"v1");
+        let dest = temp.path().join("a.txt");
+        assert!(needs_update(&src, &dest)?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_needs_update_unchanged_skips() -> Result<()> {
+        use filetime::{FileTime, set_file_mtime};
+
+        let temp = TempDir::new()?;
+        let src_dir = temp.path().join("src");
+        fs::create_dir_all(&src_dir)?;
+        let src = create_test_file(&src_dir, "a.txt", b"v1");
+        let dest = temp.path().join("a.txt");
+        fs::copy(&src, &dest)?;
+        // Pin mtimes: dest "copied" 100s after src, same size -> skip.
+        set_file_mtime(&src, FileTime::from_unix_time(1_700_000_000, 0))?;
+        set_file_mtime(&dest, FileTime::from_unix_time(1_700_000_100, 0))?;
+        assert!(!needs_update(&src, &dest)?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_needs_update_size_changed_copies() -> Result<()> {
+        let temp = TempDir::new()?;
+        let src_dir = temp.path().join("src");
+        fs::create_dir_all(&src_dir)?;
+        let src = create_test_file(&src_dir, "a.txt", b"v1");
+        let dest = temp.path().join("a.txt");
+        fs::copy(&src, &dest)?;
+        // Size check runs before mtime, so no timing tricks needed.
+        create_test_file(&src_dir, "a.txt", b"longer content");
+        assert!(needs_update(&src, &dest)?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_needs_update_mtime_changed_copies() -> Result<()> {
+        use filetime::{FileTime, set_file_mtime};
+
+        let temp = TempDir::new()?;
+        let src_dir = temp.path().join("src");
+        fs::create_dir_all(&src_dir)?;
+        let src = create_test_file(&src_dir, "a.txt", b"v1");
+        let dest = temp.path().join("a.txt");
+        fs::copy(&src, &dest)?;
+        // Same size, but src mtime pinned 35 minutes after dest: past the
+        // 1s tolerance, no sleep needed on any filesystem.
+        set_file_mtime(&dest, FileTime::from_unix_time(1_700_000_000, 0))?;
+        set_file_mtime(&src, FileTime::from_unix_time(1_700_002_100, 0))?;
+        assert!(needs_update(&src, &dest)?);
         Ok(())
     }
 }

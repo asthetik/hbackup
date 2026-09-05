@@ -140,27 +140,32 @@ pub(crate) fn config_file() -> PathBuf {
 }
 
 /// Returns the configuration directory for the application, platform-specific.
-#[cfg(not(target_os = "macos"))]
+///
+/// The `HBACKUP_CONFIG` environment variable overrides the default location
+/// on every platform (used by tests and for portable setups).
 fn config_dir() -> PathBuf {
     use crate::constants::PKG_NAME;
 
-    let config_dir = dirs::config_dir().unwrap_or_else(|| {
-        eprintln!("Couldn't get the home directory!!!");
-        process::exit(sysexits::EX_UNAVAILABLE);
-    });
-    config_dir.join(PKG_NAME)
-}
+    if let Some(dir) = std::env::var_os("HBACKUP_CONFIG") {
+        return PathBuf::from(dir);
+    }
 
-/// Returns the configuration directory for the application, platform-specific.
-#[cfg(target_os = "macos")]
-fn config_dir() -> PathBuf {
-    use crate::constants::PKG_NAME;
-
-    let home_dir = dirs::home_dir().unwrap_or_else(|| {
-        eprintln!("Couldn't get the home directory!!!");
-        process::exit(sysexits::EX_UNAVAILABLE);
-    });
-    home_dir.join(".config").join(PKG_NAME)
+    #[cfg(target_os = "macos")]
+    {
+        let home_dir = dirs::home_dir().unwrap_or_else(|| {
+            eprintln!("Couldn't get the home directory!!!");
+            process::exit(sysexits::EX_UNAVAILABLE);
+        });
+        home_dir.join(".config").join(PKG_NAME)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let config_dir = dirs::config_dir().unwrap_or_else(|| {
+            eprintln!("Couldn't get the home directory!!!");
+            process::exit(sysexits::EX_UNAVAILABLE);
+        });
+        config_dir.join(PKG_NAME)
+    }
 }
 
 /// Checks if the configuration file exists.
