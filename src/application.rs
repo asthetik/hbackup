@@ -142,11 +142,13 @@ pub(crate) fn config_file() -> PathBuf {
 /// Returns the configuration directory for the application, platform-specific.
 ///
 /// The `HBACKUP_CONFIG` environment variable overrides the default location
-/// on every platform (used by tests and for portable setups).
+/// on every platform (used by tests and for portable setups); an empty value
+/// is ignored so the config cannot resolve to a relative path in the current
+/// directory.
 fn config_dir() -> PathBuf {
     use crate::constants::PKG_NAME;
 
-    if let Some(dir) = std::env::var_os("HBACKUP_CONFIG") {
+    if let Some(dir) = std::env::var_os("HBACKUP_CONFIG").filter(|dir| !dir.is_empty()) {
         return PathBuf::from(dir);
     }
 
@@ -161,7 +163,7 @@ fn config_dir() -> PathBuf {
     #[cfg(not(target_os = "macos"))]
     {
         let config_dir = dirs::config_dir().unwrap_or_else(|| {
-            eprintln!("Couldn't get the home directory!!!");
+            eprintln!("Couldn't get the config directory!!!");
             process::exit(sysexits::EX_UNAVAILABLE);
         });
         config_dir.join(PKG_NAME)

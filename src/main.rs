@@ -4,7 +4,7 @@ mod error;
 mod sysexits;
 
 use crate::application::{Application, config_file, init_config};
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand, ValueEnum};
 use error::HbackupError;
 use hbackup::job::{BackupModel, CompressFormat, Job, Level, display_jobs, run_job, run_jobs};
@@ -45,7 +45,7 @@ async fn main() -> Result<()> {
         } => {
             match (id, source, target) {
                 (Some(ids), _, _) => {
-                    run_by_id(ids).await;
+                    run_by_id(ids).await?;
                 }
                 (_, Some(source), Some(target)) => {
                     let source = canonicalize(source)?;
@@ -272,19 +272,24 @@ async fn run() -> Result<()> {
     if jobs.is_empty() {
         println!("No jobs are backed up!");
     } else if jobs.len() == 1 {
-        run_job(&jobs[0]).await?;
+        run_job(&jobs[0])
+            .await
+            .with_context(|| format!("Failed to run job with id {}", jobs[0].id))?;
     } else {
         run_jobs(jobs).await?;
     }
     Ok(())
 }
 
-/// Runs a backup job by its id.
-async fn run_by_id(ids: Vec<u32>) {
+/// Runs backup jobs by their ids.
+///
+/// Failures propagate as errors, with the same exit code (1) as `bk run`,
+/// instead of exiting with EX_IOERR here.
+async fn run_by_id(ids: Vec<u32>) -> Result<()> {
     let jobs = Application::get_jobs();
     if jobs.is_empty() {
         println!("No jobs are backed up!");
-        return;
+        return Ok(());
     }
     let mut vec = vec![];
     for id in ids {
@@ -298,16 +303,11 @@ async fn run_by_id(ids: Vec<u32>) {
         }
     }
     if vec.is_empty() {
-        process::exit(1);
-    } else if vec.len() == 1 {
-        if let Err(e) = run_job(&vec[0]).await {
-            eprintln!("Failed to run job with id {}: {e}\n", vec[0].id);
-            process::exit(sysexits::EX_IOERR);
-        }
-    } else if let Err(e) = run_jobs(vec).await {
-        eprintln!("Failed to run jobs: {e}\n");
-        process::exit(sysexits::EX_IOERR);
+        bail!("No job matching the given id(s) was run");
     }
+    // run_jobs reports each failing job with its id and aggregates them into
+    // one error for the non-zero exit; it also handles a single job.
+    run_jobs(vec).await
 }
 
 /// Deletes a job by id or deletes all jobs.

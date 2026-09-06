@@ -4,11 +4,13 @@ use crate::job::{BackupModel, Job};
 use anyhow::Context;
 use anyhow::Result;
 use std::collections::HashSet;
+use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use std::{
     fs,
     path::{Path, PathBuf},
 };
+use tokio::sync::Semaphore;
 use walkdir::WalkDir;
 
 #[derive(Debug)]
@@ -141,7 +143,13 @@ pub(crate) fn get_items(job: Job) -> Result<Vec<Item>> {
     Ok(items)
 }
 
-pub(crate) async fn execute_item_async(item: Item) -> Result<()> {
+pub(crate) async fn execute_item_async(item: Item, permits: Arc<Semaphore>) -> Result<()> {
+    // One permit per in-flight item keeps the open files of all concurrent
+    // jobs within low ulimits; it is dropped when the item finishes.
+    let _permit = permits
+        .acquire()
+        .await
+        .context("failed to acquire copy permit")?;
     match item {
         Item::Copy { src, dest } => {
             file_util::copy_async(src, dest).await?;
@@ -194,6 +202,7 @@ fn needs_update(src: &Path, dest: &Path) -> Result<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::job::COPY_CONCURRENCY;
     use std::fs::{self, File};
     use std::io::Write;
     use tempfile::TempDir;
@@ -207,6 +216,7 @@ mod tests {
 
     #[test]
     fn test_execute_item_async() -> Result<()> {
+        let _serial = file_util::test_hooks::copy_test_lock();
         let filename = "hello.txt";
         let content = b"Hello, World!";
         let rt = tokio::runtime::Builder::new_multi_thread()
@@ -219,7 +229,7 @@ mod tests {
         let item = Item::new_copy(&src, &dest);
         dbg!(&item);
         rt.block_on(async {
-            let res = execute_item_async(item).await;
+            let res = execute_item_async(item, Arc::new(Semaphore::new(COPY_CONCURRENCY))).await;
             assert!(res.is_ok());
         });
         assert!(dest.exists());
@@ -233,7 +243,7 @@ mod tests {
         dbg!(&item);
         assert!(dest.exists());
         rt.block_on(async {
-            let res = execute_item_async(item).await;
+            let res = execute_item_async(item, Arc::new(Semaphore::new(COPY_CONCURRENCY))).await;
             assert!(res.is_ok());
         });
         assert!(!dest.exists());

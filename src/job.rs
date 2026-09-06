@@ -5,6 +5,8 @@ use clap::ValueEnum;
 use futures::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::Arc;
+use tokio::sync::Semaphore;
 
 /// Represents a single backup job with a unique id, source, target, and optional compression.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -131,12 +133,24 @@ pub fn display_jobs(jobs: Vec<Job>) -> String {
     s
 }
 
-/// Upper bound on concurrently copied files within one directory job, so a
-/// huge tree cannot exhaust file descriptors on systems with low ulimits.
-const COPY_CONCURRENCY: usize = 64;
+/// Upper bound on concurrently executing items (copies and deletes) per
+/// permit pool; process-wide when jobs share a pool via [`run_jobs`], so
+/// huge trees and multi-job runs cannot exhaust file descriptors on
+/// systems with low ulimits.
+pub(crate) const COPY_CONCURRENCY: usize = 64;
 
 /// Runs a backup job (single file or directory copy, with optional compression).
+///
+/// Copies are bounded by a fresh permit pool, i.e. by this job alone; callers
+/// running several jobs concurrently should use [`run_jobs`], which shares a
+/// single pool across jobs.
 pub async fn run_job(job: &Job) -> Result<()> {
+    run_job_with_permits(job, &Arc::new(Semaphore::new(COPY_CONCURRENCY))).await
+}
+
+/// Like [`run_job`], but concurrent callers share `permits`, bounding the
+/// total number of items executing at once across the whole process.
+async fn run_job_with_permits(job: &Job, permits: &Arc<Semaphore>) -> Result<()> {
     if let Some(ref format) = job.compression {
         let level = job.level.as_ref().unwrap_or(&Level::Default);
         let src = job.source.clone();
@@ -157,13 +171,16 @@ pub async fn run_job(job: &Job) -> Result<()> {
         }
         let job = job.clone();
         let items = tokio::task::spawn_blocking(move || get_items(job)).await??;
-        let mut tasks = stream::iter(items.into_iter().map(execute_item_async))
-            .buffer_unordered(COPY_CONCURRENCY);
+        let mut tasks = stream::iter(items.into_iter().map(|item| {
+            let permits = permits.clone();
+            async move { execute_item_async(item, permits).await }
+        }))
+        .buffer_unordered(COPY_CONCURRENCY);
         while let Some(res) = tasks.next().await {
             res?;
         }
     } else if let Some(item) = get_item(job.clone())? {
-        execute_item_async(item).await?;
+        execute_item_async(item, permits.clone()).await?;
     }
     Ok(())
 }
@@ -172,16 +189,19 @@ pub async fn run_job(job: &Job) -> Result<()> {
 ///
 /// Each job runs in its own task; individual failures are reported to stderr
 /// and never stop the remaining jobs. Returns Err if any job failed so the
-/// process can exit non-zero.
+/// process can exit non-zero. All jobs share one copy-permit pool, so their
+/// combined concurrency stays within [`COPY_CONCURRENCY`].
 pub async fn run_jobs(jobs: Vec<Job>) -> Result<()> {
     let mut failed_ids: Vec<u32> = vec![];
     let mut aborted_tasks = 0usize;
+    let permits = Arc::new(Semaphore::new(COPY_CONCURRENCY));
     {
         let mut set = tokio::task::JoinSet::new();
         for job in jobs {
+            let permits = permits.clone();
             set.spawn(async move {
                 let id = job.id;
-                match run_job(&job).await {
+                match run_job_with_permits(&job, &permits).await {
                     Ok(()) => None,
                     Err(e) => {
                         eprintln!("Failed to run job with id {id}: {e}\n");
@@ -220,7 +240,52 @@ pub async fn run_jobs(jobs: Vec<Job>) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use std::path::PathBuf;
+    use tempfile::TempDir;
+
+    // The serialization guard intentionally spans the awaits: parallel unit
+    // tests must not touch the copy path while this one measures concurrency.
+    #[tokio::test]
+    #[allow(clippy::await_holding_lock)]
+    async fn run_jobs_bounds_concurrent_copies_process_wide() {
+        let _serial = file_util::test_hooks::copy_test_lock();
+        file_util::test_hooks::reset_copy_tracking();
+
+        // Several directory jobs run at once, each with more files than the
+        // per-job bound, so without a process-wide bound their concurrent
+        // copies add up past COPY_CONCURRENCY.
+        let temp = TempDir::new().unwrap();
+        let mut jobs = vec![];
+        for j in 0..3 {
+            let src = temp.path().join(format!("src{j}"));
+            fs::create_dir_all(&src).unwrap();
+            for i in 0..80 {
+                fs::write(src.join(format!("f{i:03}.txt")), vec![0u8; 128 * 1024]).unwrap();
+            }
+            jobs.push(Job::temp_job(
+                src,
+                temp.path().join(format!("dst{j}")),
+                None,
+                None,
+                None,
+                None,
+            ));
+        }
+
+        run_jobs(jobs).await.unwrap();
+
+        let max = file_util::test_hooks::max_concurrent_copies();
+        assert!(
+            max <= COPY_CONCURRENCY,
+            "copies peaked at {max} in flight, above the process-wide bound of {COPY_CONCURRENCY}"
+        );
+        // Guard against the measurement rotting into a vacuous pass.
+        assert!(
+            max > 1,
+            "expected real copy concurrency, measured {max} — instrumentation broken?"
+        );
+    }
 
     #[test]
     fn test_job_list_display() {
