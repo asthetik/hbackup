@@ -73,8 +73,37 @@ fn run_single_failing_job_exits_non_zero() -> anyhow::Result<()> {
     let temp = TempDir::new()?;
     add_good_and_bad_jobs(&temp)?;
 
-    bk(&temp).args(["run", "-i", "2"]).assert().failure();
+    // Same exit code as the multi-job `bk run` path: failures always exit 1.
+    bk(&temp)
+        .args(["run", "-i", "2"])
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(predicate::str::contains("Failed to run job with id 2"));
 
+    Ok(())
+}
+
+#[test]
+fn empty_hbackup_config_env_falls_back_to_absolute_default() -> anyhow::Result<()> {
+    let temp = TempDir::new()?;
+    // An empty override must be ignored instead of resolving the config to
+    // a relative ./config.toml inside the working directory. HOME (and
+    // XDG_CONFIG_HOME) redirect the fallback default on Unix; Windows uses
+    // its known-folder API, which is absolute by construction — there the
+    // fallback is the real config dir, and `bk config` only creates the
+    // file if it is missing (never overwrites).
+    Command::new(assert_cmd::cargo::cargo_bin!("bk"))
+        .arg("config")
+        .env("HBACKUP_CONFIG", "")
+        .env("HOME", temp.path())
+        .env("XDG_CONFIG_HOME", temp.path().join(".config"))
+        .current_dir(temp.path())
+        .assert()
+        .success()
+        .stdout(predicate::function(|out: &str| {
+            std::path::Path::new(out.trim()).is_absolute()
+        }));
     Ok(())
 }
 

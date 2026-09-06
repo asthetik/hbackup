@@ -57,6 +57,8 @@ pub fn copy(src: &Path, dest: &Path) -> Result<()> {
 
 /// Asynchronously copy files and directories from src to dest.
 pub async fn copy_async(src: PathBuf, dest: PathBuf) -> Result<()> {
+    #[cfg(test)]
+    let _copy_guard = test_hooks::CopyGuard::enter();
     if create_dir(&src, &dest)? {
         return Ok(());
     }
@@ -518,4 +520,51 @@ fn compress_tar(src: &Path, dest: &Path, ignore: Option<&[String]>) -> Result<()
     }
 
     Ok(())
+}
+
+/// Test-only instrumentation counting concurrent [`copy_async`] calls, so
+/// tests can assert the process-wide copy bound is respected.
+///
+/// Every unit test that exercises `copy_async` must hold `copy_test_lock()`
+/// for its duration, or it can spuriously fail the bounds test by
+/// inflating the counters.
+#[cfg(test)]
+pub(crate) mod test_hooks {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Mutex, MutexGuard, OnceLock};
+
+    static CONCURRENT: AtomicUsize = AtomicUsize::new(0);
+    static MAX_CONCURRENT: AtomicUsize = AtomicUsize::new(0);
+    static TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+    /// Serializes unit tests that exercise the copy path so parallel tests
+    /// cannot inflate the counters.
+    pub(crate) fn copy_test_lock() -> MutexGuard<'static, ()> {
+        TEST_LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+    }
+
+    pub(crate) fn reset_copy_tracking() {
+        CONCURRENT.store(0, Ordering::SeqCst);
+        MAX_CONCURRENT.store(0, Ordering::SeqCst);
+    }
+
+    pub(crate) fn max_concurrent_copies() -> usize {
+        MAX_CONCURRENT.load(Ordering::SeqCst)
+    }
+
+    pub(crate) struct CopyGuard;
+
+    impl CopyGuard {
+        pub(crate) fn enter() -> Self {
+            let now = CONCURRENT.fetch_add(1, Ordering::SeqCst) + 1;
+            MAX_CONCURRENT.fetch_max(now, Ordering::SeqCst);
+            CopyGuard
+        }
+    }
+
+    impl Drop for CopyGuard {
+        fn drop(&mut self) {
+            CONCURRENT.fetch_sub(1, Ordering::SeqCst);
+        }
+    }
 }
