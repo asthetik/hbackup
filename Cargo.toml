@@ -29,7 +29,7 @@ toml = "1.1"
 flate2 = "1.1"
 tar = "0.4"
 walkdir = "2.5"
-zip = { version = "8.6", default-features = false, features = ["deflate"] }
+zip = { version = "9.0", default-features = false, features = ["deflate"] }
 sevenz-rust2 = { version = "0.20", features = ["compress"] }
 zstd = "0.14"
 bzip2 = "0.6"
